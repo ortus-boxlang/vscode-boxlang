@@ -1,10 +1,7 @@
 import { spawn } from "child_process";
 import * as vscode from "vscode";
 
-const path = require('path')
-
-const lexerPath = path.resolve(__dirname, '../../resources/CFLexer.g4');
-const parserPath = path.resolve(__dirname, '../../resources/CFParser.g4');
+const path = require('path');
 
 function getHighlightedText() {
     const editor = vscode.window.activeTextEditor;
@@ -33,7 +30,6 @@ export async function showANTLRGraph() {
 
     const antlr = spawn("antlr4-parse", parseArgs);
     const tokenOutput = [];
-    // let closed = false;
 
     const id = setInterval(async () => {
         for (let i = 0; i < tokenOutput.length; i++) {
@@ -86,7 +82,7 @@ async function displayTokenOutput(output) {
     const doc = await vscode.workspace.openTextDocument(vscode.Uri.file('antlr4-parse tokens').with({ scheme: "untitled" }));
     const edit = new vscode.WorkspaceEdit();
     edit.insert(doc.uri, new vscode.Position(doc.lineCount + 1, 0), output);
-    const result = await vscode.workspace.applyEdit(edit);
+    await vscode.workspace.applyEdit(edit);
 
     vscode.window.showTextDocument(doc);
 }

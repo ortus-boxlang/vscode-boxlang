@@ -1,11 +1,11 @@
 {
-    "name": "cfmleditor",
-    "displayName": "CFML Editor",
-    "description": "CFML Language Editor",
+    "name": "boxlang",
+    "displayName": "BoxLang",
+    "description": "BoxLang Langauge Support",
     "version": "0.6.12",
     "preview": true,
-    "author": "cfmleditor",
-    "publisher": "cfmleditor",
+    "author": "boxlang",
+    "publisher": "boxlang",
     "license": "MIT",
     "engines": {
         "vscode": "^1.85.0"
@@ -30,7 +30,7 @@
         "workspaceContains:**/*.cfml",
         "workspaceContains:**/*.cfc"
     ],
-    "icon": "images/icon2x.png",
+    "icon": "images/horn-gradient.png",
     "main": "./out/cfmlMain",
     "browser": "./dist/web/cfmlMain.js",
     "contributes": {
