@@ -95,8 +95,8 @@
                 ],
                 "configuration": "./boxlang-language-configuration.json",
                 "icon": {
-                    "light": "./icons/boxlang-light.png",
-                    "dark": "./icons/boxlang-dark.png"
+                    "light": "./icons/horn-dark.svg",
+                    "dark": "./icons/horn-gradient.svg"
                 }
             }
         ],
@@ -531,11 +531,15 @@
         "commands": [
             {
                 "command": "boxlang.runFile",
-                "title": "Run File"
+                "title": "BoxLang: Run File"
             },
             {
                 "command": "boxlang.showANTLRGraph",
-                "title": "Show ANTLR Graph"
+                "title": "BoxLang: Show ANTLR Graph"
+            },
+            {
+                "command": "boxlang.showBoxLangASTGraph",
+                "title": "BoxLang: Show BoxLang AST Graph"
             },
             {
                 "command": "cfml.refreshGlobalDefinitionCache",
@@ -597,6 +601,10 @@
                 },
                 {
                     "command": "boxlang.showANTLRGraph",
+                    "when": "resourceLangId == boxlang"
+                },
+                {
+                    "command": "boxlang.showBoxLangASTGraph",
                     "when": "resourceLangId == boxlang"
                 }
             ],

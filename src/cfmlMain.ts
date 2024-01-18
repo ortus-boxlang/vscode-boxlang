@@ -133,6 +133,7 @@ export function activate(context: ExtensionContext): void {
     });
     context.subscriptions.push(commands.registerCommand("boxlang.runFile", extensionCommands.runBoxLangFile));
     context.subscriptions.push(commands.registerCommand("boxlang.showANTLRGraph", extensionCommands.showANTLRGraph));
+    context.subscriptions.push(commands.registerCommand("boxlang.showBoxLangASTGraph", extensionCommands.showBoxLangASTGraph));
     context.subscriptions.push(commands.registerCommand("cfml.refreshGlobalDefinitionCache", refreshGlobalDefinitionCache));
     context.subscriptions.push(commands.registerCommand("cfml.refreshWorkspaceDefinitionCache", refreshWorkspaceDefinitionCache));
     context.subscriptions.push(commands.registerTextEditorCommand("cfml.toggleLineComment", toggleComment(CommentType.Line)));

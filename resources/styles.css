@@ -1,0 +1,63 @@
+html,
+body {
+    width: 100vw;
+    height: 100vh;
+    background: #555;
+    margin: 0;
+    color: #ddd;
+    padding: 0;
+    overflow: hidden;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+#app {
+    display: flex;
+    height: 100%;
+    margin: 0;
+}
+
+#side-panel {
+    height: calc(100% - 40px);
+    width: 200px;
+    margin: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+#display-panel {
+    background: #4b5359;
+    flex: 1;
+}
+
+.node-hidden {
+    display: none;
+}
+
+.node-hasSourceText {
+    position: relative;
+    text-decoration: underline;
+    color: #00f;
+    cursor: help;
+}
+
+.file-list {
+    list-style: none;
+    margin: 0;
+    padding: 0px;
+    flex: 1;
+}
+
+.file--selected {
+    color: white;
+}
+
+.layout-control-button {
+    background-color: #555;
+}
+
+.layout-control-button.layout-control-button--selected {
+    background-color: white;
+}
