@@ -44,7 +44,8 @@ function getHighlightedText() {
 }
 
 function spawnBoxLang(...args: string[]) {
-    return spawn("java", ["-jar", "C:\\Users\\jacob\\Dev\\boxlang\\build\\libs\\boxlang-1.0.0-all.jar"].concat(args));
+    const jarPath = vscode.workspace.getConfiguration("cfml.boxlang").get<string>('jarpath');
+    return spawn("java", ["-jar", jarPath].concat(args));
 }
 
 async function convertToBoxLangAST(text) {
