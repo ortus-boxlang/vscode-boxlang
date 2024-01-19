@@ -2,30 +2,34 @@
     "name": "boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Langauge Support",
-    "version": "0.6.12",
+    "version": "0.7.0",
     "preview": true,
-    "author": "boxlang",
-    "publisher": "boxlang",
+    "author": "ortus-solutions",
+    "publisher": "ortus-solutions",
     "license": "MIT",
     "engines": {
         "vscode": "^1.85.0"
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/cfmleditor/cfmleditor.git"
+        "url": "https://github.com/ortus-solutions-private/vscode-boxlang.git"
     },
     "bugs": {
-        "url": "https://github.com/cfmleditor/cfmleditor/issues"
+        "url": "https://github.com/ortus-solutions-private/vscode-boxlang/issues"
     },
     "categories": [
         "Programming Languages"
     ],
     "keywords": [
+        "boxlang",
         "cfml",
         "coldfusion",
         "lucee"
     ],
     "activationEvents": [
+        "workspaceContains:**/*.bx",
+        "workspaceContains:**/*.bm",
+        "workspaceContains:**/*.bs",
         "workspaceContains:**/*.cfm",
         "workspaceContains:**/*.cfml",
         "workspaceContains:**/*.cfc"
