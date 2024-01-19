@@ -59,8 +59,8 @@ jobs:
         run: |
           $version = (Get-Content ./package.json -Raw | ConvertFrom-Json).version
           Write-Host "tag: release/$version"
-          Write-Host "tag=release/$version" >> $Env:GITHUB_OUTPUT
-          Write-Host "version=$version" >> $Env:GITHUB_OUTPUT
+          Write-Output "tag=release/$version" >> $Env:GITHUB_OUTPUT
+          Write-Output "version=$version" >> $Env:GITHUB_OUTPUT
         shell: pwsh
 
   # publishMS:
