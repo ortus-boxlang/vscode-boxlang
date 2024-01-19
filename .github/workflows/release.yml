@@ -19,7 +19,7 @@ on:
         description: 'Publish to GitHub Releases'
         type: boolean
         required: true
-        default: "false"
+        default: "true"
 
 jobs:
   package:
@@ -41,7 +41,8 @@ jobs:
 
       - name: Setup package path
         id: setup
-        run: echo "::set-output name=packageName::$(node -e "console.log(require('./package.json').name + '-' + require('./package.json').version + '.vsix')")"
+        run: echo "::set-output packageName=$(node -e "console.log(require('./package.json').name + '-' + require('./package.json').version + '.vsix')")" >> $GITHUB_OUTPUT
+        # run: echo "::set-output name=packageName::$(node -e "console.log(require('./package.json').name + '-' + require('./package.json').version + '.vsix')")"
 
       - name: Package
         run: |
@@ -58,8 +59,10 @@ jobs:
         run: |
           $version = (Get-Content ./package.json -Raw | ConvertFrom-Json).version
           Write-Host "tag: release/$version"
-          Write-Host "::set-output name=tag::release/$version"
-          Write-Host "::set-output name=version::$version"
+          # Write-Host "::set-output name=tag::release/$version"
+          # Write-Host "::set-output name=version::$version"
+          Write-Host "tag=release/$version" >> $GITHUB_OUTPUT
+          Write-Host "version=$version" >> $GITHUB_OUTPUT
         shell: pwsh
 
   # publishMS:
@@ -88,30 +91,30 @@ jobs:
   #     - name: Publish to OpenVSX
   #       run: npx ovsx publish ./${{ needs.package.outputs.packageName }} -p ${{ secrets.OVSX_PAT }}
 
-  # publishGH:
-  #   name: Publish to GitHub releases
-  #   runs-on: ubuntu-latest
-  #   needs: package
-  #   if: github.event.inputs.publishGH == 'true'
-  #   steps:
-  #     - uses: actions/download-artifact@v2
-  #       with:
-  #         name: ${{ needs.package.outputs.packageName }}
+  publishGH:
+    name: Publish to GitHub releases
+    runs-on: ubuntu-latest
+    needs: package
+    if: github.event.inputs.publishGH == 'true'
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: ${{ needs.package.outputs.packageName }}
 
-  #     - name: Create Release
-  #       id: create-release
-  #       uses: actions/create-release@v1
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #       with:
-  #         tag_name: ${{ needs.package.outputs.tag }}
-  #         release_name: Release ${{ needs.package.outputs.version }}
-  #         draft: false
-  #         prerelease: false
+      - name: Create Release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.package.outputs.tag }}
+          release_name: Release ${{ needs.package.outputs.version }}
+          draft: false
+          prerelease: false
 
-  #     - name: Upload assets to a Release
-  #       uses: AButler/upload-release-assets@v2.0
-  #       with:
-  #         files: ${{ needs.package.outputs.packageName }}
-  #         release-tag: ${{ needs.package.outputs.tag }}
-  #         repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload assets to a Release
+        uses: AButler/upload-release-assets@v2.0
+        with:
+          files: ${{ needs.package.outputs.packageName }}
+          release-tag: ${{ needs.package.outputs.tag }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
