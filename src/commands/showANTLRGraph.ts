@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import * as vscode from "vscode";
+import { appendToOpenDocument } from "../utils/documentUtil";
 
 const path = require('path');
 
@@ -79,12 +80,7 @@ async function displayTokenOutput(output) {
         return;
     }
 
-    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file('antlr4-parse tokens').with({ scheme: "untitled" }));
-    const edit = new vscode.WorkspaceEdit();
-    edit.insert(doc.uri, new vscode.Position(doc.lineCount + 1, 0), output);
-    await vscode.workspace.applyEdit(edit);
-
-    vscode.window.showTextDocument(doc);
+    appendToOpenDocument(vscode.Uri.file('antlr4-parse tokens').with({ scheme: "untitled" }), output);
 }
 
 function getShowLexerTokens() {

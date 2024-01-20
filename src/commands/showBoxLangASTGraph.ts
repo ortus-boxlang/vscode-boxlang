@@ -1,7 +1,7 @@
 
-import { spawn } from "child_process";
 import path from "path";
 import * as vscode from "vscode";
+import { BoxLang } from "../utils/BoxLang";
 
 export async function showBoxLangASTGraph() {
     const highlightedText = getHighlightedText();
@@ -12,7 +12,7 @@ export async function showBoxLangASTGraph() {
     }
 
     try {
-        const boxLangAST = await convertToBoxLangAST(highlightedText);
+        const boxLangAST = await await new BoxLang().getASTJSON(highlightedText);
 
         // Create and show a new webview
         const panel = vscode.window.createWebviewPanel(
@@ -41,26 +41,6 @@ function getHighlightedText() {
     }
 
     return "";
-}
-
-function spawnBoxLang(...args: string[]) {
-    const jarPath = vscode.workspace.getConfiguration("cfml.boxlang").get<string>('jarpath');
-    return spawn("java", ["-jar", jarPath].concat(args));
-}
-
-async function convertToBoxLangAST(text) {
-    return new Promise((resolve, reject) => {
-        const boxlang = spawnBoxLang("--printAST", "-c", text);
-        let output = '';
-
-        boxlang.stdout.on("data", data => output += data);
-        // TODO: throw error
-        boxlang.stderr.on("data", data => console.log(data + ''));
-
-        boxlang.on("close", () => {
-            resolve(output.replace(/\\n/g, '\\\\n').replace(/\\"/g, '\\\\"'));
-        });
-    });
 }
 
 async function getWebviewContent(panel, boxLangAST) {

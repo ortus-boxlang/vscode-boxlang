@@ -555,8 +555,8 @@
         },
         "commands": [
             {
-                "command": "boxlang.runFile",
-                "title": "BoxLang: Run File"
+                "command": "boxlang.transpileToJava",
+                "title": "BoxLang: Transpile to Java"
             },
             {
                 "command": "boxlang.runFile",
@@ -626,15 +626,19 @@
             "editor/context": [
                 {
                     "command": "boxlang.runFile",
-                    "when": "resourceLangId == boxlang"
+                    "when": "resourceLangId == boxlang || resourceLangId == cfml"
+                },
+                {
+                    "command": "boxlang.transpileToJava",
+                    "when": "resourceLangId == boxlang || resourceLangId == cfml"
                 },
                 {
                     "command": "boxlang.showANTLRGraph",
-                    "when": "resourceLangId == boxlang"
+                    "when": "resourceLangId == boxlang || resourceLangId == cfml"
                 },
                 {
                     "command": "boxlang.showBoxLangASTGraph",
-                    "when": "resourceLangId == boxlang"
+                    "when": "resourceLangId == boxlang || resourceLangId == cfml"
                 }
             ],
             "commandPalette": [
