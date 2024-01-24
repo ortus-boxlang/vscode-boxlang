@@ -172,6 +172,11 @@
                     "description": "The path to the ANTLR parser file to use when generating AST visualizations",
                     "scope": "window"
                 },
+                "cfml.boxlang.customAntlrToolsCommand": {
+                    "type": "string",
+                    "description": "The custom path to execute when generating a antlr graph",
+                    "scope": "window"
+                },
                 "cfml.globalDefinitions.source": {
                     "type": "string",
                     "description": "The source of the global definitions.",

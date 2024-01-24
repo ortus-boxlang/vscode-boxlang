@@ -1,5 +1,6 @@
-import { spawn } from "child_process";
+import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import * as vscode from "vscode";
+import { ExtensionConfig } from "../utils/Configuration";
 import { appendToOpenDocument } from "../utils/documentUtil";
 
 const path = require('path');
@@ -23,13 +24,7 @@ export async function showANTLRGraph() {
         return;
     }
 
-    const parseArgs = [getPathToLexerFile(), getPathToParserFile(), "script", "-gui"];
-
-    if (getShowLexerTokens()) {
-        parseArgs.splice(3, 0, ["-tokens"]);
-    }
-
-    const antlr = spawn("antlr4-parse", parseArgs);
+    const antlr = spawnAntler();
     const tokenOutput = [];
 
     const id = setInterval(async () => {
@@ -73,6 +68,23 @@ export async function showANTLRGraph() {
         throw (err);
 
     });
+}
+
+function spawnAntler(): ChildProcessWithoutNullStreams {
+
+    if (ExtensionConfig.customAntlrToolsCommand) {
+        const args = JSON.parse(ExtensionConfig.customAntlrToolsCommand);
+
+        return spawn(args[0], args.slice(1));
+    }
+
+    const parseArgs = [getPathToLexerFile(), getPathToParserFile(), "script", "-gui"];
+
+    if (getShowLexerTokens()) {
+        parseArgs.splice(3, 0, ["-tokens"]);
+    }
+
+    return spawn("antlr4-parse", parseArgs);
 }
 
 async function displayTokenOutput(output) {
