@@ -6,7 +6,8 @@ export async function runBoxLangFile(filePath) {
         type: "boxlang",
         request: "launch",
         program: filePath.fsPath,
-        boxlangJar: vscode.workspace.getConfiguration("cfml.boxlang").get<string>('jarpath')
+        boxlangJar: vscode.workspace.getConfiguration("cfml.boxlang").get<string>('jarpath'),
+        debugServer: 4404
     };
 
     await vscode.debug.startDebugging(null, debugConfig);

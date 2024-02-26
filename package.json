@@ -38,6 +38,14 @@
     "main": "./out/cfmlMain",
     "browser": "./dist/web/cfmlMain.js",
     "contributes": {
+        "breakpoints": [
+            {
+                "language": "boxlang"
+            },
+            {
+                "language": "cfml"
+            }
+        ],
         "debuggers": [
             {
                 "type": "boxlang",

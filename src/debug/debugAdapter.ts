@@ -18,7 +18,7 @@ class BoxLangDebugSession extends LoggingDebugSession {
     }
 
     protected launchRequest(response: DebugProtocol.LaunchResponse, args: BoxLangLaunchRequestArguments, request?: DebugProtocol.Request): void {
-        const boxlang = spawn('java', ["-jar", args.boxlangJar, args.program]);
+        const boxlang = spawn('java', ["-jar", args.boxlangJar, "--debugger", args.program]);
 
         boxlang.stdout.on('data', (chunk) => {
             this.sendEvent(new OutputEvent(chunk + '', 'stdout'));
