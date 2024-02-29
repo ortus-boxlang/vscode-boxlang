@@ -1,10 +1,23 @@
 {
     "scopeName": "boxlang.injection",
-    "injectionSelector": "L:string.quoted.triple.java",
+    "injectionSelector": "L:meta.method-call.java",
     "patterns": [
         {
-            "begin": "\\s*/\\*BL\\*/",
-            "end": "/\\*!BL\\*/",
+            "begin": "/\\* bl \\*/(\"\"\")",
+            "beginCaptures": {
+                "0": {
+                    "name": "meta.declaration.annotation.java"
+                },
+                "1": {
+                    "name": "string.quoted.triple.java"
+                }
+            },
+            "end": "\"\"\"",
+            "endCaptures": {
+                "0": {
+                    "name": "string.quoted.triple.java"
+                }
+            },
             "name": "meta.embedded.boxlang",
             "contentName": "meta.embedded.boxlang.script",
             "patterns": [
