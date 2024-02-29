@@ -1,28 +1,48 @@
 {
     "scopeName": "boxlang.injection",
-    "injectionSelector": "L:meta.method-call.java",
+    "injectionSelector": "L:meta.method.body.java",
     "patterns": [
         {
-            "begin": "(?i)/\\* bl \\*/(\"\"\")",
+            "begin": "(?im)(\\w+).(executeSource)(\\()",
             "beginCaptures": {
-                "0": {
-                    "name": "meta.declaration.annotation.java"
-                },
                 "1": {
-                    "name": "string.quoted.triple.java"
+                    "name": "variable.other.object.java"
+                },
+                "2": {
+                    "name": "entity.name.function.java"
+                },
+                "3": {
+                    "name": "punctuation.definition.parameters.begin.bracket.round.java"
                 }
             },
-            "end": "\"\"\"",
+            "end": "\\)",
             "endCaptures": {
                 "0": {
-                    "name": "string.quoted.triple.java"
+                    "name": "punctuation.terminator.java"
                 }
             },
             "name": "meta.embedded.boxlang",
             "contentName": "meta.embedded.boxlang.script",
             "patterns": [
                 {
-                    "include": "#source-cfml-script"
+                    "begin": "\"\"\"",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "string.quoted.triple.java"
+                        }
+                    },
+                    "end": "\"\"\"",
+                    "endCaptures": {
+                        "0": {
+                            "name": "string.quoted.triple.java"
+                        }
+                    },
+                    "contentName": "meta.embedded.boxlang.script",
+                    "patterns": [
+                        {
+                            "include": "#source-cfml-script"
+                        }
+                    ]
                 }
             ]
         }
