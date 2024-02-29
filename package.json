@@ -64,6 +64,10 @@
                             "program": {
                                 "type": "string",
                                 "description": "The program to debug."
+                            },
+                            "serverPort": {
+                                "type": "number",
+                                "description": "The server port to connect to"
                             }
                         }
                     }
@@ -151,6 +155,16 @@
                     "meta.embedded.line.cfml": "cfml",
                     "meta.embedded.block.cfml": "cfml",
                     "punctuation.definition.template-expression.end.cfml": "cfml"
+                }
+            },
+            {
+                "scopeName": "boxlang.injection",
+                "path": "./syntaxes/boxlang-java.tmLanguage.json",
+                "injectTo": [
+                    "source.java"
+                ],
+                "embeddedLanguages": {
+                    "meta.embedded.boxlang.script": "boxlang"
                 }
             }
         ],
