@@ -3,7 +3,7 @@
     "injectionSelector": "L:meta.method-call.java",
     "patterns": [
         {
-            "begin": "/\\* bl \\*/(\"\"\")",
+            "begin": "(?i)/\\* bl \\*/(\"\"\")",
             "beginCaptures": {
                 "0": {
                     "name": "meta.declaration.annotation.java"
