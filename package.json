@@ -2,7 +2,7 @@
     "name": "boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Langauge Support",
-    "version": "0.7.1",
+    "version": "0.7.2",
     "preview": true,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -660,12 +660,10 @@
                     "when": "resourceLangId == boxlang || resourceLangId == cfml"
                 },
                 {
-                    "command": "boxlang.showANTLRGraph",
-                    "when": "resourceLangId == boxlang || resourceLangId == cfml"
+                    "command": "boxlang.showANTLRGraph"
                 },
                 {
-                    "command": "boxlang.showBoxLangASTGraph",
-                    "when": "resourceLangId == boxlang || resourceLangId == cfml"
+                    "command": "boxlang.showBoxLangASTGraph"
                 }
             ],
             "commandPalette": [
