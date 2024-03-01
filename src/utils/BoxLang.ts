@@ -33,7 +33,9 @@ export class BoxLang {
     async getASTJSON(code) {
         const result = await runBoxLang("--printAST", "-c", code);
 
-        return result.stdout.replace(/\\n/g, '\\\\n').replace(/\\"/g, '\\\\"');
+        return result.stdout.replace(/\\n/g, '\\\\n')
+            .replace(/\\r/g, '\\\\r')
+            .replace(/\\"/g, '\\\\"');
     }
 
     async transpileToJava(filePath: string): Promise<string> {
