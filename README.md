@@ -1,8 +1,47 @@
-# CFML Editor
+# BoxLang Language Support
 
-[![cfml](https://img.shields.io/badge/cfml-ide-blue.svg?logo=slack&labelColor=555555)](http://cfml-slack.net/)
+An extension for the development of BoxLang.
 
-An extension for the development of CFML.
+## Building and Installing
+
+For local development you can run the following commands to build the extension.
+
+```
+npm install
+
+npm run build
+
+npm run pack
+```
+
+Once the `npm run pack` command completes you should see a file in the root fo the project like `boxlang-#.#.#.vsix`. This VSIX package is the bundeled extension and should be ready to install.
+
+You can install it via command line like so
+```
+code --install-extension boxlang-0.7.1.vsix
+```
+
+Alternatively you can install the extension via UI by opening VSCode hitting `ctrl+shift+p` and selecting the command `Extensions: Install from VSIX...`. When the file picker appears navigate to your vscode-boxlang directory and select the VSIX package to install.
+
+> Note: A PowerShell script in the root of the project named `Run-LocalInstall.ps1` can be used to build/install the extension automatically or as a an example.
+
+## Configuring BoxLang Features
+
+The extensions BoxLang features are primarily configured via the following settings
+
+* `boxlang.jarpath` This should be the path to your boxlang fat jar `/path/to/project/boxlang/libs/boxlang-1.0.0-all.jar`
+* `boxlang.showLexerTokens` This controls the output of the antlr4-parse to show the tokens in a file.
+* `boxlang.lexerPath` The path to the antlr lexer file
+* `boxlang.parserPath` The path to the antlr parser file
+* `boxlang.customAntlrToolsCommand` A custom command to run instead of the configured antlr command
+
+## Configuring the BoxLang Debugger
+
+Eventually this extension will ship with the BoxLang debugger. For now, we have opted to provide the debugger via launch configuration.
+
+In your BoxLang VSCode project go to the run profile `boxlang (debugger)` and hit play. It will spin up the boxlang debug server on port 4404. 
+
+In your test project folder you can now right-click on any BoxLang source file and select "BoxLang: Run File". VSCode will conect to the BoxLang process listening to port 4404 and execute the file. 
 
 ## Acknowledgements
 

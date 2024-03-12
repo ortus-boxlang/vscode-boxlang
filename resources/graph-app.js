@@ -120,6 +120,10 @@ function extractEdges(array, transformedASTNode) {
 }
 
 function astToVizDataSetTree(transformedAST) {
+    if (transformedAST == null) {
+        return;
+    }
+
     if (Array.isArray(transformedAST)) {
         return Array.prototype.concat.apply(transformedAST.map(astToVizDataSetTree));
     }
