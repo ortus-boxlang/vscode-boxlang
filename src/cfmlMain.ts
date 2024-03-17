@@ -1,13 +1,21 @@
 import * as micromatch from "micromatch";
 import * as path from "path";
 import {
-    commands, ConfigurationChangeEvent, ConfigurationTarget, DocumentSelector, ExtensionContext, extensions,
-    FileSystemWatcher, IndentAction, languages, TextDocument, Uri, workspace, WorkspaceConfiguration
+    ConfigurationChangeEvent, ConfigurationTarget, DocumentSelector, ExtensionContext,
+    FileSystemWatcher, IndentAction,
+    TextDocument, Uri,
+    WorkspaceConfiguration,
+    commands,
+    debug,
+    extensions,
+    languages,
+    workspace
 } from "vscode";
+import { BoxLangDebugAdapter } from "./debug/BoxlangDebugDescriptor";
 import { COMPONENT_FILE_GLOB } from "./entities/component";
 import { Scope } from "./entities/scope";
 import { decreasingIndentingTags, goToMatchingTag, nonClosingTags, nonIndentingTags } from "./entities/tag";
-import { parseVariableAssignments, Variable } from "./entities/variable";
+import { Variable, parseVariableAssignments } from "./entities/variable";
 import { insertAutoCloseTag } from "./features/autoclose";
 import * as cachedEntity from "./features/cachedEntities";
 import CFMLDocumentColorProvider from "./features/colorProvider";
@@ -27,6 +35,7 @@ import { APPLICATION_CFM_GLOB, isCfcFile } from "./utils/contextUtil";
 import { DocumentStateContext, getDocumentStateContext } from "./utils/documentUtil";
 
 import * as extensionCommands from "./commands";
+import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
 
 export const LANGUAGE_ID: string = "cfml";
 const DOCUMENT_SELECTOR: DocumentSelector = [
@@ -131,7 +140,13 @@ export function activate(context: ExtensionContext): void {
             }
         ]
     });
+
+    context.subscriptions.push(debug.registerDebugAdapterDescriptorFactory("boxlang", new BoxLangDebugAdapter()));
+    context.subscriptions.push(debug.registerDebugAdapterTrackerFactory("boxlang", new BoxLangDebugAdapterTrackerFactory()));
+
+
     context.subscriptions.push(commands.registerCommand("boxlang.runFile", extensionCommands.runBoxLangFile));
+    context.subscriptions.push(commands.registerCommand("boxlang.runWebServer", extensionCommands.runBoxLangWebServer));
     context.subscriptions.push(commands.registerCommand("boxlang.transpileToJava", extensionCommands.transpileToJava));
     context.subscriptions.push(commands.registerCommand("boxlang.showANTLRGraph", extensionCommands.showANTLRGraph));
     context.subscriptions.push(commands.registerCommand("boxlang.showBoxLangASTGraph", extensionCommands.showBoxLangASTGraph));
