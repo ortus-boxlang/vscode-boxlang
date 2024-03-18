@@ -1,14 +1,12 @@
 import { spawn } from "child_process";
-import * as path from "path";
 import * as vscode from "vscode";
+import { ExtensionConfig } from "../utils/Configuration";
 
 type BoxLangResult = {
     code: Number,
     stdout: string,
     stderr: string
 }
-
-export const BOXLANG_JAR_PATH = path.resolve(__dirname, path.join("../../", "resources", "lib", "boxlang-1.0.0-all.jar"));
 
 async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
     const jarPath = vscode.workspace.getConfiguration("cfml.boxlang").get<string>('jarpath');
@@ -35,12 +33,9 @@ async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
 export class BoxLang {
     static async startDebugger(): Promise<string> {
         return new Promise((resolve, reject) => {
-            console.log(BOXLANG_JAR_PATH);
-            // const boxLang = spawn("java", ["-cp", BOXLANG_JAR_PATH, "ortus.boxlang.debugger.DebugMain"]);
             const boxLang = spawn("java", ["ortus.boxlang.debugger.DebugMain"], {
-                // shell: true,
                 env: {
-                    CLASSPATH: BOXLANG_JAR_PATH
+                    CLASSPATH: ExtensionConfig.boxlangJarPath
                 }
             });
             let stdout = '';
@@ -72,7 +67,7 @@ export class BoxLang {
         return new Promise((resolve, reject) => {
             const boxLang = spawn("java", ["ortus.boxlang.debugger.DebugMain", "--web-server"], {
                 env: {
-                    CLASSPATH: BOXLANG_JAR_PATH
+                    CLASSPATH: ExtensionConfig.boxlangJarPath
                 }
             });
             let stdout = '';

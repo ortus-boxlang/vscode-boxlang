@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { hasRunningWebServer } from "../debug/BoxLangDebugAdapterTracker";
+import { ExtensionConfig } from "../utils/Configuration";
 
 export async function runBoxLangWebServer() {
 
@@ -25,17 +26,19 @@ export async function runBoxLangWebServer() {
         return;
     }
 
+    const webPort = ExtensionConfig.boxlangServerPort;
     const debugConfig: vscode.DebugConfiguration = {
         name: "BoxLang",
         type: "boxlang",
         request: "launch",
         debugType: "local_web",
+        webPort: webPort,
         webRoot: webRoot
     };
 
     await vscode.debug.startDebugging(null, debugConfig);
 
     setTimeout(() => {
-        vscode.env.openExternal(vscode.Uri.parse("http://localhost:8080"));
+        vscode.env.openExternal(vscode.Uri.parse(`http://localhost:${webPort}`));
     }, 300);
 }

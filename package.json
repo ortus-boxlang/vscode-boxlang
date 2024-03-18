@@ -2,7 +2,7 @@
     "name": "boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Langauge Support",
-    "version": "0.7.3",
+    "version": "0.8.3",
     "preview": true,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -53,10 +53,23 @@
                 "languages": [
                     "boxlang"
                 ],
-                "program": "./out/debug/debugAdapter.js",
-                "runtime": "node",
                 "configurationAttributes": {
                     "launch": {
+                        "required": [
+                            "program"
+                        ],
+                        "properties": {
+                            "program": {
+                                "type": "string",
+                                "description": "The program to debug."
+                            },
+                            "serverPort": {
+                                "type": "number",
+                                "description": "The server port to connect to"
+                            }
+                        }
+                    },
+                    "attach": {
                         "required": [
                             "program"
                         ],
@@ -75,7 +88,7 @@
                 "initialConfigurations": [
                     {
                         "type": "boxlang",
-                        "request": "launch",
+                        "request": "attach",
                         "name": "Run BoxLang Program",
                         "program": "${workspaceFolder}/index.bx"
                     }
@@ -176,6 +189,11 @@
                 "cfml.boxlang.jarpath": {
                     "type": "string",
                     "description": "The path to the boxlang jar you want to use for execution",
+                    "scope": "window"
+                },
+                "cfml.boxlang.webPort": {
+                    "type": "number",
+                    "description": "The port to use for local development",
                     "scope": "window"
                 },
                 "cfml.boxlang.showLexerTokens": {
@@ -588,6 +606,10 @@
             {
                 "command": "boxlang.runFile",
                 "title": "BoxLang: Run File"
+            },
+            {
+                "command": "boxlang.runWebServer",
+                "title": "BoxLang: Run Web Server"
             },
             {
                 "command": "boxlang.showANTLRGraph",

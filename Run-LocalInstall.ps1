@@ -1,3 +1,14 @@
+git submodule update --init --recursive
+
+Push-Location ./boxlang
+
+&./gradlew.bat shadowJar
+
+Pop-Location
+
+New-Item -ItemType File -Path ./resources/lib/boxlang-1.0.0-all.jar -Force
+Copy-Item -Path ./boxlang/build/libs/boxlang-1.0.0-all.jar -Destination ./resources/lib/boxlang-1.0.0-all.jar
+
 npm install
 
 npm run build
