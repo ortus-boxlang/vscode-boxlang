@@ -1,5 +1,4 @@
 import { spawn } from "child_process";
-import * as vscode from "vscode";
 import { ExtensionConfig } from "../utils/Configuration";
 
 type BoxLangResult = {
@@ -9,7 +8,7 @@ type BoxLangResult = {
 }
 
 async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
-    const jarPath = vscode.workspace.getConfiguration("cfml.boxlang").get<string>('jarpath');
+    const jarPath = ExtensionConfig.boxlangJarPath;
 
     return new Promise((resolve, reject) => {
         const boxLang = spawn("java", ["-jar", jarPath].concat(args));
@@ -32,6 +31,7 @@ async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
 
 export class BoxLang {
     static async startDebugger(): Promise<string> {
+        console.log(ExtensionConfig.boxlangJarPath);
         return new Promise((resolve, reject) => {
             const boxLang = spawn("java", ["ortus.boxlang.debugger.DebugMain"], {
                 env: {
