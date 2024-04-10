@@ -1,4 +1,5 @@
 import * as micromatch from "micromatch";
+import * as net from 'net';
 import * as path from "path";
 import {
     ConfigurationChangeEvent, ConfigurationTarget, DocumentSelector, ExtensionContext,
@@ -34,8 +35,13 @@ import CFDocsService from "./utils/cfdocs/cfDocsService";
 import { APPLICATION_CFM_GLOB, isCfcFile } from "./utils/contextUtil";
 import { DocumentStateContext, getDocumentStateContext } from "./utils/documentUtil";
 
+
+import {
+    LanguageClient, ServerOptions
+} from 'vscode-languageclient/node';
 import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
+import { BoxLang } from "./utils/BoxLang";
 
 export const LANGUAGE_ID: string = "cfml";
 const DOCUMENT_SELECTOR: DocumentSelector = [
@@ -50,6 +56,8 @@ const DOCUMENT_SELECTOR: DocumentSelector = [
 ];
 
 export let extensionContext: ExtensionContext;
+
+let client: LanguageClient;
 
 /**
  * Gets a ConfigurationTarget enumerable based on a string representation
@@ -298,10 +306,51 @@ export function activate(context: ExtensionContext): void {
 
     commands.executeCommand("cfml.refreshGlobalDefinitionCache");
     commands.executeCommand("cfml.refreshWorkspaceDefinitionCache");
+
+
+
+    client = new LanguageClient(
+        "BoxLang Language Support",
+        getLSPServerConfig(),
+        {
+            documentSelector: [{ scheme: "file", language: "boxlang" }]
+        }
+    );
+
+    client.start();
 }
+
 
 /**
  * This method is called when the extension is deactivated.
  */
 export function deactivate(): void {
+    if (client) {
+        client.stop();
+    }
+}
+
+
+function getLSPServerConfig(): ServerOptions {
+    if (process.env.BOXLANG_LSP_PORT) {
+        return () => {
+            let socket = net.connect(5173, "0.0.0.0");
+            let result = {
+                writer: socket,
+                reader: socket
+            };
+
+            return Promise.resolve(result);
+        };
+    }
+
+    return async () => {
+        const [process, port] = await BoxLang.startLSP();
+
+        let socket = net.connect(port, "0.0.0.0");
+        return {
+            writer: socket,
+            reader: socket
+        };
+    };
 }

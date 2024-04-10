@@ -30,6 +30,39 @@ async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
 }
 
 export class BoxLang {
+    static startLSP(): Promise<Array<any>> {
+        return new Promise((resolve, reject) => {
+            const lsp = spawn("java", ["ortus.boxlanglsp.App"], {
+                env: {
+                    CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangLSPPath
+                }
+            });
+
+            let stdout = '';
+            let stderr = '';
+            let found = false;
+
+            lsp.stdout.on("data", data => {
+                stdout += data;
+
+                if (found) {
+                    return;
+                }
+
+                const matches = /Listening on port: (\d+)/mi.exec(stdout);
+
+                if (!matches) {
+                    return;
+                }
+
+                found = true;
+                resolve([lsp, matches[1]]);
+            });
+
+            lsp.stderr.on("data", data => console.log(stderr += data));
+        })
+    }
+
     static async startDebugger(): Promise<string> {
         console.log(ExtensionConfig.boxlangJarPath);
         return new Promise((resolve, reject) => {
@@ -108,4 +141,8 @@ export class BoxLang {
 
         return result.stdout;
     }
+}
+
+function getJavaCLASSPATHSeparator(): string {
+    return process.platform === "win32" ? ";" : ":";
 }

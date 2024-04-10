@@ -17,7 +17,12 @@
             "outFiles": [
                 "${workspaceFolder}/out/**/*.js"
             ],
-            "skipFiles": ["<node_internals>/**"],
+            "env": {
+                "BOXLANG_LSP_PORT": "5173"
+            },
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
             "preLaunchTask": "npm: watch"
         },
         {
@@ -26,10 +31,12 @@
             "debugWebWorkerHost": true,
             "request": "launch",
             "args": [
-              "--extensionDevelopmentPath=${workspaceFolder}",
-              "--extensionDevelopmentKind=web"
+                "--extensionDevelopmentPath=${workspaceFolder}",
+                "--extensionDevelopmentKind=web"
             ],
-            "outFiles": ["${workspaceFolder}/dist/web/*.js"],
+            "outFiles": [
+                "${workspaceFolder}/dist/web/*.js"
+            ],
             "preLaunchTask": "npm: watch-web"
         }
     ]

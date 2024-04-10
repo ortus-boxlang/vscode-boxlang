@@ -21,6 +21,7 @@ const webExtensionConfig = {
         },
         fallback: {
             child_process: false,
+            "http": require.resolve("stream-http"),
             path: require.resolve('path-browserify'),
             tls: require.resolve('tls-browserify'),
             net: require.resolve('net-browserify'),

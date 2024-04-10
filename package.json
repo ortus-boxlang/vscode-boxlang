@@ -2,7 +2,7 @@
     "name": "boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Langauge Support",
-    "version": "0.8.4",
+    "version": "0.9.0",
     "preview": true,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -763,7 +763,8 @@
         "trie-prefix-tree": "1.5.1",
         "vscode-css-languageservice": "~6.2.4",
         "vscode-debugadapter": "^1.51.0",
-        "vscode-html-languageservice": "2.1.11-next.11"
+        "vscode-html-languageservice": "2.1.11-next.11",
+        "vscode-languageclient": "^9.0.1"
     },
     "devDependencies": {
         "@types/findup-sync": "~4.0.2",
