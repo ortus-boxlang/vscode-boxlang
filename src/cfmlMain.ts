@@ -345,7 +345,7 @@ function getLSPServerConfig(): ServerOptions {
     }
 
     return async () => {
-        const [process, port] = await BoxLang.startLSP();
+        const [_process, port] = await BoxLang.startLSP();
 
         let socket = net.connect(port, "0.0.0.0");
         return {
