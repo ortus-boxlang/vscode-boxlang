@@ -42,6 +42,10 @@ export class BoxLang {
             let stderr = '';
             let found = false;
 
+            lsp.on("error", (err) => {
+                console.log(err + "");
+            })
+
             lsp.stdout.on("data", data => {
                 stdout += data;
 
@@ -59,7 +63,9 @@ export class BoxLang {
                 resolve([lsp, matches[1]]);
             });
 
-            lsp.stderr.on("data", data => console.log(stderr += data));
+            lsp.stderr.on("data", data => {
+                console.log(stderr += data)
+            });
         })
     }
 

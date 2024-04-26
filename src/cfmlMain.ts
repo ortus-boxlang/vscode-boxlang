@@ -43,14 +43,23 @@ import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
 import { BoxLang } from "./utils/BoxLang";
 
-export const LANGUAGE_ID: string = "cfml";
+export const CFML_LANGUAGE_ID: string = "cfml";
+export const BL_LANGUAGE_ID: string = "boxlang";
 const DOCUMENT_SELECTOR: DocumentSelector = [
     {
-        language: LANGUAGE_ID,
+        language: CFML_LANGUAGE_ID,
         scheme: "file"
     },
     {
-        language: LANGUAGE_ID,
+        language: CFML_LANGUAGE_ID,
+        scheme: "untitled"
+    },
+    {
+        language: BL_LANGUAGE_ID,
+        scheme: "file"
+    },
+    {
+        language: BL_LANGUAGE_ID,
         scheme: "untitled"
     }
 ];
@@ -113,7 +122,43 @@ export function activate(context: ExtensionContext): void {
 
     extensionContext = context;
 
-    languages.setLanguageConfiguration(LANGUAGE_ID, {
+    languages.setLanguageConfiguration(CFML_LANGUAGE_ID, {
+        indentationRules: {
+            increaseIndentPattern: new RegExp(`<(?!\\?|(?:${nonIndentingTags.join("|")})\\b|[^>]*\\/>)([-_.A-Za-z0-9]+)(?=\\s|>)\\b[^>]*>(?!.*<\\/\\1>)|<!--(?!.*-->)|\\{[^}\"']*$`, "i"),
+            decreaseIndentPattern: new RegExp(`^\\s*(<\\/[-_.A-Za-z0-9]+\\b[^>]*>|-?-->|\\}|<(${decreasingIndentingTags.join("|")})\\b[^>]*>)`, "i")
+        },
+        onEnterRules: [
+            {
+                // e.g. /** | */
+                beforeText: /^\s*\/\*\*(?!\/)([^\*]|\*(?!\/))*$/,
+                afterText: /^\s*\*\/$/,
+                action: { indentAction: IndentAction.IndentOutdent, appendText: " * " }
+            },
+            {
+                // e.g. /** ...|
+                beforeText: /^\s*\/\*\*(?!\/)([^\*]|\*(?!\/))*$/,
+                action: { indentAction: IndentAction.None, appendText: " * " }
+            },
+            {
+                // e.g.  * ...|
+                beforeText: /^(\t|(\ \ ))*\ \*(\ ([^\*]|\*(?!\/))*)?$/,
+                action: { indentAction: IndentAction.None, appendText: "* " }
+            },
+            {
+                // e.g.  */|
+                beforeText: /^(\t|(\ \ ))*\ \*\/\s*$/,
+                action: { indentAction: IndentAction.None, removeText: 1 }
+            },
+            {
+                // e.g. <cfloop> | </cfloop>
+                beforeText: new RegExp(`<(?!(?:${nonIndentingTags.join("|")})\\b)([_:\\w][_:\\w-.\\d]*)([^/>]*(?!/)>)[^<]*$`, "i"),
+                afterText: new RegExp(`^(<\\/([_:\\w][_:\\w-.\\d]*)\\s*>|<(?:${decreasingIndentingTags.join("|")})\\b)`, "i"),
+                action: { indentAction: IndentAction.IndentOutdent }
+            }
+        ]
+    });
+
+    languages.setLanguageConfiguration(BL_LANGUAGE_ID, {
         indentationRules: {
             increaseIndentPattern: new RegExp(`<(?!\\?|(?:${nonIndentingTags.join("|")})\\b|[^>]*\\/>)([-_.A-Za-z0-9]+)(?=\\s|>)\\b[^>]*>(?!.*<\\/\\1>)|<!--(?!.*-->)|\\{[^}\"']*$`, "i"),
             decreaseIndentPattern: new RegExp(`^\\s*(<\\/[-_.A-Za-z0-9]+\\b[^>]*>|-?-->|\\}|<(${decreasingIndentingTags.join("|")})\\b[^>]*>)`, "i")
@@ -267,8 +312,17 @@ export function activate(context: ExtensionContext): void {
         const autoCloseExcludedTags: string[] = autoCloseTagsSettings.get<string[]>("excludedTags");
 
         if (enableAutoCloseTags) {
-            if (!autoCloseLanguages.includes(LANGUAGE_ID)) {
-                autoCloseLanguages.push(LANGUAGE_ID);
+            if (!autoCloseLanguages.includes(CFML_LANGUAGE_ID)) {
+                autoCloseLanguages.push(CFML_LANGUAGE_ID);
+                autoCloseTagsSettings.update(
+                    "activationOnLanguage",
+                    autoCloseLanguages,
+                    getConfigurationTarget(cfmlSettings.get<string>("autoCloseTags.configurationTarget"))
+                );
+            }
+
+            if (!autoCloseLanguages.includes(BL_LANGUAGE_ID)) {
+                autoCloseLanguages.push(BL_LANGUAGE_ID);
                 autoCloseTagsSettings.update(
                     "activationOnLanguage",
                     autoCloseLanguages,
@@ -288,9 +342,19 @@ export function activate(context: ExtensionContext): void {
                 getConfigurationTarget(cfmlSettings.get<string>("autoCloseTags.configurationTarget"))
             );
         } else {
-            const index: number = autoCloseLanguages.indexOf(LANGUAGE_ID);
-            if (index !== -1) {
-                autoCloseLanguages.splice(index, 1);
+            const cfIndex: number = autoCloseLanguages.indexOf(CFML_LANGUAGE_ID);
+            if (cfIndex !== -1) {
+                autoCloseLanguages.splice(cfIndex, 1);
+                autoCloseTagsSettings.update(
+                    "activationOnLanguage",
+                    autoCloseLanguages,
+                    getConfigurationTarget(cfmlSettings.get<string>("autoCloseTags.configurationTarget"))
+                );
+            }
+
+            const blIndex: number = autoCloseLanguages.indexOf(BL_LANGUAGE_ID);
+            if (blIndex !== -1) {
+                autoCloseLanguages.splice(blIndex, 1);
                 autoCloseTagsSettings.update(
                     "activationOnLanguage",
                     autoCloseLanguages,

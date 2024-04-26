@@ -9888,7 +9888,7 @@
         "source-cfml-script-component": {
             "patterns": [
                 {
-                    "begin": "(?i)^(?=\\s*(?:(abstract|final)\\s+)?(component)\\b)",
+                    "begin": "(?i)^(?=\\s*(?:(abstract|final)\\s+)?(class)\\b)",
                     "end": "\\}",
                     "endCaptures": {
                         "0": {
@@ -9898,7 +9898,7 @@
                     "patterns": [
                         {
                             "name": "meta.class.declaration.cfml",
-                            "begin": "\\b(?:(abstract|final)\\s+)?(component)\\b",
+                            "begin": "\\b(?:(abstract|final)\\s+)?(class)\\b",
                             "beginCaptures": {
                                 "1": {
                                     "name": "storage.modifier.cfml"
