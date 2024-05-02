@@ -15,18 +15,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
-            # - uses: actions/checkout@v2
-            #   with:
-            #     ssh-key: ${{ secrets.boxlang_lsp_ssh_key }}
-            #     repository: ortus-solutions-private/boxlang-lsp
-            #     ref: 6ebec7e20e3d28a57f685fdfc6dbd4247dbd76cc
-            #     path: boxlang-lsp
-            - uses: actions/checkout@v2
-              with:
-                ssh-key: ${{ secrets.boxlang_ssh_key }}
-                repository: ortus-solutions-private/boxlang
-                ref: 63803f4521f2767064eca58940c710753b94e729
-                path: boxlang
+            # Prep java build deps
             - name: Setup Java
               uses: actions/setup-java@v4
               with:
@@ -36,7 +25,34 @@ jobs:
               uses: gradle/gradle-build-action@v3
               with:
                 gradle-version: "8.7"
+
+            # pull and build boxlang
+            - uses: actions/checkout@v2
+              with:
+                ssh-key: ${{ secrets.boxlang_ssh_key }}
+                repository: ortus-solutions-private/boxlang
+                ref: 63803f4521f2767064eca58940c710753b94e729
+                path: boxlang
             - name: Build BoxLang
               run: |
                 cd boxlang
                 ./gradlew build -x test --stacktrace --console=plain
+                cd ..
+                cp boxlang/build/libs/boxlang-1.0.0-all.jar resources/lib/boxlang-1.0.0-all.jar
+
+            # pull and build lsp
+            - uses: actions/checkout@v2
+              with:
+                ssh-key: ${{ secrets.boxlang_lsp_ssh_key }}
+                repository: ortus-solutions-private/boxlang-lsp
+                ref: 6ebec7e20e3d28a57f685fdfc6dbd4247dbd76cc
+                path: boxlang-lsp
+            - name: Build LSP
+              run: |
+                mkdir -p boxlang-lsp/resources/libs
+                ln -s boxlang/build/libs/boxlang-1.0.0-all.jar boxlang-lsp/resources/libs/boxlang-1.0.0-all.jar
+                cd boxlang-lsp
+                ./gradlew build -x test --stacktrace --console=plain
+                cd ..
+                cp boxlang-lsp/app/build/libs/boxlang-lsp-0.0.1-all.jar resources/lib/boxlang-lsp-0.0.1-all.jar
+
