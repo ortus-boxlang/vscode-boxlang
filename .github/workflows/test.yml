@@ -26,6 +26,9 @@ jobs:
               with:
                 gradle-version: "8.7"
 
+            - name: Make resource lib folder
+              run: mkdir -p resources/lib
+
             # pull and build boxlang
             - uses: actions/checkout@v2
               with:
