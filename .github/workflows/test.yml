@@ -39,7 +39,7 @@ jobs:
             - name: Build BoxLang
               run: |
                 cd boxlang
-                ./gradlew build -x test --stacktrace --console=plain
+                ./gradlew :build -x test --stacktrace --console=plain
                 cd ..
                 cp boxlang/build/libs/boxlang-1.0.0-all.jar resources/lib/boxlang-1.0.0-all.jar
 
@@ -48,14 +48,14 @@ jobs:
               with:
                 ssh-key: ${{ secrets.boxlang_lsp_ssh_key }}
                 repository: ortus-solutions-private/boxlang-lsp
-                ref: 6ebec7e20e3d28a57f685fdfc6dbd4247dbd76cc
+                ref: a79cd7403e2aabeee526768a36b395513e1fe3fc
                 path: boxlang-lsp
             - name: Build LSP
               run: |
                 mkdir -p boxlang-lsp/resources/libs
                 ln -s boxlang/build/libs/boxlang-1.0.0-all.jar boxlang-lsp/resources/libs/boxlang-1.0.0-all.jar
                 cd boxlang-lsp
-                ./gradlew build -x test --stacktrace --console=plain
+                ./gradlew :build -x test --stacktrace --console=plain
                 cd ..
                 cp boxlang-lsp/app/build/libs/boxlang-lsp-0.0.1-all.jar resources/lib/boxlang-lsp-0.0.1-all.jar
 
