@@ -53,7 +53,7 @@ jobs:
             - name: Build LSP
               run: |
                 mkdir -p boxlang-lsp/resources/libs
-                ln -s boxlang/build/libs/boxlang-1.0.0-all.jar boxlang-lsp/resources/libs/boxlang-1.0.0-all.jar
+                cp boxlang/build/libs/boxlang-1.0.0-all.jar boxlang-lsp/resources/libs/boxlang-1.0.0-all.jar
                 cd boxlang-lsp
                 chmod +x ./gradlew
                 ./gradlew :app:build -x test --stacktrace --console=plain
