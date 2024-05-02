@@ -21,6 +21,9 @@ on:
         required: true
         default: "true"
 
+env:
+    JDK: 17
+
 jobs:
   package:
     name: Package
@@ -31,6 +34,52 @@ jobs:
       version: ${{ steps.setup-tag.outputs.version }}
     steps:
       - uses: actions/checkout@v2
+      # Prep java build deps
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+            distribution: "temurin"
+            java-version: ${{ env.JDK }}
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: "8.7"
+
+      - name: Make resource lib folder
+        run: mkdir -p resources/lib
+
+      # pull and build boxlang
+      - uses: actions/checkout@v2
+        with:
+          ssh-key: ${{ secrets.boxlang_ssh_key }}
+          repository: ortus-solutions-private/boxlang
+          ref: 63803f4521f2767064eca58940c710753b94e729
+          path: boxlang
+      - name: Build BoxLang
+        run: |
+          cd boxlang
+          ./gradlew :build -x test --stacktrace --console=plain
+          cd ..
+          cp boxlang/build/libs/boxlang-1.0.0-all.jar resources/lib/boxlang-1.0.0-all.jar
+
+      # pull and build lsp
+      - uses: actions/checkout@v2
+        with:
+          ssh-key: ${{ secrets.boxlang_lsp_ssh_key }}
+          repository: ortus-solutions-private/boxlang-lsp
+          ref: a79cd7403e2aabeee526768a36b395513e1fe3fc
+          path: boxlang-lsp
+      - name: Build LSP
+        run: |
+          mkdir -p boxlang-lsp/resources/libs
+          cp boxlang/build/libs/boxlang-1.0.0-all.jar boxlang-lsp/resources/libs/boxlang-1.0.0-all.jar
+          cd boxlang-lsp
+          chmod +x ./gradlew
+          ./gradlew :app:build -x test --stacktrace --console=plain
+          cd ..
+          cp boxlang-lsp/app/build/libs/boxlang-lsp-0.0.1-all.jar resources/lib/boxlang-lsp-0.0.1-all.jar
+
+
       - uses: actions/setup-node@v2
         with:
           node-version: 14

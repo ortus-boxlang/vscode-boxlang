@@ -1,30 +1,30 @@
-import { Position, languages, commands, window, TextEditor, LanguageConfiguration, TextDocument, CharacterPair } from "vscode";
-import { LANGUAGE_ID } from "../cfmlMain";
-import { isInCfScript, isCfcFile } from "../utils/contextUtil";
+import { CharacterPair, LanguageConfiguration, Position, TextDocument, TextEditor, commands, languages, window } from "vscode";
+import { BL_LANGUAGE_ID, CFML_LANGUAGE_ID } from "../cfmlMain";
+import { isCfcFile, isInCfScript } from "../utils/contextUtil";
 import { getComponent, hasComponent } from "./cachedEntities";
 
 export enum CommentType {
-  Line,
-  Block
+    Line,
+    Block
 }
 
 export interface CFMLCommentRules {
-  scriptBlockComment: CharacterPair;
-  scriptLineComment: string;
-  tagBlockComment: CharacterPair;
+    scriptBlockComment: CharacterPair;
+    scriptLineComment: string;
+    tagBlockComment: CharacterPair;
 }
 
 export interface CommentContext {
-  inComment: boolean;
-  activeComment: string | CharacterPair;
-  commentType: CommentType;
-  start: Position;
+    inComment: boolean;
+    activeComment: string | CharacterPair;
+    commentType: CommentType;
+    start: Position;
 }
 
 export const cfmlCommentRules: CFMLCommentRules = {
-  scriptBlockComment: ["/*", "*/"],
-  scriptLineComment: "//",
-  tagBlockComment: ["<!---", "--->"]
+    scriptBlockComment: ["/*", "*/"],
+    scriptLineComment: "//",
+    tagBlockComment: ["<!---", "--->"]
 };
 
 /**
@@ -33,9 +33,9 @@ export const cfmlCommentRules: CFMLCommentRules = {
  * @param startPosition The position at which the comment starts
  */
 function isTagComment(document: TextDocument, startPosition: Position): boolean {
-  const docIsScript: boolean = (isCfcFile(document) && hasComponent(document.uri) && getComponent(document.uri).isScript);
+    const docIsScript: boolean = (isCfcFile(document) && hasComponent(document.uri) && getComponent(document.uri).isScript);
 
-  return !docIsScript && !isInCfScript(document, startPosition);
+    return !docIsScript && !isInCfScript(document, startPosition);
 }
 
 /**
@@ -43,14 +43,14 @@ function isTagComment(document: TextDocument, startPosition: Position): boolean 
  * @param commentType The comment type for which to get the command
  */
 function getCommentCommand(commentType: CommentType): string {
-  let command: string = "";
-  if (commentType === CommentType.Line) {
-    command = "editor.action.commentLine";
-  } else {
-    command = "editor.action.blockComment";
-  }
+    let command: string = "";
+    if (commentType === CommentType.Line) {
+        command = "editor.action.commentLine";
+    } else {
+        command = "editor.action.blockComment";
+    }
 
-  return command;
+    return command;
 }
 
 /**
@@ -58,29 +58,30 @@ function getCommentCommand(commentType: CommentType): string {
  * @param commentType The comment type for which the command will be executed
  */
 export function toggleComment(commentType: CommentType): (editor: TextEditor) => Promise<void> {
-  return async (editor: TextEditor) => {
-    if (editor) {
-      // default comment config
-      let languageConfig: LanguageConfiguration = {
-        comments: {
-          lineComment: cfmlCommentRules.scriptLineComment,
-          blockComment: cfmlCommentRules.scriptBlockComment
-        }
-      };
+    return async (editor: TextEditor) => {
+        if (editor) {
+            // default comment config
+            let languageConfig: LanguageConfiguration = {
+                comments: {
+                    lineComment: cfmlCommentRules.scriptLineComment,
+                    blockComment: cfmlCommentRules.scriptBlockComment
+                }
+            };
 
-      // Changes the comment in language configuration based on the context
-      if (isTagComment(editor.document, editor.selection.start)) {
-        languageConfig = {
-          comments: {
-            blockComment: cfmlCommentRules.tagBlockComment
-          }
-        };
-      }
-      languages.setLanguageConfiguration(LANGUAGE_ID, languageConfig);
-      const command: string = getCommentCommand(commentType);
-      commands.executeCommand(command);
-    } else {
-      window.showInformationMessage("No editor is active");
-    }
-  };
+            // Changes the comment in language configuration based on the context
+            if (isTagComment(editor.document, editor.selection.start)) {
+                languageConfig = {
+                    comments: {
+                        blockComment: cfmlCommentRules.tagBlockComment
+                    }
+                };
+            }
+            languages.setLanguageConfiguration(CFML_LANGUAGE_ID, languageConfig);
+            languages.setLanguageConfiguration(BL_LANGUAGE_ID, languageConfig);
+            const command: string = getCommentCommand(commentType);
+            commands.executeCommand(command);
+        } else {
+            window.showInformationMessage("No editor is active");
+        }
+    };
 }
