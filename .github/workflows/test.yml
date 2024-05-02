@@ -56,7 +56,7 @@ jobs:
                 ln -s boxlang/build/libs/boxlang-1.0.0-all.jar boxlang-lsp/resources/libs/boxlang-1.0.0-all.jar
                 cd boxlang-lsp
                 chmod +x ./gradlew
-                ./gradlew :build -x test --stacktrace --console=plain
+                ./gradlew :app:build -x test --stacktrace --console=plain
                 cd ..
                 cp boxlang-lsp/app/build/libs/boxlang-lsp-0.0.1-all.jar resources/lib/boxlang-lsp-0.0.1-all.jar
 
