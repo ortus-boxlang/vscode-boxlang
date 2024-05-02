@@ -46,6 +46,12 @@
                 "language": "cfml"
             }
         ],
+        "jsonValidation": [
+            {
+                "fileMatch": "boxlang.json",
+                "url": "./resources/boxlang_schema.json"
+            }
+        ],
         "debuggers": [
             {
                 "type": "boxlang",

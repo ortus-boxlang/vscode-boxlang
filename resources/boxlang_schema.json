@@ -1,0 +1,193 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "boxlang",
+    "additionalProperties": true,
+    "description": "BoxLang configuration file schema",
+    "properties": {
+        "debugMode": {
+            "description": "This puts the entire runtime in debug mode, which will produce lots of debug output and metrics",
+            "type": "boolean"
+        },
+        "compiler": {
+            "description": "The BoxPiler settings",
+            "type": "object",
+            "properties": {
+                "classGenerationDirectory": {
+                    "type": "string",
+                    "description": "Where all generated classes will be placed",
+                    "default": "${java-temp}/boxlang/classes"
+                }
+            }
+        },
+        "runtime": {
+            "description": "The runtime settings",
+            "type": "object",
+            "properties": {
+                "timezone": {
+                    "description": "The default timezone for the runtime; defaults to the JVM timezone if empty. Please use the IANA timezone database values",
+                    "type": "string"
+                },
+                "locale": {
+                    "description": "The default locale for the runtime; defaults to the JVM locale if empty. Please use the IETF BCP 47 language tag values",
+                    "type": "string"
+                },
+                "requestTimeout": {
+                    "description": "The request timeout for a request in milliseconds; 0 means no timeout.",
+                    "type": "number",
+                    "default": 0
+                },
+                "mappings": {
+                    "description": "A collection of BoxLang mappings, the key is the prefix and the value is the directory.",
+                    "type": "object",
+                    "default": {
+                        "/": "${user-dir}"
+                    }
+                },
+                "modulesDirectory": {
+                    "description": "A collection of BoxLang module directories, they must be absolute paths.",
+                    "type": "array",
+                    "default": [
+                        "${boxlang-home}/modules"
+                    ]
+                },
+                "customTagsDirectory": {
+                    "description": "A collection of BoxLang custom tag directories, they must be absolute paths.",
+                    "type": "array",
+                    "default": [
+                        "${boxlang-home}/customTags"
+                    ]
+                },
+                "defaultDasource": {
+                    "description": "You can assign a global default datasource to be used in the language.",
+                    "type": "string"
+                },
+                "datasources": {
+                    "description": "The registered global datasources in the language. The key is the name of the datasource and the value is a struct of the datasource settings.",
+                    "type": "object",
+                    "patternProperties": {
+                        ".*": {
+                            "type": "object",
+                            "required": [
+                                "driver"
+                            ],
+                            "properties": {
+                                "driver": {
+                                    "type": "string",
+                                    "description": "The database driver to use e.g. 'derby'."
+                                },
+                                "properties": {
+                                    "type": "object",
+                                    "description": "Additional datasource driver configuration",
+                                    "properties": {
+                                        "host": {
+                                            "type": "string",
+                                            "default": "localhost"
+                                        },
+                                        "port": {
+                                            "type": "number"
+                                        },
+                                        "database": {
+                                            "type": "string"
+                                        },
+                                        "connectionString": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "defaultCache": {
+                    "type": "object",
+                    "description": "The configuration for the BoxLang `default` cache.  If empty, we use the defaults."
+                },
+                "caches": {
+                    "type": "object",
+                    "description": "Register any named caches here. The key is the name of the cache and the value is the cache configuration. A `provder` property is required and the value is the name of the cache provider or the fully qualified class name. The `properties` property is optional and is a struct of properties that are specific to the cache provider.",
+                    "patternProperties": {
+                        ".*": {
+                            "type": "object",
+                            "required": [
+                                "provider"
+                            ],
+                            "properties": {
+                                "provider": {
+                                    "type": "string",
+                                    "description": "The name of the cache provider or the fully qualified class name",
+                                    "default": "BoxCacheProvider"
+                                },
+                                "properties": {
+                                    "type": "object",
+                                    "properties": {
+                                        "evictCount": {
+                                            "type": "number",
+                                            "default": 1
+                                        },
+                                        "evictionPolicy": {
+                                            "type": "string",
+                                            "default": "LRU"
+                                        },
+                                        "freeMemoryPercentageThreshold": {
+                                            "type": "number",
+                                            "default": 0
+                                        },
+                                        "maxObjects": {
+                                            "type": "number",
+                                            "default": 200
+                                        },
+                                        "defaultLastAccessTimeout": {
+                                            "type": "number",
+                                            "default": 1800
+                                        },
+                                        "defaultTimeout": {
+                                            "type": "number",
+                                            "default": 3600
+                                        },
+                                        "objectStore": {
+                                            "type": "string",
+                                            "default": "ConcurrentStore"
+                                        },
+                                        "reapFrequency": {
+                                            "type": "number",
+                                            "default": 120
+                                        },
+                                        "resetTimeoutOnAccess": {
+                                            "type": "boolean",
+                                            "default": false
+                                        },
+                                        "useLastAccessTimeouts": {
+                                            "type": "boolean",
+                                            "default": true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "modules": {
+            "type": "object",
+            "description": "Settings for individual BoxLang modules",
+            "patternProperties": {
+                ".*": {
+                    "type": "object",
+                    "properties": {
+                        "disabled": {
+                            "type": "boolean",
+                            "description": "Prevents the module from being loaded by the BoxLang runtime."
+                        },
+                        "settings": {
+                            "type": "object",
+                            "description": "Module specific settings."
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "required": [],
+    "type": "object"
+}
