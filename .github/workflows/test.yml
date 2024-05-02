@@ -12,5 +12,6 @@ jobs:
             - uses: actions/checkout@v2
               with:
                 ssh-key: ${{ secrets.boxlang_ssh_key }}
-                repository: ortus-solutions-private/boxlang
+                repository: git@github.com:ortus-solutions-private/boxlang.git
                 ref: 63803f4521f2767064eca58940c710753b94e729
+                path: boxlang
