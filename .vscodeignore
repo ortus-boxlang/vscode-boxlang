@@ -12,4 +12,4 @@ tsconfig.json
 tslint.json
 .vscode-test-web
 boxlang/**
-node_modules/**
+boxlang-lsp/**
