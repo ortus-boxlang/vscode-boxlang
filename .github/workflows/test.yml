@@ -3,6 +3,12 @@ on:
     push:
         branches:
             - build-test
+
+env:
+  SNAPSHOT: ${{ inputs.snapshot || false }}
+  LTS: ${{ inputs.lts || false }}
+  JDK: 17
+
 jobs:
     build:
         name: Build
@@ -21,7 +27,16 @@ jobs:
                 repository: ortus-solutions-private/boxlang
                 ref: 63803f4521f2767064eca58940c710753b94e729
                 path: boxlang
+            - name: Setup Java
+              uses: actions/setup-java@v4
+              with:
+                distribution: "temurin"
+                java-version: ${{ env.JDK }}
+            - name: Setup Gradle
+              uses: gradle/gradle-build-action@v3
+              with:
+                gradle-version: "8.7"
             - name: Build BoxLang
               run: |
                 cd boxlang
-                ./gradlew :build -x test
+                ./gradlew build -x test --stacktrace --console=plain
