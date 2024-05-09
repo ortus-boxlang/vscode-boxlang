@@ -29,7 +29,7 @@
             "include": "#source-cfml-tag-comments"
         },
         {
-            "begin": "(?i)(?=<cf(component|interface)\\b)",
+            "begin": "(?i)(?=<bx:(component|interface)\\b)",
             "contentName": "source.cfml",
             "end": "(?=not)possible",
             "patterns": [
@@ -5798,7 +5798,7 @@
             "patterns": [
                 {
                     "name": "meta.tag.custom.cfml",
-                    "begin": "(?i)(<)(cf_[a-z_-]*)",
+                    "begin": "(?i)(<)(bx:_[a-z_-]*)",
                     "beginCaptures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
@@ -10108,7 +10108,7 @@
                 },
                 {
                     "name": "meta.tag.cfml",
-                    "begin": "(?i)(<)(cf(?:applet|calendar|graph|graphdata|mediaplayer|menu|servlet|servletparam|sprydataset|table|textinput|tree))",
+                    "begin": "(?i)(<)(bx:(?:applet|calendar|graph|graphdata|mediaplayer|menu|servlet|servletparam|sprydataset|table|textinput|tree))",
                     "beginCaptures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
@@ -10131,7 +10131,7 @@
                 },
                 {
                     "name": "meta.tag.cfml",
-                    "begin": "(?i)(<)(cf[a-z_]+)",
+                    "begin": "(?i)(<)(bx:[a-z_]+)",
                     "beginCaptures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
@@ -10154,7 +10154,7 @@
                 },
                 {
                     "name": "meta.tag.cfml",
-                    "match": "(?i)(</)(cf(?:applet|calendar|graph|graphdata|mediaplayer|menu|servlet|servletparam|sprydataset|table|textinput|tree))(>)",
+                    "match": "(?i)(</)(bx:(?:applet|calendar|graph|graphdata|mediaplayer|menu|servlet|servletparam|sprydataset|table|textinput|tree))(>)",
                     "captures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
@@ -10169,7 +10169,7 @@
                 },
                 {
                     "name": "meta.tag.cfml",
-                    "match": "(?i)(</)(cf[a-z_]+)(>)",
+                    "match": "(?i)(</)(bx:[a-z_]+)(>)",
                     "captures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
@@ -10635,7 +10635,7 @@
             ]
         },
         "cfscript": {
-            "begin": "(?i)(<)(cfscript)(\\s+|>)",
+            "begin": "(?i)(<)(bx:script)(\\s+|>)",
             "beginCaptures": {
                 "0": {
                     "name": "meta.tag.cfml"
@@ -10651,7 +10651,7 @@
                 }
             },
             "contentName": "source.cfml.script",
-            "end": "(?i)(</)(cfscript)(>)",
+            "end": "(?i)(</)(bx:script)(>)",
             "endCaptures": {
                 "0": {
                     "name": "meta.tag.cfml"
@@ -10870,8 +10870,8 @@
             ]
         },
         "cfinterface": {
-            "begin": "(?i)(?=<cfinterface)",
-            "end": "(?i)(</)(cfinterface)(>)",
+            "begin": "(?i)(?=<bx:interface)",
+            "end": "(?i)(</)(bx:interface)(>)",
             "endCaptures": {
                 "0": {
                     "name": "meta.tag.cfml"
@@ -10889,7 +10889,7 @@
             "patterns": [
                 {
                     "name": "meta.tag.cfml meta.interface.cfml",
-                    "begin": "(?i)(<)(cfinterface)",
+                    "begin": "(?i)(<)(bx:interface)",
                     "beginCaptures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
@@ -10962,8 +10962,8 @@
             ]
         },
         "cfoutput": {
-            "begin": "(?i)(?=<cfoutput\\b)",
-            "end": "(?i)(</)(cfoutput)(>)",
+            "begin": "(?i)(?=<bx:output\\b)",
+            "end": "(?i)(</)(bx:output)(>)",
             "endCaptures": {
                 "0": {
                     "name": "meta.tag.cfml"
@@ -10981,7 +10981,7 @@
             "patterns": [
                 {
                     "name": "meta.tag.cfml",
-                    "begin": "(?i)(<)(cfoutput)",
+                    "begin": "(?i)(<)(bx:output)",
                     "beginCaptures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
@@ -11005,7 +11005,7 @@
                         }
                     },
                     "contentName": "meta.scope.cfoutput.cfml",
-                    "end": "(?i)(?=</cfoutput>)",
+                    "end": "(?i)(?=</bx:output>)",
                     "patterns": [
                         {
                             "include": "#cfml-tags"
@@ -11018,8 +11018,8 @@
             ]
         },
         "cfmail": {
-            "begin": "(?i)(?=<cfmail\\b)",
-            "end": "(?i)(</)(cfmail)(>)",
+            "begin": "(?i)(?=<bx:mail\\b)",
+            "end": "(?i)(</)(bx:mail)(>)",
             "endCaptures": {
                 "0": {
                     "name": "meta.tag.cfml"
@@ -11037,7 +11037,7 @@
             "patterns": [
                 {
                     "name": "meta.tag.cfml",
-                    "begin": "(?i)(<)(cfmail)\\b",
+                    "begin": "(?i)(<)(bx:mail)\\b",
                     "beginCaptures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
@@ -11061,7 +11061,7 @@
                         }
                     },
                     "contentName": "meta.scope.cfmail.cfml",
-                    "end": "(?i)(?=</cfmail>)",
+                    "end": "(?i)(?=</bx:mail>)",
                     "patterns": [
                         {
                             "include": "#cfml-tags"
@@ -11412,7 +11412,7 @@
         },
         "tags-with-script": {
             "name": "meta.tag.cfml",
-            "begin": "(?i)(<)(cfset|cfreturn)(?=\\s|/?>)",
+            "begin": "(?i)(<)(bx:set|bx:return)(?=\\s|/?>)",
             "beginCaptures": {
                 "1": {
                     "name": "punctuation.definition.tag.begin.cfml"
@@ -11694,7 +11694,7 @@
             "patterns": [
                 {
                     "name": "meta.tag.cfml meta.tag.property.cfml",
-                    "begin": "(?i)(<)(cfproperty)\\b",
+                    "begin": "(?i)(<)(bx:property)\\b",
                     "beginCaptures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
@@ -12419,8 +12419,8 @@
             ]
         },
         "cffunction": {
-            "begin": "(?i)(?=<cffunction\\b)",
-            "end": "(?i)(</)(cffunction)(>)",
+            "begin": "(?i)(?=<bx:function\\b)",
+            "end": "(?i)(</)(bx:function)(>)",
             "endCaptures": {
                 "0": {
                     "name": "meta.tag.cfml meta.function.cfml"
@@ -12438,7 +12438,7 @@
             "patterns": [
                 {
                     "name": "meta.tag.cfml meta.function.cfml",
-                    "begin": "(?i)(<)(cffunction)",
+                    "begin": "(?i)(<)(bx:function)",
                     "beginCaptures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
@@ -12878,7 +12878,7 @@
         },
         "cfif": {
             "name": "meta.tag.cfml",
-            "begin": "(?i)(<)(cfif|cfelseif)\\b",
+            "begin": "(?i)(<)(bx:if|bx:elseif)\\b",
             "beginCaptures": {
                 "1": {
                     "name": "punctuation.definition.tag.begin.cfml"
@@ -13893,7 +13893,7 @@
         "source-cfml-script-tag-in-script-cf": {
             "patterns": [
                 {
-                    "begin": "(?x)(?i)\n  ((cf\n  (?:ajaximport|ajaxproxy|application|argument|associate|break|cache\n  |chart|chartdata|chartseries|client|clientsettings|col|collection|content|cookie|dbinfo\n  |directory|div|document|documentitem|documentsection|dump|error|exchangecalendar\n  |exchangeconnection|exchangecontact|exchangefilter|exchangemail|exchangetask\n  |execute|feed|file|fileupload|flush|form|formgroup|formitem|ftp|grid|gridcolumn\n  |gridrow|gridupdate|header|htmlhead|htmltopdf|htmltopdfitem|http|httpparam|image\n  |imap|imapfilter|import|include|index|input|insert|invoke|invokeargument|layout\n  |layoutarea|ldap|location|lock|log|login|loginuser|logout|loop|mail|mailparam|mailpart\n  |map|mapitem|menuitem|messagebox|module|ntauthenticate|oauth|object\n  |objectcache|output|param|pdf|pdfform|pdfformparam|pdfparam|pdfsubform|pod|pop\n  |presentation|presentationslide|presenter|print|processingdirective|procparam|procresult\n  |progressbar|property|query|queryparam|registry|report|reportparam|savecontent|schedule\n  |search|select|setting|sharepoint|silent|slider|spreadsheet|storedproc\n  |textarea|thread|throw|timer|tooltip|trace|transaction|treeitem|try\n  |update|video|videoplayer|videoplayerparam|wddx|websocket|window|xml|zip|zipparam)\n)|(cf(?:applet|calendar|mediaplayer|menu|sprydataset|table|textinput|tree)))\\s*\\(",
+                    "begin": "(?x)(?i)\n  ((bx:\n  (?:ajaximport|ajaxproxy|application|argument|associate|break|cache\n  |chart|chartdata|chartseries|client|clientsettings|col|collection|content|cookie|dbinfo\n  |directory|div|document|documentitem|documentsection|dump|error|exchangecalendar\n  |exchangeconnection|exchangecontact|exchangefilter|exchangemail|exchangetask\n  |execute|feed|file|fileupload|flush|form|formgroup|formitem|ftp|grid|gridcolumn\n  |gridrow|gridupdate|header|htmlhead|htmltopdf|htmltopdfitem|http|httpparam|image\n  |imap|imapfilter|import|include|index|input|insert|invoke|invokeargument|layout\n  |layoutarea|ldap|location|lock|log|login|loginuser|logout|loop|mail|mailparam|mailpart\n  |map|mapitem|menuitem|messagebox|module|ntauthenticate|oauth|object\n  |objectcache|output|param|pdf|pdfform|pdfformparam|pdfparam|pdfsubform|pod|pop\n  |presentation|presentationslide|presenter|print|processingdirective|procparam|procresult\n  |progressbar|property|query|queryparam|registry|report|reportparam|savecontent|schedule\n  |search|select|setting|sharepoint|silent|slider|spreadsheet|storedproc\n  |textarea|thread|throw|timer|tooltip|trace|transaction|treeitem|try\n  |update|video|videoplayer|videoplayerparam|wddx|websocket|window|xml|zip|zipparam)\n)|(bx:(?:applet|calendar|mediaplayer|menu|sprydataset|table|textinput|tree)))\\s*\\(",
                     "beginCaptures": {
                         "1": {
                             "name": "entity.name.tag.script.cfml"
@@ -14098,8 +14098,8 @@
             ]
         },
         "cfquery": {
-            "begin": "(?i)(?=<cfquery\\b)",
-            "end": "(?i)(</)(cfquery)(>)",
+            "begin": "(?i)(?=<bx:query\\b)",
+            "end": "(?i)(</)(bx:query)(>)",
             "endCaptures": {
                 "0": {
                     "name": "meta.tag.cfml"
@@ -14117,7 +14117,7 @@
             "patterns": [
                 {
                     "name": "meta.tag.cfml",
-                    "begin": "(?i)(<)(cfquery)(?=\\s|>)",
+                    "begin": "(?i)(<)(bx:query)(?=\\s|>)",
                     "beginCaptures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
@@ -14274,8 +14274,8 @@
             ]
         },
         "cfcomponent": {
-            "begin": "(?i)(?=<cfcomponent)",
-            "end": "(?i)(</)(cfcomponent)(>)",
+            "begin": "(?i)(?=<bx:component)",
+            "end": "(?i)(</)(bx:component)(>)",
             "endCaptures": {
                 "0": {
                     "name": "meta.tag.cfml meta.class.cfml"
@@ -14293,7 +14293,7 @@
             "patterns": [
                 {
                     "name": "meta.tag.cfml meta.class.cfml",
-                    "begin": "(?i)(<)(cfcomponent)",
+                    "begin": "(?i)(<)(bx:component)",
                     "beginCaptures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
@@ -15366,7 +15366,7 @@
             "patterns": [
                 {
                     "name": "meta.tag.cfml meta.tag.argument.cfml",
-                    "begin": "(?i)(<)(cfargument)\\b",
+                    "begin": "(?i)(<)(bx:argument)\\b",
                     "beginCaptures": {
                         "1": {
                             "name": "punctuation.definition.tag.begin.cfml"
