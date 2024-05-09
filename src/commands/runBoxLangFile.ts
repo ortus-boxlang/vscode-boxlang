@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import * as fs from "fs";
 import * as vscode from "vscode";
 
 export async function runBoxLangFile(context: vscode.ExtensionContext, filePath) {
@@ -29,7 +29,7 @@ export async function runBoxLangFile(context: vscode.ExtensionContext, filePath)
 }
 
 async function hasMainFunction(filePath) {
-    const content = await readFile(filePath);
+    const content = await fs.readFileSync(filePath);
 
     return /function\s+main\(/i.test(content + "");
 }
