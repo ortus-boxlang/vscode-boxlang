@@ -9,17 +9,17 @@ on:
         description: 'Publish to the VS Marketplace'
         type: boolean
         required: true
-        default: "false"
+        default: false
       publishOVSX:
         description: 'Publish to OpenVSX'
         type: boolean
         required: true
-        default: "false"
+        default: false
       publishGH:
         description: 'Publish to GitHub Releases'
         type: boolean
         required: true
-        default: "true"
+        default: true
 
 env:
     JDK: 17
@@ -59,7 +59,7 @@ jobs:
         run: |
           cd resources/lib
           curl -O https://ortus-temp.s3.amazonaws.com/jericho/libs/boxlang-1.0.0-web.jar
-          mv boxlang-1.0.0-web.jar boxlang-1.0.0.jar
+          mv boxlang-1.0.0-web.jar boxlang-1.0.0-all.jar
 
       # pull and build lsp
       - uses: actions/checkout@v2
