@@ -197,8 +197,13 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(debug.registerDebugAdapterDescriptorFactory("boxlang", new BoxLangDebugAdapter()));
     context.subscriptions.push(debug.registerDebugAdapterTrackerFactory("boxlang", new BoxLangDebugAdapterTrackerFactory()));
 
+    const applyContext = (fn) => {
+        return function () {
+            return fn(context, ...arguments);
+        }
+    };
 
-    context.subscriptions.push(commands.registerCommand("boxlang.runFile", extensionCommands.runBoxLangFile));
+    context.subscriptions.push(commands.registerCommand("boxlang.runFile", applyContext(extensionCommands.runBoxLangFile)));
     context.subscriptions.push(commands.registerCommand("boxlang.runWebServer", extensionCommands.runBoxLangWebServer));
     context.subscriptions.push(commands.registerCommand("boxlang.transpileToJava", extensionCommands.transpileToJava));
     context.subscriptions.push(commands.registerCommand("boxlang.showANTLRGraph", extensionCommands.showANTLRGraph));

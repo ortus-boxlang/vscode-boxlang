@@ -49,18 +49,17 @@ jobs:
         run: mkdir -p resources/lib
 
       # pull and build boxlang
-      - uses: actions/checkout@v2
-        with:
-          ssh-key: ${{ secrets.boxlang_ssh_key }}
-          repository: ortus-solutions-private/boxlang
-          ref: 63803f4521f2767064eca58940c710753b94e729
-          path: boxlang
-      - name: Build BoxLang
+    #   - uses: actions/checkout@v2
+    #     with:
+    #       ssh-key: ${{ secrets.boxlang_ssh_key }}
+    #       repository: ortus-solutions-private/boxlang
+    #       ref: 63803f4521f2767064eca58940c710753b94e729
+    #       path: boxlang
+      - name: Get WebServer
         run: |
-          cd boxlang
-          ./gradlew :build -x test --stacktrace --console=plain
-          cd ..
-          cp boxlang/build/libs/boxlang-1.0.0-all.jar resources/lib/boxlang-1.0.0-all.jar
+          cd resources/lib
+          curl -O https://ortus-temp.s3.amazonaws.com/jericho/libs/boxlang-1.0.0-web.jar
+          mv boxlang-1.0.0-web.jar boxlang-1.0.0.jar
 
       # pull and build lsp
       - uses: actions/checkout@v2
@@ -72,7 +71,7 @@ jobs:
       - name: Build LSP
         run: |
           mkdir -p boxlang-lsp/resources/libs
-          cp boxlang/build/libs/boxlang-1.0.0-all.jar boxlang-lsp/resources/libs/boxlang-1.0.0-all.jar
+          cp resources/lib/boxlang-1.0.0-all.jar boxlang-lsp/resources/libs/boxlang-1.0.0-all.jar
           cd boxlang-lsp
           chmod +x ./gradlew
           ./gradlew :app:build -x test --stacktrace --console=plain
