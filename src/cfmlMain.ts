@@ -4,12 +4,14 @@ import * as path from "path";
 import {
     ConfigurationChangeEvent, ConfigurationTarget, DocumentSelector, ExtensionContext,
     FileSystemWatcher, IndentAction,
+    OutputChannel,
     TextDocument, Uri,
     WorkspaceConfiguration,
     commands,
     debug,
     extensions,
     languages,
+    window,
     workspace
 } from "vscode";
 import { BoxLangDebugAdapter } from "./debug/BoxlangDebugDescriptor";
@@ -67,6 +69,7 @@ const DOCUMENT_SELECTOR: DocumentSelector = [
 export let extensionContext: ExtensionContext;
 
 let client: LanguageClient;
+let outputChannel: OutputChannel;
 
 /**
  * Gets a ConfigurationTarget enumerable based on a string representation
@@ -121,6 +124,8 @@ function shouldExcludeDocument(documentUri: Uri): boolean {
 export function activate(context: ExtensionContext): void {
 
     extensionContext = context;
+    outputChannel = window.createOutputChannel("boxlang");
+    outputChannel.appendLine("BoxLang VSCode Extension");
 
     languages.setLanguageConfiguration(CFML_LANGUAGE_ID, {
         indentationRules: {
@@ -414,7 +419,7 @@ function getLSPServerConfig(): ServerOptions {
     }
 
     return async () => {
-        const [_process, port] = await BoxLang.startLSP();
+        const [_process, port] = await BoxLang.startLSP(outputChannel);
 
         let socket = net.connect(port, "0.0.0.0");
         return {

@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import { OutputChannel } from "vscode";
 import { ExtensionConfig } from "../utils/Configuration";
 
 type BoxLangResult = {
@@ -30,7 +31,8 @@ async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
 }
 
 export class BoxLang {
-    static startLSP(): Promise<Array<any>> {
+    static startLSP(outputChannel: OutputChannel): Promise<Array<any>> {
+        outputChannel.appendLine("Starting the LSP");
         return new Promise((resolve, reject) => {
             const lsp = spawn("java", ["ortus.boxlanglsp.App"], {
                 env: {
@@ -43,6 +45,7 @@ export class BoxLang {
             let found = false;
 
             lsp.on("error", (err) => {
+                outputChannel.appendLine(err + "");
                 console.log(err + "");
             })
 
@@ -64,7 +67,8 @@ export class BoxLang {
             });
 
             lsp.stderr.on("data", data => {
-                console.log(stderr += data)
+                console.log(stderr += data);
+                outputChannel.appendLine(data + "");
             });
         })
     }
