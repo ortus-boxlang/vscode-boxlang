@@ -153,18 +153,13 @@ export class BoxLang {
     }
 
     async transpileToJava(filePath: string): Promise<string> {
-        try {
-            const result = await runBoxLang("--transpile", filePath);
+        const result = await runBoxLang("--transpile", filePath);
 
-            if (result.stderr) {
-                console.log(result.stderr);
-            }
+        if (result.stderr) {
+            console.log(result.stderr);
+        }
 
-            return result.stdout;
-        }
-        catch (e) {
-            var test = 4;
-        }
+        return result.stdout;
     }
 }
 
