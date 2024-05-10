@@ -9,16 +9,22 @@ type BoxLangResult = {
 }
 
 async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
-    const jarPath = ExtensionConfig.boxlangJarPath;
-
     return new Promise((resolve, reject) => {
-        const boxLang = spawn("java", ["-jar", jarPath].concat(args));
+        const boxLang = spawn("java", ["ortus.boxlang.runtime.BoxRunner"].concat(args), {
+            env: {
+                CLASSPATH: ExtensionConfig.boxlangJarPath
+            }
+        });
         let stdout = '';
         let stderr = '';
 
         boxLang.stdout.on("data", data => stdout += data);
         // TODO: throw error
         boxLang.stderr.on("data", data => stderr += data);
+
+        boxLang.on("error", e => {
+            console.log(e + "");
+        })
 
         boxLang.on("exit", code => {
             resolve({
@@ -147,9 +153,18 @@ export class BoxLang {
     }
 
     async transpileToJava(filePath: string): Promise<string> {
-        const result = await runBoxLang("--transpile", filePath);
+        try {
+            const result = await runBoxLang("--transpile", filePath);
 
-        return result.stdout;
+            if (result.stderr) {
+                console.log(result.stderr);
+            }
+
+            return result.stdout;
+        }
+        catch (e) {
+            var test = 4;
+        }
     }
 }
 
