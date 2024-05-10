@@ -2,6 +2,20 @@
 
 An extension for the development of BoxLang.
 
+## At a Glance
+
+* Built-in BoxLang runtime for easy development
+* Tooling
+    * Debugger 
+    * Web server that can be launched within VSCode
+    * Execute .bxs files
+    * Execute .bx files that have a main method
+* Language support
+    * Syntax highlighting
+    * Language server integration (alpha)
+* Support of existing CFML functionality
+
+
 ## Building and Installing
 
 For local development you can run the following commands to build the extension.
