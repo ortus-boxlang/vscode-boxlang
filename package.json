@@ -202,6 +202,11 @@
                     "description": "The port to use for local development",
                     "scope": "window"
                 },
+                "cfml.boxlang.lsp.enableExperimentalDiagnostics": {
+                    "type": "boolean",
+                    "description": "Enable expermiental support for boxlang diagnostic reporting",
+                    "scope": "window"
+                },
                 "cfml.boxlang.showLexerTokens": {
                     "type": "boolean",
                     "description": "Controls whether to show the lexer processing output",
@@ -602,6 +607,9 @@
         "configurationDefaults": {
             "[cfml]": {
                 "editor.suggest.snippetsPreventQuickSuggestions": false
+            },
+            "[boxlang]": {
+                "editor.formatOnSave": false
             }
         },
         "commands": [

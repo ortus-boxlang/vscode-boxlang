@@ -381,6 +381,12 @@ export function activate(context: ExtensionContext): void {
     commands.executeCommand("cfml.refreshGlobalDefinitionCache");
     commands.executeCommand("cfml.refreshWorkspaceDefinitionCache");
 
+    context.subscriptions.push(workspace.onDidChangeConfiguration((e: ConfigurationChangeEvent) => {
+        if (e.affectsConfiguration("cfml.boxlang.lsp")) {
+            client.sendRequest("boxlang/changesettings", workspace.getConfiguration("cfml.boxlang.lsp"));
+        }
+    }));
+
 
 
     client = new LanguageClient(
@@ -391,7 +397,9 @@ export function activate(context: ExtensionContext): void {
         }
     );
 
-    client.start();
+    client.start().then(() => {
+        client.sendRequest("boxlang/changesettings", workspace.getConfiguration("cfml.boxlang.lsp"));
+    });
 }
 
 
