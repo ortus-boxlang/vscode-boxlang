@@ -55,11 +55,14 @@ jobs:
     #       repository: ortus-solutions-private/boxlang
     #       ref: 63803f4521f2767064eca58940c710753b94e729
     #       path: boxlang
+      - name: Get Runtime
+        run: |
+            cd resources/lib
+            curl -O https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang/1.0.0/boxlang-1.0.0-all.jar
       - name: Get WebServer
         run: |
           cd resources/lib
-          curl -O https://ortus-temp.s3.amazonaws.com/jericho/libs/boxlang-1.0.0-web.jar
-          mv boxlang-1.0.0-web.jar boxlang-1.0.0-all.jar
+          curl -O https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/1.0.0/boxlang-miniserver-1.0.0-all.jar
 
       # pull and build lsp
       - uses: actions/checkout@v2

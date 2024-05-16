@@ -84,39 +84,7 @@ export class BoxLang {
         return new Promise((resolve, reject) => {
             const boxLang = spawn("java", ["ortus.boxlang.debugger.DebugMain"], {
                 env: {
-                    CLASSPATH: ExtensionConfig.boxlangJarPath
-                }
-            });
-            let stdout = '';
-            let stderr = '';
-            let found = false;
-
-            boxLang.stdout.on("data", data => {
-                stdout += data;
-
-                if (found) {
-                    return;
-                }
-
-                const matches = /Listening on port: (\d+)/mi.exec(stdout);
-
-                if (!matches) {
-                    return;
-                }
-
-                found = true;
-                resolve(matches[1]);
-            });
-
-            boxLang.stderr.on("data", data => console.log(stderr += data));
-        });
-    }
-
-    static async startWebServer(): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const boxLang = spawn("java", ["ortus.boxlang.debugger.DebugMain", "--web-server"], {
-                env: {
-                    CLASSPATH: ExtensionConfig.boxlangJarPath
+                    CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
                 }
             });
             let stdout = '';
