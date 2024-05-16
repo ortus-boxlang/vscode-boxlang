@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "0.9.11",
+    "version": "0.9.12",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -158,7 +158,7 @@
             },
             {
                 "language": "boxlang",
-                "scopeName": "embedding.cfml",
+                "scopeName": "embedding.boxlang",
                 "path": "./syntaxes/boxlang.tmLanguage.json",
                 "embeddedLanguages": {
                     "source.css": "css",
@@ -168,12 +168,12 @@
                     "meta.embedded.line.js": "javascript",
                     "source.sql": "sql",
                     "meta.embedded.block.sql": "sql",
-                    "meta.tag.cfml": "cfml",
-                    "constant.character.escape.hash.cfml": "cfml",
-                    "punctuation.definition.template-expression.begin.cfml": "cfml",
-                    "meta.embedded.line.cfml": "cfml",
-                    "meta.embedded.block.cfml": "cfml",
-                    "punctuation.definition.template-expression.end.cfml": "cfml"
+                    "meta.tag.boxlang": "boxlang",
+                    "constant.character.escape.hash.boxlang": "boxlang",
+                    "punctuation.definition.template-expression.begin.boxlang": "boxlang",
+                    "meta.embedded.line.boxlang": "boxlang",
+                    "meta.embedded.block.boxlang": "boxlang",
+                    "punctuation.definition.template-expression.end.boxlang": "boxlang"
                 }
             },
             {
@@ -703,6 +703,10 @@
                 }
             ],
             "commandPalette": [
+                {
+                    "command": "boxlang.runFile",
+                    "when": "false"
+                },
                 {
                     "command": "cfml.toggleLineComment",
                     "when": "!editorReadonly && editorLangId == cfml"
