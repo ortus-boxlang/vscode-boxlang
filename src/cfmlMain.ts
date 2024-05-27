@@ -124,7 +124,7 @@ function shouldExcludeDocument(documentUri: Uri): boolean {
 export function activate(context: ExtensionContext): void {
 
     extensionContext = context;
-    outputChannel = window.createOutputChannel("boxlang");
+    outputChannel = window.createOutputChannel("BoxLang");
     outputChannel.appendLine("BoxLang VSCode Extension");
 
     languages.setLanguageConfiguration(CFML_LANGUAGE_ID, {
