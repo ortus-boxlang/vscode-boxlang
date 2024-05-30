@@ -192,6 +192,11 @@
             "type": "object",
             "title": "CFML Configuration",
             "properties": {
+                "boxlang.java.javaHome": {
+                    "type": "string",
+                    "description": "The path to the JVM you want to use. Must be Java 21 or higher. If not set it will use java. Use multiple backslashes on Windows i.e. C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-21.0.2.13-hotspot\\\\bin",
+                    "scope": "window"
+                },
                 "cfml.boxlang.jarpath": {
                     "type": "string",
                     "description": "The path to the boxlang jar you want to use for execution",
@@ -704,8 +709,7 @@
             ],
             "commandPalette": [
                 {
-                    "command": "boxlang.runFile",
-                    "when": "false"
+                    "command": "boxlang.runFile"
                 },
                 {
                     "command": "cfml.toggleLineComment",
