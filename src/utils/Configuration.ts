@@ -10,6 +10,12 @@ export const ExtensionConfig = {
         return workspace.getConfiguration("cfml.boxlang").get<string>('customAntlrToolsCommand');
     },
 
+    get boxlangJavaHome() {
+        const javaPath = workspace.getConfiguration("boxlang.java").get<string>('javaHome');
+        // figure out how to make this work!
+        return javaPath ? javaPath + "/java" : "java";
+    },
+
     get boxlangMiniServerJarPath() {
         const jarPath = workspace.getConfiguration("cfml.boxlang").get<string>('miniserverjarpath');
 

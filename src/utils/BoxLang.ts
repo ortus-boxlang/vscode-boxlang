@@ -1,6 +1,6 @@
 import { spawn } from "child_process";
-import { OutputChannel } from "vscode";
 import { ExtensionConfig } from "../utils/Configuration";
+import { boxlangOutputChannel } from "../utils/OutputChannels";
 
 type BoxLangResult = {
     code: Number,
@@ -10,7 +10,8 @@ type BoxLangResult = {
 
 async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
     return new Promise((resolve, reject) => {
-        const boxLang = spawn("java", ["ortus.boxlang.runtime.BoxRunner"].concat(args), {
+        const javaExecutable = ExtensionConfig.boxlangJavaHome;
+        const boxLang = spawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner"].concat(args), {
             env: {
                 CLASSPATH: ExtensionConfig.boxlangJarPath
             }
@@ -37,10 +38,11 @@ async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
 }
 
 export class BoxLang {
-    static startLSP(outputChannel: OutputChannel): Promise<Array<any>> {
-        outputChannel.appendLine("Starting the LSP");
+    static startLSP(): Promise<Array<any>> {
+        boxlangOutputChannel.appendLine("Starting the LSP");
         return new Promise((resolve, reject) => {
-            const lsp = spawn("java", ["ortus.boxlanglsp.App"], {
+            const javaExecutable = ExtensionConfig.boxlangJavaHome;
+            const lsp = spawn(javaExecutable, ["ortus.boxlanglsp.App"], {
                 env: {
                     CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangLSPPath
                 }
@@ -51,7 +53,7 @@ export class BoxLang {
             let found = false;
 
             lsp.on("error", (err) => {
-                outputChannel.appendLine(err + "");
+                boxlangOutputChannel.appendLine(err + "");
                 console.log(err + "");
             })
 
@@ -74,7 +76,7 @@ export class BoxLang {
 
             lsp.stderr.on("data", data => {
                 console.log(stderr += data);
-                outputChannel.appendLine(data + "");
+                boxlangOutputChannel.appendLine(data + "");
             });
         })
     }
@@ -82,7 +84,8 @@ export class BoxLang {
     static async startDebugger(): Promise<string> {
         console.log(ExtensionConfig.boxlangJarPath);
         return new Promise((resolve, reject) => {
-            const boxLang = spawn("java", ["ortus.boxlang.debugger.DebugMain"], {
+            const javaExecutable = ExtensionConfig.boxlangJavaHome;
+            const boxLang = spawn(javaExecutable, ["ortus.boxlang.debugger.DebugMain"], {
                 env: {
                     CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
                 }

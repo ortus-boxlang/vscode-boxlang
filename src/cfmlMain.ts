@@ -4,7 +4,6 @@ import * as path from "path";
 import {
     ConfigurationChangeEvent, ConfigurationTarget, DocumentSelector, ExtensionContext,
     FileSystemWatcher, IndentAction,
-    OutputChannel,
     TextDocument, Uri,
     WorkspaceConfiguration,
     commands,
@@ -33,6 +32,7 @@ import CFMLHoverProvider from "./features/hoverProvider";
 import CFMLSignatureHelpProvider from "./features/signatureHelpProvider";
 import CFMLTypeDefinitionProvider from "./features/typeDefinitionProvider";
 import CFMLWorkspaceSymbolProvider from "./features/workspaceSymbolProvider";
+import { boxlangOutputChannel } from "./utils/OutputChannels";
 import CFDocsService from "./utils/cfdocs/cfDocsService";
 import { APPLICATION_CFM_GLOB, isCfcFile } from "./utils/contextUtil";
 import { DocumentStateContext, getDocumentStateContext } from "./utils/documentUtil";
@@ -44,6 +44,7 @@ import {
 import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
 import { BoxLang } from "./utils/BoxLang";
+import { detectJavaVerison } from "./utils/Java";
 
 export const CFML_LANGUAGE_ID: string = "cfml";
 export const BL_LANGUAGE_ID: string = "boxlang";
@@ -65,11 +66,30 @@ const DOCUMENT_SELECTOR: DocumentSelector = [
         scheme: "untitled"
     }
 ];
+const CF_DOCUMENT_SELECTOR: DocumentSelector = [
+    {
+        language: CFML_LANGUAGE_ID,
+        scheme: "file"
+    },
+    {
+        language: CFML_LANGUAGE_ID,
+        scheme: "untitled"
+    }
+];
+const BX_DOCUMENT_SELECTOR: DocumentSelector = [
+    {
+        language: BL_LANGUAGE_ID,
+        scheme: "file"
+    },
+    {
+        language: BL_LANGUAGE_ID,
+        scheme: "untitled"
+    }
+];
 
 export let extensionContext: ExtensionContext;
 
 let client: LanguageClient;
-let outputChannel: OutputChannel;
 
 /**
  * Gets a ConfigurationTarget enumerable based on a string representation
@@ -124,8 +144,6 @@ function shouldExcludeDocument(documentUri: Uri): boolean {
 export function activate(context: ExtensionContext): void {
 
     extensionContext = context;
-    outputChannel = window.createOutputChannel("BoxLang");
-    outputChannel.appendLine("BoxLang VSCode Extension");
 
     languages.setLanguageConfiguration(CFML_LANGUAGE_ID, {
         indentationRules: {
@@ -229,7 +247,7 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(languages.registerSignatureHelpProvider(DOCUMENT_SELECTOR, new CFMLSignatureHelpProvider(), "(", ","));
     context.subscriptions.push(languages.registerDocumentLinkProvider(DOCUMENT_SELECTOR, new CFMLDocumentLinkProvider()));
     context.subscriptions.push(languages.registerWorkspaceSymbolProvider(new CFMLWorkspaceSymbolProvider()));
-    context.subscriptions.push(languages.registerCompletionItemProvider(DOCUMENT_SELECTOR, new CFMLCompletionItemProvider(), "."));
+    context.subscriptions.push(languages.registerCompletionItemProvider(CF_DOCUMENT_SELECTOR, new CFMLCompletionItemProvider(), "."));
     context.subscriptions.push(languages.registerCompletionItemProvider(DOCUMENT_SELECTOR, new DocBlockCompletions(), "*", "@", "."));
     context.subscriptions.push(languages.registerDefinitionProvider(DOCUMENT_SELECTOR, new CFMLDefinitionProvider()));
     context.subscriptions.push(languages.registerTypeDefinitionProvider(DOCUMENT_SELECTOR, new CFMLTypeDefinitionProvider()));
@@ -387,8 +405,46 @@ export function activate(context: ExtensionContext): void {
         }
     }));
 
+    context.subscriptions.push(workspace.onDidChangeConfiguration((e: ConfigurationChangeEvent) => {
+        if (e.affectsConfiguration("boxlang.java.javaHome")) {
+            boxlangOutputChannel.appendLine("Switching to new JVM: " + workspace.getConfiguration("boxlang.java").get("javaHome"));
+            deactivate();
+            detectJavaVerison(true).then(valid => {
+                if (!valid) {
+                    window.showWarningMessage("The BoxLang extension requires Java 21 or higher to run the language server and runtime. You can configure a custom JVM for BoxLang to use in your settings.");
+                    return;
+                }
+
+                startLSP();
+            });
+        }
+    }));
 
 
+    detectJavaVerison().then(valid => {
+        if (!valid) {
+            window.showWarningMessage("The BoxLang extension requires Java 21 or higher to run the language server and runtime. You can configure a custom JVM for BoxLang to use in your settings.");
+            return;
+        }
+
+        startLSP();
+    });
+
+
+}
+
+
+/**
+ * This method is called when the extension is deactivated.
+ */
+export function deactivate(): void {
+    if (client) {
+        boxlangOutputChannel.appendLine("Shutting down the language server");
+        client.stop();
+    }
+}
+
+function startLSP() {
     client = new LanguageClient(
         "BoxLang Language Support",
         getLSPServerConfig(),
@@ -398,18 +454,9 @@ export function activate(context: ExtensionContext): void {
     );
 
     client.start().then(() => {
+        boxlangOutputChannel.appendLine("The language server was succesfully started");
         client.sendRequest("boxlang/changesettings", workspace.getConfiguration("cfml.boxlang.lsp"));
     });
-}
-
-
-/**
- * This method is called when the extension is deactivated.
- */
-export function deactivate(): void {
-    if (client) {
-        client.stop();
-    }
 }
 
 
@@ -427,7 +474,7 @@ function getLSPServerConfig(): ServerOptions {
     }
 
     return async () => {
-        const [_process, port] = await BoxLang.startLSP(outputChannel);
+        const [_process, port] = await BoxLang.startLSP();
 
         let socket = net.connect(port, "0.0.0.0");
         return {
