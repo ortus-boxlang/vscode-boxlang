@@ -18,7 +18,6 @@ $extFile = ( Join-Path $TempDir "vscode-boxlang.vsix" )
 Write-Host $releaseData.assets.browser_download_url
 
 Invoke-WebRequest $releaseData.assets.browser_download_url -OutFile $extFile
-return
 
 try {
     code --uninstall-extension ortus-solutions.boxlang
