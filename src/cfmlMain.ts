@@ -79,16 +79,17 @@ const CF_DOCUMENT_SELECTOR: DocumentSelector = [
         scheme: "untitled"
     }
 ];
-const BX_DOCUMENT_SELECTOR: DocumentSelector = [
-    {
-        language: BL_LANGUAGE_ID,
-        scheme: "file"
-    },
-    {
-        language: BL_LANGUAGE_ID,
-        scheme: "untitled"
-    }
-];
+// we may need this in order to specifically taret BoxLang files for different features
+// const BX_DOCUMENT_SELECTOR: DocumentSelector = [
+//     {
+//         language: BL_LANGUAGE_ID,
+//         scheme: "file"
+//     },
+//     {
+//         language: BL_LANGUAGE_ID,
+//         scheme: "untitled"
+//     }
+// ];
 
 export let extensionContext: ExtensionContext;
 
