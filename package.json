@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "0.9.12",
+    "version": "0.9.13",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -619,6 +619,36 @@
         },
         "commands": [
             {
+                "command": "boxlang.addServer",
+                "title": "Add Server",
+                "icon": "$(plus)"
+            },
+            {
+                "command": "boxlang.openServerInBrowser",
+                "title": "Open Browser",
+                "icon": "$(browser)"
+            },
+            {
+                "command": "boxlang.deleteServer",
+                "title": "Delete Server",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "boxlang.stopServer",
+                "title": "stopServer",
+                "icon": "$(stop)"
+            },
+            {
+                "command": "boxlang.editServerName",
+                "title": "editServerName",
+                "icon": "$(edit)"
+            },
+            {
+                "command": "boxlang.runConfiguredServer",
+                "title": "Run Server",
+                "icon": "$(run)"
+            },
+            {
                 "command": "boxlang.transpileToJava",
                 "title": "BoxLang: Transpile to Java"
             },
@@ -684,7 +714,59 @@
                 "title": "Fold all functions in active editor"
             }
         ],
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "icon": "./icons/horn-gradient.svg",
+                    "id": "boxlang",
+                    "title": "BoxLang"
+                }
+            ]
+        },
+        "views": {
+            "boxlang": [
+                {
+                    "id": "boxlang-servers",
+                    "name": "BoxLang Servers",
+                    "type": "tree"
+                }
+            ]
+        },
         "menus": {
+            "view/title": [
+                {
+                    "command": "boxlang.addServer",
+                    "when": "view == boxlang-servers",
+                    "group": "navigation"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "boxlang.editServerName",
+                    "when": "viewItem == boxlangServerStoppedContext || viewItem == boxlangServerRunningContext",
+                    "group": "inline"
+                },
+                {
+                    "command": "boxlang.stopServer",
+                    "when": "viewItem == boxlangServerRunningContext",
+                    "group": "inline"
+                },
+                {
+                    "command": "boxlang.runConfiguredServer",
+                    "when": "viewItem == boxlangServerStoppedContext",
+                    "group": "inline"
+                },
+                {
+                    "command": "boxlang.openServerInBrowser",
+                    "when": "viewItem == boxlangServerRunningContext",
+                    "group": "inline"
+                },
+                {
+                    "command": "boxlang.deleteServer",
+                    "when": "viewItem == boxlangServerStoppedContext",
+                    "group": "inline"
+                }
+            ],
             "explorer/context": [
                 {
                     "command": "boxlang.runFile",

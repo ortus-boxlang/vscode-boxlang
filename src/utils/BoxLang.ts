@@ -1,12 +1,16 @@
-import { spawn } from "child_process";
+import { ChildProcessWithoutNullStreams, spawn } from "child_process";
+import { window } from "vscode";
 import { ExtensionConfig } from "../utils/Configuration";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
+import { BoxServerConfig, trackServerStart, trackServerStop } from "./Server";
 
 type BoxLangResult = {
     code: Number,
     stdout: string,
     stderr: string
 }
+
+const runningServers: Record<string, ChildProcessWithoutNullStreams> = {};
 
 async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
     return new Promise((resolve, reject) => {
@@ -49,7 +53,6 @@ export class BoxLang {
             });
 
             let stdout = '';
-            let stderr = '';
             let found = false;
 
             lsp.on("error", (err) => {
@@ -75,14 +78,12 @@ export class BoxLang {
             });
 
             lsp.stderr.on("data", data => {
-                console.log(stderr += data);
                 boxlangOutputChannel.appendLine(data + "");
             });
         })
     }
 
     static async startDebugger(): Promise<string> {
-        console.log(ExtensionConfig.boxlangJarPath);
         return new Promise((resolve, reject) => {
             const javaExecutable = ExtensionConfig.boxlangJavaHome;
             const boxLang = spawn(javaExecutable, ["ortus.boxlang.debugger.DebugMain"], {
@@ -112,6 +113,34 @@ export class BoxLang {
             });
 
             boxLang.stderr.on("data", data => console.log(stderr += data));
+        });
+    }
+
+    static async stopMiniServer(server: BoxServerConfig): Promise<void> {
+        runningServers[server.name].kill();
+    }
+
+    static async startMiniServer(server: BoxServerConfig): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const javaExecutable = ExtensionConfig.boxlangJavaHome;
+            const boxLang = spawn(javaExecutable, ["ortus.boxlang.web.MiniServer", "--port", "" + server.port, "--webroot", server.directoryAbsolute], {
+                env: {
+                    CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
+                }
+            });
+
+            const outputChannel = window.createOutputChannel(`BoxLang - ${server.name}`);
+
+            boxLang.stdout.on("data", data => outputChannel.appendLine(data));
+            boxLang.stderr.on("data", data => outputChannel.appendLine(data));
+
+            trackServerStart(server.name);
+            runningServers[server.name] = boxLang;
+
+            boxLang.on("close", () => {
+                trackServerStop(server.name);
+                outputChannel.dispose();
+            });
         });
     }
 

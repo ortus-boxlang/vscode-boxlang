@@ -1,0 +1,43 @@
+import * as vscode from 'vscode';
+
+import { getServerData, onDidChangeServerConfiguration } from '../utils/Server';
+
+const _onDidChangeTreeData: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
+export const onDidChangeTreeData: vscode.Event<void> = _onDidChangeTreeData.event;
+let servers = {};
+onDidChangeServerConfiguration((data) => {
+    servers = data;
+    _onDidChangeTreeData.fire();
+});
+
+export function boxlangServerTreeDataProvider(): vscode.TreeDataProvider<{ key: string }> {
+    return {
+        onDidChangeTreeData: onDidChangeTreeData,
+        getChildren: (element: { key: string }): { key: string }[] => {
+            return !element ? Object.keys(servers).map(s => ({ key: s }))
+                : [{ key: element.key + ".directory" }, { key: element.key + ".type" }, { key: element.key + ".status" }, { key: element.key + ".port" }];
+        },
+        getTreeItem: (element: { key: string }): vscode.TreeItem => {
+            const parts = element.key.split(".");
+            const server = getServerData(parts[0]);
+            const isServerElement = parts.length === 1;
+            const label = parts[parts.length - 1];
+            const status = server.status;
+            const description = isServerElement ? status : "" + servers[parts[0]][parts[1]];
+
+            return {
+                id: element.key,
+                label: label,
+                description: description,
+                collapsibleState: parts.length === 1 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
+                contextValue: !isServerElement ? "boxlangServerPropertyContext"
+                    : status === "stopped" ? "boxlangServerStoppedContext" : "boxlangServerRunningContext"
+            };
+        },
+        getParent: ({ key }: { key: string }): { key: string } | undefined => {
+            const parts = key.split(".");
+
+            return parts.length === 1 ? null : servers[parts[0]];
+        }
+    };
+}

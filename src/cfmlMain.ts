@@ -4,7 +4,8 @@ import * as path from "path";
 import {
     ConfigurationChangeEvent, ConfigurationTarget, DocumentSelector, ExtensionContext,
     FileSystemWatcher, IndentAction,
-    TextDocument, Uri,
+    TextDocument,
+    Uri,
     WorkspaceConfiguration,
     commands,
     debug,
@@ -45,6 +46,8 @@ import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
 import { BoxLang } from "./utils/BoxLang";
 import { detectJavaVerison } from "./utils/Java";
+import { setupServers } from "./utils/Server";
+import { boxlangServerTreeDataProvider } from "./views/ServerView";
 
 export const CFML_LANGUAGE_ID: string = "cfml";
 export const BL_LANGUAGE_ID: string = "boxlang";
@@ -226,6 +229,11 @@ export function activate(context: ExtensionContext): void {
         }
     };
 
+    context.subscriptions.push(commands.registerCommand("boxlang.addServer", extensionCommands.addServer));
+    context.subscriptions.push(commands.registerCommand("boxlang.openServerInBrowser", extensionCommands.openServerInBrowser));
+    context.subscriptions.push(commands.registerCommand("boxlang.stopServer", extensionCommands.stopServer));
+    context.subscriptions.push(commands.registerCommand("boxlang.runConfiguredServer", extensionCommands.runConfiguredServer));
+    context.subscriptions.push(commands.registerCommand("boxlang.deleteServer", extensionCommands.deleteServer));
     context.subscriptions.push(commands.registerCommand("boxlang.runFile", applyContext(extensionCommands.runBoxLangFile)));
     context.subscriptions.push(commands.registerCommand("boxlang.runWebServer", extensionCommands.runBoxLangWebServer));
     context.subscriptions.push(commands.registerCommand("boxlang.transpileToJava", extensionCommands.transpileToJava));
@@ -430,6 +438,10 @@ export function activate(context: ExtensionContext): void {
         startLSP();
     });
 
+
+    window.registerTreeDataProvider("boxlang-servers", boxlangServerTreeDataProvider());
+
+    setupServers(context);
 
 }
 

@@ -1,44 +1,30 @@
 import * as vscode from "vscode";
-import { hasRunningWebServer } from "../debug/BoxLangDebugAdapterTracker";
-import { ExtensionConfig } from "../utils/Configuration";
+import { getAvailableServerNames } from "../utils/Server";
 
-export async function runBoxLangWebServer() {
+export async function runBoxLangWebServer(context: vscode.ExtensionContext) {
 
-    if (hasRunningWebServer()) {
-        vscode.window.showErrorMessage("There is already a BoxLang WebServer running. You may only have one BoxLangServer running at a time.");
+    let serverNames = getAvailableServerNames();
+
+    if (serverNames.length === 0) {
+        await vscode.commands.executeCommand("boxlang.addServer");
+        serverNames = getAvailableServerNames();
+
+        if (serverNames.length === 0) {
+            return;
+        }
+    }
+
+    const selectedServer = await vscode.window.showQuickPick(
+        serverNames,
+        {
+            title: "Selct BoxLang Server to Start",
+            placeHolder: "Server"
+        }
+    );
+
+    if (!selectedServer) {
         return;
     }
 
-    let webRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-
-    if (vscode.workspace.workspaceFolders.length > 1) {
-        webRoot = await vscode.window.showQuickPick(
-            vscode.workspace.workspaceFolders.map(wf => wf.uri.fsPath),
-            {
-                title: "Initialize BoxLang Development Server",
-                placeHolder: "Select a web root"
-            }
-        );
-    }
-
-    if (!webRoot) {
-        vscode.window.showErrorMessage("You must select a webroot for the BoxLang server");
-        return;
-    }
-
-    const webPort = ExtensionConfig.boxlangServerPort;
-    const debugConfig: vscode.DebugConfiguration = {
-        name: "BoxLang",
-        type: "boxlang",
-        request: "launch",
-        debugType: "local_web",
-        webPort: webPort,
-        webRoot: webRoot
-    };
-
-    await vscode.debug.startDebugging(null, debugConfig);
-
-    setTimeout(() => {
-        vscode.env.openExternal(vscode.Uri.parse(`http://localhost:${webPort}`));
-    }, 300);
+    vscode.commands.executeCommand("boxlang.runConfiguredServer", { key: selectedServer });
 }
