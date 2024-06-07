@@ -1,8 +1,7 @@
-
 main(){
     local releases=$(curl -s "https://api.github.com/repos/ortus-boxlang/vscode-boxlang/releases" | grep browser_download_url)
 
-    local release_url=$(echo "$releases" | head -n 1 | grep -o -P "https.+vsix")
+    local release_url=$(echo "$releases" | head -n 1 | grep -o -p "https.*vsix")
 
     if [[ -z "${bx_version}" ]]; then
         echo "No bx_version provided installing the latest version"
