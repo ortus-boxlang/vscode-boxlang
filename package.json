@@ -865,7 +865,7 @@
         "semver": "~7.5.3",
         "tls-browserify": "^0.2.2",
         "trie-prefix-tree": "1.5.1",
-        "vscode-css-languageservice": "~6.2.4",
+        "vscode-css-languageservice": "~6.2.12",
         "vscode-debugadapter": "^1.51.0",
         "vscode-html-languageservice": "2.1.11-next.11",
         "vscode-languageclient": "^9.0.1"
