@@ -13,3 +13,4 @@ tslint.json
 .vscode-test-web
 boxlang/**
 boxlang-lsp/**
+.install-scripts/**

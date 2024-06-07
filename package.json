@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "0.9.13",
+    "version": "0.9.14",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -639,11 +639,6 @@
                 "icon": "$(stop)"
             },
             {
-                "command": "boxlang.editServerName",
-                "title": "editServerName",
-                "icon": "$(edit)"
-            },
-            {
                 "command": "boxlang.runConfiguredServer",
                 "title": "Run Server",
                 "icon": "$(run)"
@@ -741,11 +736,6 @@
                 }
             ],
             "view/item/context": [
-                {
-                    "command": "boxlang.editServerName",
-                    "when": "viewItem == boxlangServerStoppedContext || viewItem == boxlangServerRunningContext",
-                    "group": "inline"
-                },
                 {
                     "command": "boxlang.stopServer",
                     "when": "viewItem == boxlangServerRunningContext",

@@ -15,6 +15,24 @@ An extension for the development of BoxLang.
   * Language server integration (alpha)
 * Support of existing CFML functionality
 
+## Quick Install
+
+```powershell
+# to install the latest version
+iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/ortus-boxlang/vscode-boxlang/development/install-scripts/Run-RemoteInstall.ps1'))
+
+# to install a specific version set a $bx_version variable with the release number
+$bx_version="0.9.12";iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/ortus-boxlang/vscode-boxlang/development/install-scripts/Run-RemoteInstall.ps1'))
+```
+
+```bash
+# to install the latest version
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/ortus-boxlang/vscode-boxlang/development/install-scripts/install-vscode-boxlang.sh)"
+
+# to install a specific version set a $bx_version variable with the release number
+export bx_version="0.9.12"; /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/ortus-boxlang/vscode-boxlang/development/install-scripts/install-vscode-boxlang.sh)"
+```
+
 ## Building and Installing
 
 For local development you can run the following commands to build the extension.
