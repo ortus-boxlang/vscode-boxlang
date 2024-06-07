@@ -6,21 +6,20 @@ An extension for the development of BoxLang.
 
 * Built-in BoxLang runtime for easy development
 * Tooling
-    * Debugger 
-    * Web server that can be launched within VSCode
-    * Execute .bxs files
-    * Execute .bx files that have a main method
+  * Debugger
+  * Web server that can be launched within VSCode
+  * Execute .bxs files
+  * Execute .bx files that have a main method
 * Language support
-    * Syntax highlighting
-    * Language server integration (alpha)
+  * Syntax highlighting
+  * Language server integration (alpha)
 * Support of existing CFML functionality
-
 
 ## Building and Installing
 
 For local development you can run the following commands to build the extension.
 
-```
+```bash
 npm install
 
 npm run build
@@ -31,7 +30,8 @@ npm run pack
 Once the `npm run pack` command completes you should see a file in the root fo the project like `boxlang-#.#.#.vsix`. This VSIX package is the bundeled extension and should be ready to install.
 
 You can install it via command line like so
-```
+
+```bash
 code --install-extension boxlang-0.7.1.vsix
 ```
 
@@ -55,16 +55,16 @@ Eventually this extension will ship with the BoxLang debugger. For now, we have 
 
 In your BoxLang VSCode project go to the run profile `boxlang (debugger)` and hit play. It will spin up the boxlang debug server on port 4404. 
 
-In your test project folder you can now right-click on any BoxLang source file and select "BoxLang: Run File". VSCode will conect to the BoxLang process listening to port 4404 and execute the file. 
+In your test project folder you can now right-click on any BoxLang source file and select "BoxLang: Run File". VSCode will conect to the BoxLang process listening to port 4404 and execute the file.
 
 ## Acknowledgements
 
-- [`vscode-cfml`](https://github.com/vadim-sibiryanskiy-yumasoft/vscode-cfml) fork of the vscode-cfml project used as the base for this fork
-- [`vscode-cfml`](https://github.com/KamasamaK/vscode-cfml) original vscode-cfml project
-- [`vscode-coldfusion`](https://github.com/ilich/vscode-coldfusion/) on which the syntax highlighting is based, which was based on the next extension
-- [`sublimetext-cfml`](https://github.com/jcberquist/sublimetext-cfml) as inspiration for some of the features. Some "parsing" logic (including regexes) was also used.
-- [`cfdocs`](https://github.com/foundeo/cfdocs/) as the default documentation and sample images in this README
-- [`vscode-php-docblocker`](https://github.com/neild3r/vscode-php-docblocker) as the basis for docblock completion
+* [`vscode-cfml`](https://github.com/vadim-sibiryanskiy-yumasoft/vscode-cfml) fork of the vscode-cfml project used as the base for this fork
+* [`vscode-cfml`](https://github.com/KamasamaK/vscode-cfml) original vscode-cfml project
+* [`vscode-coldfusion`](https://github.com/ilich/vscode-coldfusion/) on which the syntax highlighting is based, which was based on the next extension
+* [`sublimetext-cfml`](https://github.com/jcberquist/sublimetext-cfml) as inspiration for some of the features. Some "parsing" logic (including regexes) was also used.
+* [`cfdocs`](https://github.com/foundeo/cfdocs/) as the default documentation and sample images in this README
+* [`vscode-php-docblocker`](https://github.com/neild3r/vscode-php-docblocker) as the basis for docblock completion
 
 ## Features
 
@@ -116,26 +116,26 @@ The following are configurable Settings (Win/Linux: `Ctrl`+`Comma`; Mac: `Cmd`+`
 
 This extension contributes these settings to Visual Studio Code:
 
-- `cfml.globalDefinitions.source`: The source of the global definitions. Currently only supports CFDocs. [*Default*: `cfdocs`]
-- `cfml.cfDocs.source`: Indicates the source location type to be used for CFDocs.  
+* `cfml.globalDefinitions.source`: The source of the global definitions. Currently only supports CFDocs. [*Default*: `cfdocs`]
+* `cfml.cfDocs.source`: Indicates the source location type to be used for CFDocs.  
 **Values**
-  - `remote`: Retrieve resources remotely from GitHub. [*Default*]
-  - `local`: Retrieve resources locally using `cfml.cfDocs.localPath`.
-- `cfml.cfDocs.localPath`: [*Optional*] Physical path to the data/language directory of CFDocs.
-- `cfml.hover.enable`: Whether hover is enabled for CFML entities. [*Default*: `true`]
-- `cfml.hover.html.enable`: Whether hover is enabled for HTML entities. [*Default*: `true`]
-- `cfml.hover.css.enable`: Whether hover is enabled for CSS entities. [*Default*: `true`]
-- `cfml.signature.enable`: Whether signature help is enabled. [*Default*: `true`]
-- `cfml.suggest.enable`: Whether completion help is enabled. [*Default*: `true`]
-- `cfml.suggest.snippets.enable`: Whether included [snippets](./snippets/snippets.json) are part of completion help. [*Default*: `true`]
-- `cfml.suggest.snippets.exclude`: [*Optional*] Set of snippet keys you would like excluded from suggestions.
-- `cfml.suggest.globalFunctions.enable`: Whether global functions are part of completion help. [*Default*: `true`]
-- `cfml.suggest.globalFunctions.firstLetterCase`: What case should be used for the first letter of global function suggestions. [*Default*: `unchanged`]
-- `cfml.suggest.globalTags.enable`: Whether global tags are part of completion help. [*Default*: `true`]
-- `cfml.suggest.globalTags.attributes.quoteType`: Which quote type to use when completing CFML attribute suggestion. [*Default*: `double`]
-- `cfml.suggest.globalTags.attributes.defaultValue`: Whether to populate the default value for an attribute if it has one. [*Default*: `false`]
-- `cfml.suggest.globalTags.includeAttributes.setType`: What set of attributes to include when global tag suggestion is selected. [*Default*: `none`]
-- `cfml.suggest.globalTags.includeAttributes.custom`: A custom set of attributes to include for given tags when suggestion is selected. Tags set here override the set type.  
+  * `remote`: Retrieve resources remotely from GitHub. [*Default*]
+  * `local`: Retrieve resources locally using `cfml.cfDocs.localPath`.
+* `cfml.cfDocs.localPath`: [*Optional*] Physical path to the data/language directory of CFDocs.
+* `cfml.hover.enable`: Whether hover is enabled for CFML entities. [*Default*: `true`]
+* `cfml.hover.html.enable`: Whether hover is enabled for HTML entities. [*Default*: `true`]
+* `cfml.hover.css.enable`: Whether hover is enabled for CSS entities. [*Default*: `true`]
+* `cfml.signature.enable`: Whether signature help is enabled. [*Default*: `true`]
+* `cfml.suggest.enable`: Whether completion help is enabled. [*Default*: `true`]
+* `cfml.suggest.snippets.enable`: Whether included [snippets](./snippets/snippets.json) are part of completion help. [*Default*: `true`]
+* `cfml.suggest.snippets.exclude`: [*Optional*] Set of snippet keys you would like excluded from suggestions.
+* `cfml.suggest.globalFunctions.enable`: Whether global functions are part of completion help. [*Default*: `true`]
+* `cfml.suggest.globalFunctions.firstLetterCase`: What case should be used for the first letter of global function suggestions. [*Default*: `unchanged`]
+* `cfml.suggest.globalTags.enable`: Whether global tags are part of completion help. [*Default*: `true`]
+* `cfml.suggest.globalTags.attributes.quoteType`: Which quote type to use when completing CFML attribute suggestion. [*Default*: `double`]
+* `cfml.suggest.globalTags.attributes.defaultValue`: Whether to populate the default value for an attribute if it has one. [*Default*: `false`]
+* `cfml.suggest.globalTags.includeAttributes.setType`: What set of attributes to include when global tag suggestion is selected. [*Default*: `none`]
+* `cfml.suggest.globalTags.includeAttributes.custom`: A custom set of attributes to include for given tags when suggestion is selected. Tags set here override the set type.  
   **Example**
     ```json
     "cfml.suggest.globalTags.includeAttributes.custom": {
@@ -150,17 +150,17 @@ This extension contributes these settings to Visual Studio Code:
         ]
     }
     ```
-- `cfml.suggest.htmlTags.enable`: Whether HTML tags are part of completion help. [*Default*: `true`]
-- `cfml.suggest.htmlTags.attributes.quoteType`: Which quote type to use when completing HTML attribute suggestion. [*Default*: `double`]
-- `cfml.suggest.css.enable`: Whether CSS properties and values are part of completion help. [*Default*: `true`]
-- `cfml.suggest.scopes.case`: Whether the completed scopes should be uppercase or lowercase. [*Default*: `lowercase`]
-- `cfml.definition.enable`: Whether providing definitions is enabled. [*Default*: `true`]
-- `cfml.definition.userFunctions.search.enable`: Whether to search for matching functions throughout the workspace when a reliable match cannot be determined. Peek Definition will provide a list of all matches. [*Default*: `false`]
-- `cfml.indexComponents.enable`: Whether to index the components in workspace on startup. This is done on each startup and duration depends on number and complexity of components as well as hardware specifications. Editor may be unresponsive during this period. It is currently required for most features involving components to work properly. [*Default*: `true`]
-- `cfml.autoCloseTags.enable`: Whether to enable auto-closing tags for CFML. This uses the third-party extension `auto-close-tag`. This is only checked and set on startup. [*Default*: `true`]
-- `cfml.autoCloseTags.configurationTarget`: Auto-configuration target for auto-closing tags. [*Default*: `Global`]
-- `cfml.docBlock.gap`: Whether there should be a gap between the hint and other tags in a docblock. [*Default*: `true`]
-- `cfml.docBlock.extra`: Extra tags you would like to include in every docblock  
+* `cfml.suggest.htmlTags.enable`: Whether HTML tags are part of completion help. [*Default*: `true`]
+* `cfml.suggest.htmlTags.attributes.quoteType`: Which quote type to use when completing HTML attribute suggestion. [*Default*: `double`]
+* `cfml.suggest.css.enable`: Whether CSS properties and values are part of completion help. [*Default*: `true`]
+* `cfml.suggest.scopes.case`: Whether the completed scopes should be uppercase or lowercase. [*Default*: `lowercase`]
+* `cfml.definition.enable`: Whether providing definitions is enabled. [*Default*: `true`]
+* `cfml.definition.userFunctions.search.enable`: Whether to search for matching functions throughout the workspace when a reliable match cannot be determined. Peek Definition will provide a list of all matches. [*Default*: `false`]
+* `cfml.indexComponents.enable`: Whether to index the components in workspace on startup. This is done on each startup and duration depends on number and complexity of components as well as hardware specifications. Editor may be unresponsive during this period. It is currently required for most features involving components to work properly. [*Default*: `true`]
+* `cfml.autoCloseTags.enable`: Whether to enable auto-closing tags for CFML. This uses the third-party extension `auto-close-tag`. This is only checked and set on startup. [*Default*: `true`]
+* `cfml.autoCloseTags.configurationTarget`: Auto-configuration target for auto-closing tags. [*Default*: `Global`]
+* `cfml.docBlock.gap`: Whether there should be a gap between the hint and other tags in a docblock. [*Default*: `true`]
+* `cfml.docBlock.extra`: Extra tags you would like to include in every docblock  
   **Example**
     ```json
     "cfml.docBlock.extra": [
@@ -174,9 +174,9 @@ This extension contributes these settings to Visual Studio Code:
         }
     ]
     ```
-- `cfml.engine.name`: Name of the CFML engine against which to filter.
-- `cfml.engine.version`: Version of the CFML engine against which to filter. SemVer format is preferred.
-- `cfml.mappings`: Represents CFML mappings from logicalPath to directoryPath.  
+* `cfml.engine.name`: Name of the CFML engine against which to filter.
+* `cfml.engine.version`: Version of the CFML engine against which to filter. SemVer format is preferred.
+* `cfml.mappings`: Represents CFML mappings from logicalPath to directoryPath.  
   **Examples**
     ```json
     "cfml.mappings": [
@@ -212,15 +212,15 @@ You can enable Emmet within CFML files by using the following setting:
 
 Used in [Command Palette](https://code.visualstudio.com/docs/getstarted/userinterface#_command-palette). Can also be bound to [Keyboard Shortcuts](https://code.visualstudio.com/docs/getstarted/keybindings).
 
-- Refresh cache for global definitions
-- Refresh cache for workspace definitions
-- Toggle CFML line comment (Default: `Ctrl`+`/`)
-- Toggle CFML block comment (Default: `Shift`+`Alt`+`A`)
-- Open Application file for currently active document
-- Go to Matching Tag
-- Open CFDocs page
-- Open CFML engine docs page
-- Fold all functions in active editor
+* Refresh cache for global definitions
+* Refresh cache for workspace definitions
+* Toggle CFML line comment (Default: `Ctrl`+`/`)
+* Toggle CFML block comment (Default: `Shift`+`Alt`+`A`)
+* Open Application file for currently active document
+* Go to Matching Tag
+* Open CFDocs page
+* Open CFML engine docs page
+* Fold all functions in active editor
 
 ## Known Issues/Limitations
 
@@ -237,22 +237,22 @@ Used in [Command Palette](https://code.visualstudio.com/docs/getstarted/userinte
 
 Feel free to open issues for these or any other features you would find helpful so we can discuss.
 
-- Provide additional completion suggestions
-  - Member functions for native types
-  - Enumerated values for global functions
-- Consider component imports
-- References (within same file/block)
-- Use proper parser ([CFParser](https://github.com/cfparser/cfparser))
-- Utilize a CFML language server via LSP
+* Provide additional completion suggestions
+  * Member functions for native types
+  * Enumerated values for global functions
+* Consider component imports
+* References (within same file/block)
+* Use proper parser ([CFParser](https://github.com/cfparser/cfparser))
+* Utilize a CFML language server via LSP
 
 ## Recommended Extensions
 
 VS Code and this extension lack features and functionality that I find useful for development. Below are some supplemental extensions that I believe will improve the development experience for most.
 
-- [Auto Close Tag](https://marketplace.visualstudio.com/items?itemName=formulahendry.auto-close-tag) - Enables automatic closing of tags. There are settings (`cfml.autoCloseTags.*`) for this extension to automate the configuration for CFML tags.
-- [CFLint](https://marketplace.visualstudio.com/items?itemName=KamasamaK.vscode-cflint) - Integrates CFLint into VS Code as diagnostics/problems.
-- [highlight-matching-tag](https://marketplace.visualstudio.com/items?itemName=vincaslt.highlight-matching-tag) - This will highlight the relevant tags based on your configuration with a configurable style. There are also some useful commands.
-- [Path Autocomplete](https://marketplace.visualstudio.com/items?itemName=ionutvmi.path-autocomplete) - Provides suggestions when entering file paths
+* [Auto Close Tag](https://marketplace.visualstudio.com/items?itemName=formulahendry.auto-close-tag) - Enables automatic closing of tags. There are settings (`cfml.autoCloseTags.*`) for this extension to automate the configuration for CFML tags.
+* [CFLint](https://marketplace.visualstudio.com/items?itemName=KamasamaK.vscode-cflint) - Integrates CFLint into VS Code as diagnostics/problems.
+* [highlight-matching-tag](https://marketplace.visualstudio.com/items?itemName=vincaslt.highlight-matching-tag) - This will highlight the relevant tags based on your configuration with a configurable style. There are also some useful commands.
+* [Path Autocomplete](https://marketplace.visualstudio.com/items?itemName=ionutvmi.path-autocomplete) - Provides suggestions when entering file paths
 
 ## Release Notes
 
