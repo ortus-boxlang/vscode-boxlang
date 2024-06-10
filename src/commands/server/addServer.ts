@@ -12,11 +12,21 @@ export async function addServer() {
         value: "MiniServer"
     });
 
+    if (name == null || name == "") {
+        vscode.window.showErrorMessage(`Could not configure server. You must provide a name value.`);
+        return;
+    }
+
     const directory = await vscode.window.showInputBox({
         title: "New BoxLang Server (2/3)",
         prompt: "Enter a relative path of the directory you want to use",
         value: "./"
     });
+
+    if (directory == null || directory == "") {
+        vscode.window.showErrorMessage(`Could not configure server. You must provide a directory value.`);
+        return;
+    }
 
     const port = await vscode.window.showInputBox({
         title: "New BoxLang Server (3/3)",
@@ -24,6 +34,10 @@ export async function addServer() {
         value: "8080"
     });
 
+    if (port == null || port == "") {
+        vscode.window.showErrorMessage(`Could not configure server. You must provide a port value.`);
+        return;
+    }
 
     updateServerConfig({
         name,

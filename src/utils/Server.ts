@@ -36,6 +36,10 @@ export function trackServerStop(name) {
 export function getServerData(name): BoxServerConfig | null {
     const data = structuredClone(servers[name]);
 
+    if (!data.directory) {
+        data.directory = "./";
+    }
+
     data.directoryAbsolute = path.isAbsolute(data.directory)
         ? data.directory
         : path.resolve(vscode.workspace.workspaceFolders[0].uri.fsPath, data.directory);
