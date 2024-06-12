@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "0.9.15",
+    "version": "0.9.16",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -639,6 +639,11 @@
                 "icon": "$(stop)"
             },
             {
+                "command": "boxlang.debugServer",
+                "title": "Debug Server",
+                "icon": "$(debug)"
+            },
+            {
                 "command": "boxlang.runConfiguredServer",
                 "title": "Run Server",
                 "icon": "$(run)"
@@ -738,6 +743,11 @@
             "view/item/context": [
                 {
                     "command": "boxlang.stopServer",
+                    "when": "viewItem == boxlangServerRunningContext",
+                    "group": "inline"
+                },
+                {
+                    "command": "boxlang.debugServer",
                     "when": "viewItem == boxlangServerRunningContext",
                     "group": "inline"
                 },
@@ -851,6 +861,7 @@
         "isomorphic-fetch": "^3.0.0",
         "micromatch": "~4.0.4",
         "net-browserify": "^0.2.4",
+        "portfinder": "^1.0.32",
         "request": "~2.88.2",
         "semver": "~7.5.3",
         "tls-browserify": "^0.2.2",

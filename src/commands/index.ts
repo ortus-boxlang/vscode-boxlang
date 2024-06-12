@@ -2,6 +2,7 @@
 export * from "./runBoxLangFile"
 export * from "./runBoxLangWebServer"
 export * from "./server/addServer"
+export * from "./server/debugServer"
 export * from "./server/deleteServer"
 export * from "./server/openServerInBrowser"
 export * from "./server/runConfiguredServer"

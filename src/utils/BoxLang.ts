@@ -1,4 +1,5 @@
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
+import * as portFinder from "portfinder";
 import { window } from "vscode";
 import { ExtensionConfig } from "../utils/Configuration";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
@@ -120,21 +121,31 @@ export class BoxLang {
         runningServers[server.name].kill();
     }
 
-    static async startMiniServer(server: BoxServerConfig): Promise<string> {
-        return new Promise((resolve, reject) => {
+    static async startMiniServer(server: BoxServerConfig): Promise<void> {
+        const debugPort = await findAvailableDebugPort();
+        const agentLibArg = await getAgentLibArg(debugPort);
+        return new Promise(async (resolve, reject) => {
             const javaExecutable = ExtensionConfig.boxlangJavaHome;
-            const boxLang = spawn(javaExecutable, ["ortus.boxlang.web.MiniServer", "--port", "" + server.port, "--webroot", server.directoryAbsolute], {
+            const boxLang = spawn(javaExecutable, [agentLibArg, "ortus.boxlang.web.MiniServer", "--port", "" + server.port, "--webroot", server.directoryAbsolute], {
                 env: {
                     CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
                 }
             });
 
             const outputChannel = window.createOutputChannel(`BoxLang - ${server.name}`);
+            outputChannel.appendLine(`Using port ${debugPort} for debugging`);
+            outputChannel.show();
 
-            boxLang.stdout.on("data", data => outputChannel.appendLine(data));
+            boxLang.stdout.on("data", data => {
+                outputChannel.appendLine(data)
+
+                if (/BoxLang MiniServer started at/.test("" + data)) {
+                    resolve();
+                }
+            });
             boxLang.stderr.on("data", data => outputChannel.appendLine(data));
 
-            trackServerStart(server.name);
+            trackServerStart(server.name, debugPort);
             runningServers[server.name] = boxLang;
 
             boxLang.on("close", () => {
@@ -165,4 +176,12 @@ export class BoxLang {
 
 function getJavaCLASSPATHSeparator(): string {
     return process.platform === "win32" ? ";" : ":";
+}
+
+async function getAgentLibArg(port: number): Promise<string> {
+    return `-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${port}`;
+}
+
+async function findAvailableDebugPort(): Promise<number> {
+    return await portFinder.getPortPromise({ port: 4500 });
 }

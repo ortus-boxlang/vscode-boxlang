@@ -9,19 +9,7 @@ export async function runConfiguredServer({ key }) {
         return;
     }
 
-    BoxLang.startMiniServer(server);
-
-    // const webPort = ExtensionConfig.boxlangServerPort;
-    // const debugConfig: vscode.DebugConfiguration = {
-    //     name: "BoxLang",
-    //     type: "boxlang",
-    //     request: "launch",
-    //     debugType: "local_web",
-    //     webPort: webPort,
-    //     webRoot: webRoot
-    // };
-
-    // await vscode.debug.startDebugging(null, debugConfig);
+    await BoxLang.startMiniServer(server);
 
     vscode.window.showInformationMessage(`Started the server ${server.name}. Opening in browser...`);
 

@@ -6,25 +6,36 @@ import * as vscode from "vscode";
 const BOXLANG_SERVER_CONFIG = "boxlang_server.json";
 const _onDidChangeServerConfiguration: vscode.EventEmitter<any> = new vscode.EventEmitter<any>();
 export const onDidChangeServerConfiguration: vscode.Event<any> = _onDidChangeServerConfiguration.event;
-let servers = {};
+let servers: Record<string, BoxServerConfig> = {};
 let context: vscode.ExtensionContext;
 
 export type BoxServerConfig = {
     name: string,
     host: string,
     port: Number,
+    debugging?: boolean,
+    debugPort?: Number,
     directory: string,
     directoryAbsolute?: string,
     status?: "running" | "stopped",
     type: "miniserver" | "remote"
 }
 
+export function trackDebugging(name: string) {
+    servers[name].debugging = true;
+}
+
 export function getAvailableServerNames() {
     return Object.keys(servers);
 }
 
-export function trackServerStart(name) {
+export function getDebugServerPort(name: string) {
+    return servers[name].debugPort;
+}
+
+export function trackServerStart(name: string, debugPort: Number) {
     servers[name].status = "running";
+    servers[name].debugPort = debugPort;
     _onDidChangeServerConfiguration.fire(servers);
 }
 
@@ -62,6 +73,26 @@ export function setupServers(con: vscode.ExtensionContext) {
     if (!fs.existsSync(con.storageUri.fsPath)) {
         fs.mkdirSync(con.storageUri.fsPath);
     }
+
+    vscode.debug.onDidStartDebugSession((e) => {
+        const matches = /BoxLang MiniServer - (\w+)/.exec(e.name);
+
+        if (!matches.length || !servers[matches[1]]) {
+            return;
+        }
+
+        servers[matches[1]].debugging = true;
+    });
+
+    vscode.debug.onDidTerminateDebugSession((e) => {
+        const matches = /BoxLang MiniServer - (\w+)/.exec(e.name);
+
+        if (!matches.length || !servers[matches[1]]) {
+            return;
+        }
+
+        servers[matches[1]].debugging = false;
+    });
 }
 
 function getServerConfigs(context: vscode.ExtensionContext): Record<string, BoxServerConfig> {
@@ -81,6 +112,8 @@ function getServerConfigs(context: vscode.ExtensionContext): Record<string, BoxS
 export function updateServerConfig(data: BoxServerConfig) {
     servers[data.name] = data;
     servers[data.name].status = "stopped";
+
+    // TODO clear out variables that shouldn't be persisted (debugPort, status, directoryAbsolute, etc...)
     fs.writeFileSync(path.join(context.storageUri.fsPath, BOXLANG_SERVER_CONFIG), JSON.stringify(servers));
     _onDidChangeServerConfiguration.fire(servers);
 }
