@@ -60,7 +60,7 @@ export function getServerData(name): BoxServerConfig | null {
 
 export function deleteServer(name) {
     delete servers[name];
-    fs.writeFileSync(path.join(context.storageUri.fsPath, BOXLANG_SERVER_CONFIG), JSON.stringify(servers));
+    persistCurrentServerConfig();
     _onDidChangeServerConfiguration.fire(servers);
 }
 
@@ -104,6 +104,7 @@ function getServerConfigs(context: vscode.ExtensionContext): Record<string, BoxS
 
     for (let key in servers) {
         servers[key].status = "stopped";
+        servers[key].debugging = false;
     }
 
     return servers;
@@ -113,8 +114,22 @@ export function updateServerConfig(data: BoxServerConfig) {
     servers[data.name] = data;
     servers[data.name].status = "stopped";
 
-    // TODO clear out variables that shouldn't be persisted (debugPort, status, directoryAbsolute, etc...)
-    fs.writeFileSync(path.join(context.storageUri.fsPath, BOXLANG_SERVER_CONFIG), JSON.stringify(servers));
+    persistCurrentServerConfig();
     _onDidChangeServerConfiguration.fire(servers);
 }
 
+function persistCurrentServerConfig() {
+    const cleanedServerData = Object.keys(servers).reduce((cleaned, serverName) => {
+        cleaned[serverName] = {
+            name: servers[serverName].name,
+            host: servers[serverName].host,
+            port: servers[serverName].port,
+            directory: servers[serverName].directory,
+            type: servers[serverName].type
+        };
+
+        return cleaned;
+    }, {});
+
+    fs.writeFileSync(path.join(context.storageUri.fsPath, BOXLANG_SERVER_CONFIG), JSON.stringify(cleanedServerData));
+}
