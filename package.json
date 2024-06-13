@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "0.9.17",
+    "version": "0.9.18",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -316,7 +316,7 @@
                         "description": "A snippet key to exclude from suggestions",
                         "type": "string"
                     },
-                    "default": [],
+                    "default": [ ],
                     "scope": "resource"
                 },
                 "cfml.suggest.snippets.localPath": {
@@ -411,7 +411,7 @@
                 "cfml.suggest.globalTags.includeAttributes.custom": {
                     "type": "object",
                     "description": "A custom set of attributes to include for given tags when suggestion is selected. This setting overrides the set type.",
-                    "default": {},
+                    "default": { },
                     "patternProperties": {
                         "^cf[a-z0-9_]+$": {
                             "description": "The tag name and its attribute overrides",
@@ -438,7 +438,7 @@
                                     "name"
                                 ]
                             },
-                            "default": []
+                            "default": [ ]
                         }
                     },
                     "additionalProperties": false,
@@ -525,7 +525,7 @@
                 },
                 "cfml.docBlock.extra": {
                     "type": "array",
-                    "default": [],
+                    "default": [ ],
                     "items": {
                         "type": "object",
                         "properties": {
@@ -579,7 +579,7 @@
                 },
                 "cfml.mappings": {
                     "type": "array",
-                    "default": [],
+                    "default": [ ],
                     "items": {
                         "type": "object",
                         "properties": {
@@ -636,12 +636,12 @@
             {
                 "command": "boxlang.stopServer",
                 "title": "stopServer",
-                "icon": "$(stop)"
+                "icon": "$(debug-stop)"
             },
             {
                 "command": "boxlang.debugServer",
                 "title": "Debug Server",
-                "icon": "$(debug)"
+                "icon": "$(debug-alt)"
             },
             {
                 "command": "boxlang.runConfiguredServer",
