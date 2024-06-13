@@ -93,7 +93,6 @@ export class BoxLang {
                 }
             });
             let stdout = '';
-            let stderr = '';
             let found = false;
 
             boxLang.stdout.on("data", data => {
