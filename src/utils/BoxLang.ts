@@ -97,6 +97,8 @@ export class BoxLang {
             let found = false;
 
             boxLang.stdout.on("data", data => {
+                boxlangOutputChannel.appendLine("Debugger - output");
+                boxlangOutputChannel.appendLine("" + data);
                 stdout += data;
 
                 if (found) {
@@ -113,7 +115,10 @@ export class BoxLang {
                 resolve(matches[1]);
             });
 
-            boxLang.stderr.on("data", data => console.log(stderr += data));
+            boxLang.stderr.on("data", data => {
+                boxlangOutputChannel.appendLine("Debugger - error");
+                boxlangOutputChannel.appendLine("" + data);
+            });
         });
     }
 
