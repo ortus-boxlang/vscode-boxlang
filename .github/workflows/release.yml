@@ -69,7 +69,7 @@ jobs:
         with:
           ssh-key: ${{ secrets.boxlang_lsp_ssh_key }}
           repository: ortus-boxlang/boxlang-lsp
-          ref: 53f7a77bb2b65c6579ecba3be023573149f0ed71
+          ref: 9621ae423a0429ef3b3db1b54f22277f3146c8e1
           path: boxlang-lsp
       - name: Build LSP
         run: |
