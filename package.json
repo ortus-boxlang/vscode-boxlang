@@ -158,7 +158,7 @@
             },
             {
                 "language": "boxlang",
-                "scopeName": "embedding.boxlang",
+                "scopeName": "source.boxlang",
                 "path": "./syntaxes/boxlang.tmLanguage.json",
                 "embeddedLanguages": {
                     "source.css": "css",
@@ -849,7 +849,8 @@
         "pack": "vsce package",
         "publish": "vsce publish",
         "lint": "tslint -p tsconfig.json -t verbose",
-        "vscode:prepublish": "webpack --mode production --devtool hidden-source-map &&  npm run build"
+        "vscode:prepublish": "webpack --mode production --devtool hidden-source-map &&  npm run build",
+        "test-syntax": "vscode-tmgrammar-test \"./test-syntax/**/*\""
     },
     "dependencies": {
         "async_hooks": "^1.0.0",
@@ -891,6 +892,7 @@
         "rimraf": "^4.4.1",
         "ts-loader": "^9.2.2",
         "typescript": "^5.3.3",
+        "vscode-tmgrammar-test": "^0.1.3",
         "webpack": "^5.38.1",
         "webpack-cli": "^5.1.4"
     }

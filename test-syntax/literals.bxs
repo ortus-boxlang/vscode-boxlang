@@ -1,0 +1,37 @@
+// SYNTAX TEST "source.boxlang"
+
+51351
+// <----- constant.numeric
+
+51.0
+// <---- constant.numeric
+
+true
+// <---- constant.boolean
+
+false
+// <----- constant.boolean
+
+null
+// <---- constant.null
+
+"this is a string"
+// <- punctuation.definition.string.begin.boxlang
+// ^ string.quoted.double
+//               ^ punctuation.definition.string.end.boxlang
+
+"this is a string with escaped "" character"
+// <- punctuation.definition.string.begin.boxlang
+// ^ string.quoted.double
+//                                         ^ punctuation.definition.string.end.boxlang
+
+"this is a string with # "an" & " interpolated"# value"
+// <- punctuation.definition.string.begin.boxlang
+//                     ^ keyword.operator.hash.begin
+//                       ^ punctuation.definition.string.begin.boxlang
+//                          ^ punctuation.definition.string.end.boxlang
+//                            ^ keyword.operator.concat
+//                              ^ punctuation.definition.string.begin.boxlang
+//                                            ^ punctuation.definition.string.end.boxlang
+//                                             ^ keyword.operator.hash.end
+//                                                    ^ punctuation.definition.string.end.boxlang

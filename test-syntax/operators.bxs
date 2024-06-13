@@ -1,0 +1,37 @@
+// SYNTAX TEST "source.boxlang"
+
+2 + 2
+// <- constant.numeric
+// <~~- keyword.operator.plus
+//  ^ constant.numeric
+
+2 * 2
+// <- constant.numeric
+// <~~- keyword.operator.times
+//  ^ constant.numeric
+
+2 - 2
+// <- constant.numeric
+// <~~- keyword.operator.minus
+//  ^ constant.numeric
+
+2 < 2
+// <- constant.numeric
+// <~~- keyword.operator.lessthan
+//  ^ constant.numeric
+
+2 > 2
+// <- constant.numeric
+// <~~- keyword.operator.greaterthan
+//  ^ constant.numeric
+
+2 ^ 2
+// <- constant.numeric
+// <~~- keyword.operator.power
+//  ^ constant.numeric
+
+!what
+// <- keyword.operator.logicalnot
+
+"test" & "test"
+//     ^ keyword.operator.concat
