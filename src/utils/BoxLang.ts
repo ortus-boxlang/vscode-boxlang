@@ -6,7 +6,7 @@ import { boxlangOutputChannel } from "../utils/OutputChannels";
 import { BoxServerConfig, trackServerStart, trackServerStop } from "./Server";
 
 type BoxLangResult = {
-    code: Number,
+    code: number,
     stdout: string,
     stderr: string
 }
@@ -157,6 +157,12 @@ export class BoxLang {
 
     async getASTJSON(code) {
         const result = await runBoxLang("--printAST", "-c", code);
+
+        if (result.code > 0) {
+            boxlangOutputChannel.appendLine("Unable to generate AST");
+            boxlangOutputChannel.append(result.stderr);
+            throw new Error("Unable to generate AST");
+        }
 
         return result.stdout.replace(/\\n/g, '\\\\n')
             .replace(/\\r/g, '\\\\r')
