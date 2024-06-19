@@ -237,6 +237,7 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(commands.registerCommand("boxlang.runServerFromLocation", extensionCommands.runServerFromLocation));
     context.subscriptions.push(commands.registerCommand("boxlang.debugServer", extensionCommands.debugServer));
     context.subscriptions.push(commands.registerCommand("boxlang.deleteServer", extensionCommands.deleteServer));
+    context.subscriptions.push(commands.registerCommand("boxlang.editServerProperty", extensionCommands.editServerProperty));
     context.subscriptions.push(commands.registerCommand("boxlang.runFile", applyContext(extensionCommands.runBoxLangFile)));
     context.subscriptions.push(commands.registerCommand("boxlang.runWebServer", extensionCommands.runBoxLangWebServer));
     context.subscriptions.push(commands.registerCommand("boxlang.transpileToJava", extensionCommands.transpileToJava));

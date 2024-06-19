@@ -632,6 +632,11 @@
                 "icon": "$(plus)"
             },
             {
+                "command": "boxlang.editServerProperty",
+                "title": "Edit Server Property",
+                "icon": "$(pencil)"
+            },
+            {
                 "command": "boxlang.openServerInBrowser",
                 "title": "Open Browser",
                 "icon": "$(browser)"
@@ -772,6 +777,11 @@
                 {
                     "command": "boxlang.deleteServer",
                     "when": "viewItem == boxlangServerStoppedContext",
+                    "group": "inline"
+                },
+                {
+                    "command": "boxlang.editServerProperty",
+                    "when": "viewItem == boxlangServerStoppedContext || viewItem == editableBoxlangServerPropertyContext",
                     "group": "inline"
                 }
             ],

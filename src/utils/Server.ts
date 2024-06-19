@@ -116,6 +116,23 @@ function getServerConfigs(context: vscode.ExtensionContext): Record<string, BoxS
     return servers;
 }
 
+export function updateServerProperty(serverName: string, property: string, value: any) {
+
+    if (property === "name") {
+        const serverConfig = servers[serverName];
+        delete servers[serverName];
+        servers[value] = serverConfig;
+        servers[value].name = value;
+    }
+    else {
+        servers[serverName][property] = value;
+    }
+
+
+    persistCurrentServerConfig();
+    _onDidChangeServerConfiguration.fire(servers);
+}
+
 export function updateServerConfig(data: BoxServerConfig) {
     servers[data.name] = data;
     servers[data.name].status = "stopped";
