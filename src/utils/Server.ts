@@ -21,6 +21,12 @@ export type BoxServerConfig = {
     type: "miniserver" | "remote"
 }
 
+export function getServersThatContainPath(fileURI: vscode.Uri): Array<BoxServerConfig> {
+    return Object.keys(servers)
+        .filter((name) => fileURI.fsPath.startsWith(getAbsolutePath(servers[name].directory)))
+        .map(name => getServerData(name));
+}
+
 export function trackDebugging(name: string) {
     servers[name].debugging = true;
 }
@@ -132,4 +138,10 @@ function persistCurrentServerConfig() {
     }, {});
 
     fs.writeFileSync(path.join(context.storageUri.fsPath, BOXLANG_SERVER_CONFIG), JSON.stringify(cleanedServerData));
+}
+
+function getAbsolutePath(filePath: string): string {
+    return path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(vscode.workspace.workspaceFolders[0].uri.fsPath, filePath);
 }

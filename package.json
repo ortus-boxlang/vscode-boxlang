@@ -619,6 +619,10 @@
         },
         "commands": [
             {
+                "command": "boxlang.runServerFromLocation",
+                "title": "BoxLang: Run MiniServer Here"
+            },
+            {
                 "command": "boxlang.addServer",
                 "title": "Add Server",
                 "icon": "$(plus)"
@@ -771,6 +775,9 @@
                 {
                     "command": "boxlang.runFile",
                     "when": "resourceLangId == boxlang"
+                },
+                {
+                    "command": "boxlang.runServerFromLocation"
                 }
             ],
             "editor/context": [
