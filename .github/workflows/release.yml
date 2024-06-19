@@ -3,6 +3,18 @@ on:
   release:
     types:
       - published
+  push:
+    branches:
+      - main
+
+  # Reusable workflow : Usually called by a `snapshot` workflow
+  workflow_call:
+    inputs:
+      snapshot:
+        description: "Is this a snapshot build?"
+        required: false
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       publishMS:
@@ -19,10 +31,11 @@ on:
         description: 'Publish to GitHub Releases'
         type: boolean
         required: true
-        default: true
+        default: false
 
 env:
-    JDK: 17
+    JDK: 21
+    SNAPSHOT: ${{ inputs.snapshot || false }}
 
 jobs:
   package:
@@ -48,13 +61,6 @@ jobs:
       - name: Make resource lib folder
         run: mkdir -p resources/lib
 
-      # pull and build boxlang
-    #   - uses: actions/checkout@v2
-    #     with:
-    #       ssh-key: ${{ secrets.boxlang_ssh_key }}
-    #       repository: ortus-solutions-private/boxlang
-    #       ref: 63803f4521f2767064eca58940c710753b94e729
-    #       path: boxlang
       - name: Get Runtime
         run: |
             cd resources/lib
@@ -84,7 +90,7 @@ jobs:
 
       - uses: actions/setup-node@v2
         with:
-          node-version: 14
+          node-version: 20
           registry-url: https://registry.npmjs.org/
 
       - name: Install dependencies
@@ -93,7 +99,6 @@ jobs:
       - name: Setup package path
         id: setup
         run: echo "packageName=$(node -e "console.log(require('./package.json').name + '-' + require('./package.json').version + '.vsix')")" >> $GITHUB_OUTPUT
-        # run: echo "::set-output name=packageName::$(node -e "console.log(require('./package.json').name + '-' + require('./package.json').version + '.vsix')")"
 
       - name: Package
         run: |
@@ -118,7 +123,7 @@ jobs:
     name: Publish to VS marketplace
     runs-on: ubuntu-latest
     needs: package
-    if: github.event.inputs.publishMS == 'true'
+    if: inputs.SNAPSHOT == 'false'
     steps:
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v2
@@ -127,24 +132,11 @@ jobs:
       - name: Publish to VS marketplace
         run: npx vsce publish --packagePath ./${{ needs.package.outputs.packageName }} -p ${{ secrets.VSCE_PAT }}
 
-  # publishOVSX:
-  #   name: Publish to OpenVSX
-  #   runs-on: ubuntu-latest
-  #   needs: package
-  #   if: github.event.inputs.publishOVSX == 'true'
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - uses: actions/download-artifact@v2
-  #       with:
-  #         name: ${{ needs.package.outputs.packageName }}
-  #     - name: Publish to OpenVSX
-  #       run: npx ovsx publish ./${{ needs.package.outputs.packageName }} -p ${{ secrets.OVSX_PAT }}
-
   publishGH:
     name: Publish to GitHub releases
     runs-on: ubuntu-latest
     needs: package
-    if: github.event.inputs.publishGH == 'true'
+    if: inputs.SNAPSHOT == 'false'
     permissions:
       contents: write
     steps:

@@ -1,0 +1,21 @@
+name: BoxLang VSCode Extension Snapshots
+
+on:
+  push:
+    branches:
+      - development
+
+#Cancel running builds if another push to branch is made while this build is running
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
+    permissions:
+      checks: write
+      contents: write
+    with:
+      snapshot: true
