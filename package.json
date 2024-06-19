@@ -619,6 +619,10 @@
         },
         "commands": [
             {
+                "command": "boxlang.outputVersionInfo",
+                "title": "BoxLang: Output Version Info"
+            },
+            {
                 "command": "boxlang.runServerFromLocation",
                 "title": "BoxLang: Run MiniServer Here"
             },
@@ -797,6 +801,9 @@
                 }
             ],
             "commandPalette": [
+                {
+                    "command": "boxlang.outputVersionInfo"
+                },
                 {
                     "command": "boxlang.runFile"
                 },

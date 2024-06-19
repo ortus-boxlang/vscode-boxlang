@@ -1,4 +1,5 @@
 
+export * from "./outputVersionInfo"
 export * from "./runBoxLangFile"
 export * from "./runBoxLangWebServer"
 export * from "./server/addServer"

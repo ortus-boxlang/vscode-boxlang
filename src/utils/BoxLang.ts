@@ -121,6 +121,12 @@ export class BoxLang {
         });
     }
 
+    static async getVersionOutput(): Promise<string> {
+        const res = runBoxLang("--version");
+
+        return (await res).stdout;
+    }
+
     static async stopMiniServer(server: BoxServerConfig): Promise<void> {
         runningServers[server.name].kill();
     }
