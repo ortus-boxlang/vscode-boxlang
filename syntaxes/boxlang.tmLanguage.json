@@ -11,6 +11,7 @@
         "expression": {
             "name": "meta.expression",
             "patterns": [
+                { "include": "#punctuationColon" },
                 { "include": "#operatorConcat" },
                 { "include": "#operatorPlus" },
                 { "include": "#operatorTimes" },
@@ -20,10 +21,22 @@
                 { "include": "#operatorLogicalNot" },
                 { "include": "#operatorPower" },
                 { "include": "#literalStringDouble" },
+                { "include": "#literalStringSingle" },
                 { "include": "#literalNumber" },
                 { "include": "#literalBoolean" },
-                { "include": "#literalNull" }
+                { "include": "#literalNull" },
+                { "include": "#identifier" },
+                { "include": "#literalStruct" }
+
             ]
+        },
+        "punctuationColon": {
+            "name": "punctuation.definition.colon.boxlang",
+            "match": ":"
+        },
+        "identifier": {
+            "name": "variable.other.readwrite.boxlang",
+            "match": "(?i)[a-z][\\d\\w]+"
         },
         "literalNull": {
             "name": "constant.null",
@@ -69,6 +82,20 @@
             "name": "keyword.operator.power",
             "match": "\\^"
         },
+        "literalStruct": {
+            "name": "meta.expression.struct",
+            "begin": "\\{",
+            "end": "\\}",
+            "beginCaptures": {
+                "0": { "name": "punctuation.definition.block.begin.boxlang" }
+            },
+            "endCaptures": {
+                "0": { "name": "punctuation.definition.block.end.boxlang" }
+            },
+            "patterns": [
+                { "include": "#expression" }
+            ]
+        },
         "literalStringInterpolation": {
             "name": "string.interpolation",
             "begin": "(#)(?!#)",
@@ -95,6 +122,21 @@
             },
             "patterns": [
                 { "match": "\"\"" },
+                { "include": "#literalStringInterpolation" }
+            ]
+        },
+        "literalStringSingle": {
+            "name": "string.quoted.single",
+            "begin": "'",
+            "end": "(')(?!')",
+            "beginCaptures": {
+                "0": { "name": "punctuation.definition.string.begin.boxlang" }
+            },
+            "endCaptures": {
+                "0": { "name": "punctuation.definition.string.end.boxlang" }
+            },
+            "patterns": [
+                { "match": "''" },
                 { "include": "#literalStringInterpolation" }
             ]
         }

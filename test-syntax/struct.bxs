@@ -1,0 +1,13 @@
+// SYNTAX TEST "source.boxlang"
+
+{}
+// <- punctuation.definition.block.begin.boxlang
+// <~- punctuation.definition.block.end.boxlang
+
+
+{ test: "something" }
+// <- punctuation.definition.block.begin.boxlang
+// <~~---- variable.other.readwrite.boxlang
+//    ^ punctuation.definition.colon.boxlang
+//           ^ string.quoted.double
+//                  ^ punctuation.definition.block.end.boxlang

@@ -35,3 +35,32 @@ null
 //                                            ^ punctuation.definition.string.end.boxlang
 //                                             ^ keyword.operator.hash.end
 //                                                    ^ punctuation.definition.string.end.boxlang
+
+
+'this is a string'
+// <- punctuation.definition.string.begin.boxlang
+// ^ string.quoted.single
+//               ^ punctuation.definition.string.end.boxlang
+
+'this is a string with escaped '' character'
+// <- punctuation.definition.string.begin.boxlang
+// ^ string.quoted.single
+//                                         ^ punctuation.definition.string.end.boxlang
+
+'this is a string with # 'an' & ' interpolated'# value'
+// <- punctuation.definition.string.begin.boxlang
+//                     ^ keyword.operator.hash.begin
+//                       ^ punctuation.definition.string.begin.boxlang
+//                          ^ punctuation.definition.string.end.boxlang
+//                            ^ keyword.operator.concat
+//                              ^ punctuation.definition.string.begin.boxlang
+//                                            ^ punctuation.definition.string.end.boxlang
+//                                             ^ keyword.operator.hash.end
+//                                                    ^ punctuation.definition.string.end.boxlang
+
+{ test: "something" }
+// <- punctuation.definition.block.begin.boxlang
+// <~~---- variable.other.readwrite.boxlang
+//    ^ punctuation.definition.colon.boxlang
+//           ^ string.quoted.double
+//                  ^ punctuation.definition.block.end.boxlang
