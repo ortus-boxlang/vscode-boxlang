@@ -9600,8 +9600,8 @@
                 {
                     "name": "entity.other.attribute-name.id.css",
                     "match": "(?x)\n(?<=\\#\\#)\n(\n  -?\n  (?![0-9])\n  (?:[-a-zA-Z0-9_]|[^\\x00-\\x7F]|\\\\(?:[0-9a-fA-F]{1,6}|.))+\n)\n(?=$|[\\s,.\\#)\\[:{>+~|]|/\\*)",
+                    "comment": "Escaped hashes would resolve to punctuation.definition.entity.css",
                     "captures": {
-                        "comment": "Escaped hashes would resolve to punctuation.definition.entity.css",
                         "1": {
                             "patterns": [
                                 {
