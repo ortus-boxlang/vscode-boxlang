@@ -19,21 +19,21 @@
                 { "include": "#operatorGreaterThan" },
                 { "include": "#operatorLogicalNot" },
                 { "include": "#operatorPower" },
-                { "include": "#stringDoubleLiteral" },
-                { "include": "#numberLiteral" },
-                { "include": "#booleanLiteral" },
-                { "include": "#nullLiteral" }
+                { "include": "#literalStringDouble" },
+                { "include": "#literalNumber" },
+                { "include": "#literalBoolean" },
+                { "include": "#literalNull" }
             ]
         },
-        "nullLiteral": {
+        "literalNull": {
             "name": "constant.null",
             "match": "null"
         },
-        "numberLiteral": {
+        "literalNumber": {
             "name": "constant.numeric",
             "match": "\\d+.\\d+|\\d"
         },
-        "booleanLiteral": {
+        "literalBoolean": {
             "name": "constant.boolean",
             "match": "true|false"
         },
@@ -69,7 +69,7 @@
             "name": "keyword.operator.power",
             "match": "\\^"
         },
-        "stringInterpolation": {
+        "literalStringInterpolation": {
             "name": "string.interpolation",
             "begin": "(#)(?!#)",
             "end": "#",
@@ -83,7 +83,7 @@
                 { "include": "#expression" }
             ]
         },
-        "stringDoubleLiteral": {
+        "literalStringDouble": {
             "name": "string.quoted.double",
             "begin": "\"",
             "end": "(\")(?!\")",
@@ -95,7 +95,7 @@
             },
             "patterns": [
                 { "match": "\"\"" },
-                { "include": "#stringInterpolation" }
+                { "include": "#literalStringInterpolation" }
             ]
         }
     }
