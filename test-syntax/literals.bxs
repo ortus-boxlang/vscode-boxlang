@@ -36,6 +36,10 @@ null
 //                                             ^ keyword.operator.hash.end
 //                                                    ^ punctuation.definition.string.end.boxlang
 
+"34"
+// <- punctuation.definition.string.begin.boxlang
+// <---- string.quoted.double
+// <~~~- punctuation.definition.string.end.boxlang
 
 'this is a string'
 // <- punctuation.definition.string.begin.boxlang

@@ -3,6 +3,9 @@
     "scopeName": "source.boxlang",
     "patterns": [
         {
+            "include": "#statement"
+        },
+        {
             "name": "boxscript",
             "include": "#expression"
         }
@@ -11,7 +14,9 @@
         "expression": {
             "name": "meta.expression",
             "patterns": [
+                { "include": "#function" },
                 { "include": "#punctuationColon" },
+                { "include": "#punctuationParens" },
                 { "include": "#operatorConcat" },
                 { "include": "#operatorPlus" },
                 { "include": "#operatorTimes" },
@@ -27,8 +32,55 @@
                 { "include": "#literalNull" },
                 { "include": "#identifier" },
                 { "include": "#literalStruct" }
-
             ]
+        },
+        "function": {
+            "name": "meta.udf.boxlang",
+            "begin": "(?i)(?=\\w*\\s*\\w*\\s*function\\s*\\w+\\()",
+            "end": "\\}",
+            "patterns": [
+                { "include": "#storage-modifier" },
+                {
+                    "name": "storage.type.function.boxlang",
+                    "begin": "(?i)(function)\\s+([a-z][a-z0-9]*)(\\()",
+                    "beginCaptures": {
+                        "1": { "name": "storage.type.function.boxlang" },
+                        "2": { "name": "entity.name.function.boxlang" },
+                        "3": { "name": "punctuation.definition.parenthesis.begin.boxlang" }
+                    },
+                    "end": "\\)",
+                    "endCaptures": {
+                        "0": { "name": "punctuation.definition.parenthesis.end.boxlang" }
+                    }
+                },
+                { "include": "#storage-return-type" },
+                {
+                    "name": "meta.udf.body.boxlang",
+                    "begin": "\\{",
+                    "beginCaptures": {
+                        "0": "punctuation.definition.block.begin.boxlang"
+                    },
+                    "end": "\\}",
+                    "endCaptures": {
+                        "0": "punctuation.definition.block.end.boxlang"
+                    },
+                    "patterns": [
+                        { "include": "#expression" }
+                    ]
+                }
+            ]
+        },
+        "storage-return-type": {
+            "name": "storage.type.boxlang",
+            "match": "(?i)[a-z][a-z0-9]*"
+        },
+        "storage-modifier": {
+            "name": "storage.modifier.boxlang",
+            "match": "public"
+        },
+        "punctuationParens": {
+            "name": "punctuation.definition.parenthesis.boxlang",
+            "match": "\\(|\\)"
         },
         "punctuationColon": {
             "name": "punctuation.definition.colon.boxlang",

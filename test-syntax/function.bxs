@@ -1,0 +1,17 @@
+// SYNTAX TEST "source.boxlang"
+
+public Any function doSomething(){
+// <------ storage.modifier.boxlang
+//     ^^^ storage.type.boxlang
+//         ^^^^^^^^ storage.type.function.boxlang
+//                  ^^^^^^^^^^^ entity.name.function.boxlang
+//                             ^ punctuation.definition.parenthesis.begin.boxlang
+//                              ^ punctuation.definition.parenthesis.end.boxlang
+
+    "this is a string"
+//  ^ punctuation.definition.string.begin.boxlang
+//      ^ string.quoted.double
+//        ^ meta.udf.body.boxlang
+//                   ^ punctuation.definition.string.end.boxlang
+
+}
