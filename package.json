@@ -819,11 +819,11 @@
                 },
                 {
                     "command": "cfml.toggleLineComment",
-                    "when": "!editorReadonly && editorLangId == cfml"
+                    "when": "!editorReadonly && ( editorLangId == cfml || editorLangId == boxlang )"
                 },
                 {
                     "command": "cfml.toggleBlockComment",
-                    "when": "!editorReadonly && editorLangId == cfml"
+                    "when": "!editorReadonly && ( editorLangId == cfml || editorLangId == boxlang )"
                 },
                 {
                     "command": "cfml.openActiveApplicationFile",
@@ -852,13 +852,13 @@
                 "command": "cfml.toggleLineComment",
                 "key": "ctrl+/",
                 "mac": "cmd+/",
-                "when": "editorTextFocus && !editorReadonly && editorLangId == cfml"
+                "when": "editorTextFocus && !editorReadonly && ( editorLangId == cfml || editorLangId == boxlang )"
             },
             {
                 "command": "cfml.toggleBlockComment",
                 "key": "shift+alt+a",
                 "mac": "shift+alt+a",
-                "when": "editorTextFocus && !editorReadonly && editorLangId == cfml"
+                "when": "editorTextFocus && !editorReadonly && ( editorLangId == cfml || editorLangId == boxlang )"
             }
         ]
     },

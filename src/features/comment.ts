@@ -1,6 +1,6 @@
 import { CharacterPair, LanguageConfiguration, Position, TextDocument, TextEditor, commands, languages, window } from "vscode";
 import { BL_LANGUAGE_ID, CFML_LANGUAGE_ID } from "../cfmlMain";
-import { isCfcFile, isInCfScript } from "../utils/contextUtil";
+import { isCfcFile, isColdFusionFile, isInCfScript, isScriptFile, isTemplateFile } from "../utils/contextUtil";
 import { getComponent, hasComponent } from "./cachedEntities";
 
 export enum CommentType {
@@ -8,7 +8,7 @@ export enum CommentType {
     Block
 }
 
-export interface CFMLCommentRules {
+export interface CommentRules {
     scriptBlockComment: CharacterPair;
     scriptLineComment: string;
     tagBlockComment: CharacterPair;
@@ -21,7 +21,7 @@ export interface CommentContext {
     start: Position;
 }
 
-export const cfmlCommentRules: CFMLCommentRules = {
+export const commentRules: CommentRules = {
     scriptBlockComment: ["/*", "*/"],
     scriptLineComment: "//",
     tagBlockComment: ["<!---", "--->"]
@@ -33,9 +33,17 @@ export const cfmlCommentRules: CFMLCommentRules = {
  * @param startPosition The position at which the comment starts
  */
 function isTagComment(document: TextDocument, startPosition: Position): boolean {
-    const docIsScript: boolean = (isCfcFile(document) && hasComponent(document.uri) && getComponent(document.uri).isScript);
+    if (isColdFusionFile(document.uri)) {
+        const docIsScript: boolean = (isCfcFile(document) && hasComponent(document.uri) && getComponent(document.uri).isScript);
 
-    return !docIsScript && !isInCfScript(document, startPosition);
+        return !docIsScript && !isInCfScript(document, startPosition);
+    }
+
+    if (isScriptFile(document.uri)) {
+        return false;
+    }
+
+    return isTemplateFile(document.uri) && !isInCfScript(document, startPosition);
 }
 
 /**
@@ -59,29 +67,30 @@ function getCommentCommand(commentType: CommentType): string {
  */
 export function toggleComment(commentType: CommentType): (editor: TextEditor) => Promise<void> {
     return async (editor: TextEditor) => {
-        if (editor) {
-            // default comment config
-            let languageConfig: LanguageConfiguration = {
+        if (!editor) {
+            window.showInformationMessage("No editor is active");
+            return;
+        }
+
+        // default comment config
+        let languageConfig: LanguageConfiguration = {
+            comments: {
+                lineComment: commentRules.scriptLineComment,
+                blockComment: commentRules.scriptBlockComment
+            }
+        };
+
+        // Changes the comment in language configuration based on the context
+        if (isTagComment(editor.document, editor.selection.start)) {
+            languageConfig = {
                 comments: {
-                    lineComment: cfmlCommentRules.scriptLineComment,
-                    blockComment: cfmlCommentRules.scriptBlockComment
+                    blockComment: commentRules.tagBlockComment
                 }
             };
-
-            // Changes the comment in language configuration based on the context
-            if (isTagComment(editor.document, editor.selection.start)) {
-                languageConfig = {
-                    comments: {
-                        blockComment: cfmlCommentRules.tagBlockComment
-                    }
-                };
-            }
-            languages.setLanguageConfiguration(CFML_LANGUAGE_ID, languageConfig);
-            languages.setLanguageConfiguration(BL_LANGUAGE_ID, languageConfig);
-            const command: string = getCommentCommand(commentType);
-            commands.executeCommand(command);
-        } else {
-            window.showInformationMessage("No editor is active");
         }
+        languages.setLanguageConfiguration(CFML_LANGUAGE_ID, languageConfig);
+        languages.setLanguageConfiguration(BL_LANGUAGE_ID, languageConfig);
+        const command: string = getCommentCommand(commentType);
+        commands.executeCommand(command);
     };
 }
