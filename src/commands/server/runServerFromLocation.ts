@@ -1,6 +1,6 @@
 
 import * as fs from "fs";
-import * as path from "node:path";
+import * as path from "path";
 import * as vscode from "vscode";
 import { BoxLang } from "../../utils/BoxLang";
 import { BoxServerConfig, getServerData, getServersThatContainPath, updateServerConfig } from "../../utils/Server";
