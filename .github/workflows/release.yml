@@ -64,11 +64,11 @@ jobs:
       - name: Get Runtime
         run: |
             cd resources/lib
-            curl -O https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang/1.0.0/boxlang-1.0.0-all.jar
+            curl -O https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang/1.0.0-beta3/boxlang-1.0.0-beta3-all.jar
       - name: Get WebServer
         run: |
           cd resources/lib
-          curl -O https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/1.0.0/boxlang-miniserver-1.0.0-all.jar
+          curl -O https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/1.0.0-beta3/boxlang-miniserver-1.0.0-beta3-all.jar
 
       # pull and build lsp
       - uses: actions/checkout@v2
@@ -80,7 +80,7 @@ jobs:
       - name: Build LSP
         run: |
           mkdir -p boxlang-lsp/resources/libs
-          cp resources/lib/boxlang-1.0.0-all.jar boxlang-lsp/resources/libs/boxlang-1.0.0-all.jar
+          cp resources/lib/boxlang-1*-all.jar boxlang-lsp/resources/libs/boxlang-1.0.0-all.jar
           cd boxlang-lsp
           chmod +x ./gradlew
           ./gradlew :app:build -x test --stacktrace --console=plain
