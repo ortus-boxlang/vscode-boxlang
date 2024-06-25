@@ -1,9 +1,9 @@
 import path from "path";
 import { workspace } from "vscode";
 
-export const INCLUDED_BOXLANG_JAR_PATH = path.resolve(__dirname, path.join("../../", "resources", "lib", "boxlang-1.0.0-all.jar"));
-export const INCLUDED_BOXLANG_MINISERVER_JAR_PATH = path.resolve(__dirname, path.join("../../", "resources", "lib", "boxlang-miniserver-1.0.0-all.jar"));
-export const INCLUDED_BOXLANG_LSP_PATH = path.resolve(__dirname, path.join("../../", "resources", "lib", "boxlang-lsp-0.0.1-all.jar"));
+export const INCLUDED_BOXLANG_JAR_PATH = path.resolve(__dirname, path.join("../../", "resources", "lib", "boxlang.jar"));
+export const INCLUDED_BOXLANG_MINISERVER_JAR_PATH = path.resolve(__dirname, path.join("../../", "resources", "lib", "boxlang-miniserver.jar"));
+export const INCLUDED_BOXLANG_LSP_PATH = path.resolve(__dirname, path.join("../../", "resources", "lib", "boxlang-lsp.jar"));
 
 export const ExtensionConfig = {
     get customAntlrToolsCommand() {
