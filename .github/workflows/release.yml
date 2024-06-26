@@ -123,28 +123,32 @@ jobs:
     name: Publish to VS marketplace
     runs-on: ubuntu-latest
     needs: package
-    if: inputs.SNAPSHOT == 'false'
     steps:
       - uses: actions/checkout@v2
+        if: env.SNAPSHOT == 'false'
       - uses: actions/download-artifact@v2
+        if: env.SNAPSHOT == 'false'
         with:
           name: ${{ needs.package.outputs.packageName }}
+
       - name: Publish to VS marketplace
+        if: env.SNAPSHOT == 'false'
         run: npx vsce publish --packagePath ./${{ needs.package.outputs.packageName }} -p ${{ secrets.VSCE_PAT }}
 
   publishGH:
     name: Publish to GitHub releases
     runs-on: ubuntu-latest
     needs: package
-    if: inputs.SNAPSHOT == 'false'
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v2
+        if: env.SNAPSHOT == 'false'
         with:
           name: ${{ needs.package.outputs.packageName }}
 
       - name: Create Release
+        if: env.SNAPSHOT == 'false'
         id: create-release
         uses: actions/create-release@v1
         env:
@@ -156,6 +160,7 @@ jobs:
           prerelease: false
 
       - name: Upload assets to a Release
+        if: env.SNAPSHOT == 'false'
         uses: AButler/upload-release-assets@v2.0
         with:
           files: ${{ needs.package.outputs.packageName }}
