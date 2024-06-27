@@ -359,7 +359,7 @@ export function parseComponent(documentStateContext: DocumentStateContext): Comp
   });
 
   // Implicit functions
-  if (component.accessors) {
+  if (component.accessors && showImplicitFunctions) {
     component.properties.forEach((prop: Property) => {
       // getters
       if (typeof prop.getter === "undefined" || prop.getter) {
