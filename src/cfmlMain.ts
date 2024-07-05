@@ -46,6 +46,7 @@ import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
 import { BoxLang } from "./utils/BoxLang";
 import { detectJavaVerison } from "./utils/Java";
+import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
 import { setupServers } from "./utils/Server";
 import { boxlangServerTreeDataProvider } from "./views/ServerView";
 
@@ -148,6 +149,14 @@ function shouldExcludeDocument(documentUri: Uri): boolean {
 export function activate(context: ExtensionContext): void {
 
     extensionContext = context;
+
+    try {
+        setupServers(context);
+    }
+    catch (e) {
+        boxlangOutputChannel.appendLine("Error setting up BoxLang servers");
+        boxlangOutputChannel.appendLine(e.message);
+    }
 
     languages.setLanguageConfiguration(CFML_LANGUAGE_ID, {
         indentationRules: {
@@ -445,9 +454,6 @@ export function activate(context: ExtensionContext): void {
 
 
     window.registerTreeDataProvider("boxlang-servers", boxlangServerTreeDataProvider());
-
-    setupServers(context);
-
 }
 
 
@@ -459,6 +465,8 @@ export function deactivate(): void {
         boxlangOutputChannel.appendLine("Shutting down the language server");
         client.stop();
     }
+
+    cleanupTrackedProcesses();
 }
 
 function startLSP() {
