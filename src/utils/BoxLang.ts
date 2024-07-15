@@ -44,7 +44,8 @@ export class BoxLang {
         boxlangOutputChannel.appendLine("Starting the LSP");
         return new Promise((resolve, reject) => {
             const javaExecutable = ExtensionConfig.boxlangJavaHome;
-            const lsp = trackedSpawn(javaExecutable, ["ortus.boxlanglsp.App"], {
+            const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
+            const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, "ortus.boxlanglsp.App"], {
                 env: {
                     CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangLSPPath
                 }

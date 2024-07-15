@@ -207,6 +207,11 @@
                     "description": "The port to use for local development",
                     "scope": "window"
                 },
+                "boxlang.lsp.maxHeapSize": {
+                    "type": "integer",
+                    "description": "Set the heap size of the JVM, default is 512 megabytes",
+                    "scope": "window"
+                },
                 "cfml.boxlang.lsp.enableExperimentalDiagnostics": {
                     "type": "boolean",
                     "description": "Enable expermiental support for boxlang diagnostic reporting",

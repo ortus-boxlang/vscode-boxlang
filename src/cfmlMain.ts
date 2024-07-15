@@ -440,6 +440,12 @@ export function activate(context: ExtensionContext): void {
                 startLSP();
             });
         }
+
+        if (e.affectsConfiguration("boxlang.lsp.maxHeapSize")) {
+            boxlangOutputChannel.appendLine("Detected a change in LSP maxHeapSize configuration: " + workspace.getConfiguration("boxlang.lsp").get("maxHeapSize"));
+            deactivate();
+            startLSP();
+        }
     }));
 
 
