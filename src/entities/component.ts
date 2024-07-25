@@ -1,7 +1,7 @@
 //import findup from "findup-sync";
 import * as fs from "fs";
 import * as path from "path";
-import { Position, Range, TextDocument, Uri } from "vscode";
+import { Position, Range, TextDocument, Uri, workspace } from "vscode";
 import * as cachedEntities from "../features/cachedEntities";
 import { getComponent, hasComponent } from "../features/cachedEntities";
 import { MySet } from "../utils/collections";
@@ -60,6 +60,9 @@ export const objectReferencePatterns: ReferencePattern[] = [
   },
 ];
 // TODO: variableReferencePatterns
+
+const cfmlOutlineSettings = workspace.getConfiguration("cfml.outline");
+const showImplicitFunctions = cfmlOutlineSettings.get<boolean>("showImplicitFunctions", true);
 
 const componentAttributeNames: MySet<string> = new MySet([
   "accessors",
@@ -356,7 +359,7 @@ export function parseComponent(documentStateContext: DocumentStateContext): Comp
   });
 
   // Implicit functions
-  if (component.accessors) {
+  if (component.accessors && showImplicitFunctions) {
     component.properties.forEach((prop: Property) => {
       // getters
       if (typeof prop.getter === "undefined" || prop.getter) {
