@@ -76,6 +76,7 @@ async function runServer(server: BoxServerConfig, filePath: string) {
 
     if (filePath) {
         url += "/" + path.relative(server.directoryAbsolute, filePath);
+        url = url.replace(/\\+/g, "/");
     }
 
     setTimeout(() => {

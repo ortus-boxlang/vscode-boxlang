@@ -34,6 +34,13 @@ export const ExtensionConfig = {
         return jarPath || INCLUDED_BOXLANG_LSP_PATH;
     },
 
+    get boxlangMaxHeapSize() {
+        const maxHeapSize = workspace.getConfiguration("boxlang.lsp").get<string>('maxHeapSize');
+        const parsed = Number.parseInt(maxHeapSize);
+
+        return Number.isNaN(parsed) || parsed == 0 ? 512 : parsed;
+    },
+
     get boxlangServerPort() {
         return Number.parseInt(workspace.getConfiguration("cfml.boxlang").get<string>('webPort')) || 8080;
     },
