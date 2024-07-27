@@ -36,5 +36,9 @@ export const ExtensionConfig = {
 
     get boxlangServerPort() {
         return Number.parseInt(workspace.getConfiguration("cfml.boxlang").get<string>('webPort')) || 8080;
+    },
+
+    get showImplicitFunctions() {
+        return workspace.getConfiguration("cfml.outline").get<boolean>("showImplicitFunctions", true);
     }
 }
