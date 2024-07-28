@@ -112,14 +112,14 @@ jobs:
       - name: Package VSIX
         run: |
           npm i
-          npx vsce package --out ${{ env.packageName }}
+          npx vsce package --out ${{ env.PACKAGENAME }}
 
       - name: Update changelog [unreleased] with latest version
         uses: thomaseizinger/keep-a-changelog-new-release@2.0.0
         if: env.SNAPSHOT == 'false'
         with:
           changelogPath: ./changelog.md
-          tag: v${{ env.version }}
+          tag: v${{ env.VERSION }}
 
       - name: Cleanup changelog
         run: |
@@ -132,16 +132,16 @@ jobs:
         with:
           author_name: Github Actions
           author_email: info@ortussolutions.com
-          message: "Finalized changelog for v${{ env.version }}"
+          message: "Finalized changelog for v${{ env.VERSION }}"
           add: changelog.md
 
       - name: Upload Build Artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.packageName }}
+          name: ${{ env.PACKAGENAME }}
           path: |
-            ./${{ env.packageName }}
+            ./${{ env.PACKAGENAME }}
             changelog.md
           if-no-files-found: error
 
