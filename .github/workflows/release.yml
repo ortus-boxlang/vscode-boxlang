@@ -95,12 +95,6 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org/
 
-      - name: Package VSIX
-        run: |
-          npm i
-          echo "packageName=$(node -e "console.log(require('./package.json').name + '-' + require('./package.json').version + '.vsix')")" >> $GITHUB_OUTPUT
-          npx vsce package --out ${{ steps.setup.outputs.packageName }}
-
       - name: Setup tag
         id: setup-tag
         run: |
@@ -109,6 +103,12 @@ jobs:
           Write-Output "tag=release/$version" >> $Env:GITHUB_OUTPUT
           Write-Output "version=$version" >> $Env:GITHUB_OUTPUT
         shell: pwsh
+
+      - name: Package VSIX
+        run: |
+          npm i
+          echo "packageName=$(node -e "console.log(require('./package.json').name + '-' + require('./package.json').version + '.vsix')")" >> $GITHUB_OUTPUT
+          npx vsce package --out ${{ steps.setup.outputs.packageName }}
 
       - name: Update changelog [unreleased] with latest version
         uses: thomaseizinger/keep-a-changelog-new-release@2.0.0
