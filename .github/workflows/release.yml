@@ -1,11 +1,9 @@
 name: Release
 on:
-  release:
-    types:
-      - published
   push:
     branches:
       - main
+      - feature/build-test
 
   # Reusable workflow : Usually called by a `snapshot` workflow
   workflow_call:
@@ -46,13 +44,15 @@ jobs:
       tag: ${{ steps.setup-tag.outputs.tag }}
       version: ${{ steps.setup-tag.outputs.version }}
     steps:
-      - uses: actions/checkout@v2
-      # Prep java build deps
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-            distribution: "temurin"
-            java-version: ${{ env.JDK }}
+          distribution: "temurin"
+          java-version: ${{ env.JDK }}
+
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
         with:
@@ -61,17 +61,18 @@ jobs:
       - name: Make resource lib folder
         run: mkdir -p resources/lib
 
-      - name: Get Runtime
+      - name: Download BoxLang Runtime
         run: |
             cd resources/lib
             curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang/1.0.0-beta7/boxlang-1.0.0-beta7-all.jar" -o boxlang.jar
-      - name: Get WebServer
+
+      - name: Get Download MiniServer
         run: |
           cd resources/lib
           curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/1.0.0-beta7/boxlang-miniserver-1.0.0-beta7-all.jar" -o boxlang-miniserver.jar
 
-      # pull and build lsp
-      - uses: actions/checkout@v2
+      - name: Pull and Build LSP
+        uses: actions/checkout@v2
         with:
           ssh-key: ${{ secrets.boxlang_lsp_ssh_key }}
           repository: ortus-boxlang/boxlang-lsp
@@ -88,27 +89,17 @@ jobs:
           cp boxlang-lsp/app/build/libs/boxlang-lsp-0.0.1-all.jar resources/lib/boxlang-lsp.jar
 
 
-      - uses: actions/setup-node@v2
+      - name: Setup Node
+        uses: actions/setup-node@v2
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org/
 
-      - name: Install dependencies
-        run: npm i
-
-      - name: Setup package path
-        id: setup
-        run: echo "packageName=$(node -e "console.log(require('./package.json').name + '-' + require('./package.json').version + '.vsix')")" >> $GITHUB_OUTPUT
-
-      - name: Package
+      - name: Package VSIX
         run: |
+          npm i
+          echo "packageName=$(node -e "console.log(require('./package.json').name + '-' + require('./package.json').version + '.vsix')")" >> $GITHUB_OUTPUT
           npx vsce package --out ${{ steps.setup.outputs.packageName }}
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: ${{ steps.setup.outputs.packageName }}
-          path: ./${{ steps.setup.outputs.packageName }}
-          if-no-files-found: error
 
       - name: Setup tag
         id: setup-tag
@@ -119,50 +110,81 @@ jobs:
           Write-Output "version=$version" >> $Env:GITHUB_OUTPUT
         shell: pwsh
 
-  publishMS:
-    name: Publish to VS marketplace
-    runs-on: ubuntu-latest
-    needs: package
-    steps:
-      - uses: actions/checkout@v2
-        if: env.SNAPSHOT == 'false'
-      - uses: actions/download-artifact@v2
+      - name: Update changelog [unreleased] with latest version
+        uses: thomaseizinger/keep-a-changelog-new-release@2.0.0
         if: env.SNAPSHOT == 'false'
         with:
-          name: ${{ needs.package.outputs.packageName }}
+          changelogPath: ./changelog.md
+          tag: v${{ steps.setup.outputs.version }}
 
-      - name: Publish to VS marketplace
-        if: env.SNAPSHOT == 'false'
-        run: npx vsce publish --packagePath ./${{ needs.package.outputs.packageName }} -p ${{ secrets.VSCE_PAT }}
+      - name: Cleanup changelog
+        run: |
+          npm install -g markdownlint-cli
+          markdownlint changelog.md --fix
 
-  publishGH:
-    name: Publish to GitHub releases
-    runs-on: ubuntu-latest
-    needs: package
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v2
+      - name: Commit Changelog [unreleased] with latest version
+        uses: EndBug/add-and-commit@v9.1.4
         if: env.SNAPSHOT == 'false'
         with:
-          name: ${{ needs.package.outputs.packageName }}
+          author_name: Github Actions
+          author_email: info@ortussolutions.com
+          message: "Finalized changelog for v${{ steps.setup.outputs.version }}"
+          add: changelog.md
 
-      - name: Create Release
-        if: env.SNAPSHOT == 'false'
-        id: create-release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Build Artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ needs.package.outputs.tag }}
-          release_name: Release ${{ needs.package.outputs.version }}
-          draft: false
-          prerelease: false
+          name: ${{ steps.setup.outputs.packageName }}
+          path: |
+            ./${{ steps.setup.outputs.packageName }}
+            changelog.md
+          if-no-files-found: error
 
-      - name: Upload assets to a Release
-        if: env.SNAPSHOT == 'false'
-        uses: AButler/upload-release-assets@v2.0
-        with:
-          files: ${{ needs.package.outputs.packageName }}
-          release-tag: ${{ needs.package.outputs.tag }}
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+  # publishMS:
+  #   name: Publish to VS marketplace
+  #   runs-on: ubuntu-latest
+  #   needs: package
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       if: env.SNAPSHOT == 'false'
+  #     - uses: actions/download-artifact@v2
+  #       if: env.SNAPSHOT == 'false'
+  #       with:
+  #         name: ${{ needs.package.outputs.packageName }}
+
+  #     - name: Publish to VS marketplace
+  #       if: env.SNAPSHOT == 'false'
+  #       run: npx vsce publish --packagePath ./${{ needs.package.outputs.packageName }} -p ${{ secrets.VSCE_PAT }}
+
+  # publishGH:
+  #   name: Publish to GitHub releases
+  #   runs-on: ubuntu-latest
+  #   needs: package
+  #   permissions:
+  #     contents: write
+  #   steps:
+  #     - uses: actions/download-artifact@v2
+  #       if: env.SNAPSHOT == 'false'
+  #       with:
+  #         name: ${{ needs.package.outputs.packageName }}
+
+  #     - name: Create Release
+  #       if: env.SNAPSHOT == 'false'
+  #       id: create-release
+  #       uses: actions/create-release@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         tag_name: ${{ needs.package.outputs.tag }}
+  #         release_name: Release ${{ needs.package.outputs.version }}
+  #         draft: false
+  #         prerelease: false
+
+  #     - name: Upload assets to a Release
+  #       if: env.SNAPSHOT == 'false'
+  #       uses: AButler/upload-release-assets@v2.0
+  #       with:
+  #         files: ${{ needs.package.outputs.packageName }}
+  #         release-tag: ${{ needs.package.outputs.tag }}
+  #         repo-token: ${{ secrets.GITHUB_TOKEN }}
