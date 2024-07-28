@@ -104,19 +104,22 @@ jobs:
           Write-Output "tag=release/$version" >> $Env:GITHUB_OUTPUT
           Write-Output "version=$version" >> $Env:GITHUB_OUTPUT
           Write-Output "packageName=$packageName" >> $Env:GITHUB_OUTPUT
+          Write-Output "TAG=release/$version" >> $Env:GITHUB_ENV
+          Write-Output "VERSION=$version" >> $Env:GITHUB_ENV
+          Write-Output "PACKAGENAME=$packageName" >> $Env:GITHUB_ENV
         shell: pwsh
 
       - name: Package VSIX
         run: |
           npm i
-          npx vsce package --out ${{ steps.setup.outputs.packageName }}
+          npx vsce package --out ${{ env.packageName }}
 
       - name: Update changelog [unreleased] with latest version
         uses: thomaseizinger/keep-a-changelog-new-release@2.0.0
         if: env.SNAPSHOT == 'false'
         with:
           changelogPath: ./changelog.md
-          tag: v${{ steps.setup.outputs.version }}
+          tag: v${{ env.version }}
 
       - name: Cleanup changelog
         run: |
@@ -129,16 +132,16 @@ jobs:
         with:
           author_name: Github Actions
           author_email: info@ortussolutions.com
-          message: "Finalized changelog for v${{ steps.setup.outputs.version }}"
+          message: "Finalized changelog for v${{ env.version }}"
           add: changelog.md
 
       - name: Upload Build Artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.setup.outputs.packageName }}
+          name: ${{ env.packageName }}
           path: |
-            ./${{ steps.setup.outputs.packageName }}
+            ./${{ env.packageName }}
             changelog.md
           if-no-files-found: error
 
