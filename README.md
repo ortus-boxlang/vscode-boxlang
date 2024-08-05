@@ -283,3 +283,12 @@ See [CONTRIBUTING.md](/CONTRIBUTING.md)
 ## Support
 
 For questions or help, join the `#ide` channel in the [CFML Slack workspace](https://cfml-slack.herokuapp.com/) to talk with people about this or other editor tools. To file a bug or feature request, open a [GitHub issue](https://github.com/cfmleditor/cfmleditor/issues).
+
+## Acknowledgements
+
+This project would not have been possible if not for the CF community at large and the work of many coders who have contributed to open source projects.
+
+Some contribution of special note though come from the following users.
+
+* [KamasamaK](https://github.com/KamasamaK) - The primary author of the first iteration of this project, [vscode-cfml](https://github.com/KamasamaK/vscode-cfml)
+* [Gareth Eddies](https://github.com/ghedwards) - The maintainer of [cfmleditor](https://github.com/cfmleditor/cfmleditor) which this project is forked from
