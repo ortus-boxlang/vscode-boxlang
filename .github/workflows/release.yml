@@ -41,8 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       packageName: ${{ steps.setup.outputs.packageName }}
-      tag: ${{ steps.setup-tag.outputs.tag }}
-      version: ${{ steps.setup-tag.outputs.version }}
+      tag: ${{ steps.setup.outputs.tag }}
+      version: ${{ steps.setup.outputs.version }}
     permissions:
       checks: write
       contents: write
@@ -99,6 +99,7 @@ jobs:
           registry-url: https://registry.npmjs.org/
 
       - name: Setup tag
+        id: setup
         run: |
           $version = (Get-Content ./package.json -Raw | ConvertFrom-Json).version
           $name = (Get-Content ./package.json -Raw | ConvertFrom-Json).name
