@@ -30,10 +30,16 @@ on:
         type: boolean
         required: true
         default: false
+      skipChangelog:
+        description: 'Prevent updates to changelog'
+        type: boolean
+        required: true
+        default: false
 
 env:
     JDK: 21
     SNAPSHOT: ${{ inputs.snapshot || false }}
+    SKIP_CHANGELOG: ${{ inputs.skipChangelog || false }}
 
 jobs:
   package:
@@ -120,7 +126,7 @@ jobs:
 
       - name: Update changelog [unreleased] with latest version
         uses: thomaseizinger/keep-a-changelog-new-release@2.0.0
-        if: env.SNAPSHOT == 'false'
+        if: env.SNAPSHOT == 'false' && env.SKIP_CHANGELOG == 'false'
         with:
           changelogPath: ./changelog.md
           tag: v${{ env.VERSION }}
@@ -132,7 +138,7 @@ jobs:
 
       - name: Commit Changelog [unreleased] with latest version
         uses: EndBug/add-and-commit@v9.1.4
-        if: env.SNAPSHOT == 'false'
+        if: env.SNAPSHOT == 'false' && env.SKIP_CHANGELOG == 'false'
         with:
           author_name: Github Actions
           author_email: info@ortussolutions.com
