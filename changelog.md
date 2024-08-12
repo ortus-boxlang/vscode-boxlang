@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Bumped BoxLang release version to Beta 9
+
 ## [1.3.1] - 2024-08-05
 
 - Bumped BoxLang release version to Beta 8
