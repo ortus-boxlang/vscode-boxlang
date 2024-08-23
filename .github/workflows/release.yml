@@ -73,12 +73,12 @@ jobs:
       - name: Download BoxLang Runtime
         run: |
             cd resources/lib
-            curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang/1.0.0-beta9/boxlang-1.0.0-beta9-all.jar" -o boxlang.jar
+            curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang/1.0.0-beta11/boxlang-1.0.0-beta11-all.jar" -o boxlang.jar
 
       - name: Get Download MiniServer
         run: |
           cd resources/lib
-          curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/1.0.0-beta9/boxlang-miniserver-1.0.0-beta9-all.jar" -o boxlang-miniserver.jar
+          curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/1.0.0-beta11/boxlang-miniserver-1.0.0-beta11-all.jar" -o boxlang-miniserver.jar
 
       - name: Pull and Build LSP
         uses: actions/checkout@v2
