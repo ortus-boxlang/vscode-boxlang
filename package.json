@@ -894,7 +894,7 @@
         "findup-sync": "~5.0.0",
         "html-entities": "~2.3.2",
         "isomorphic-fetch": "^3.0.0",
-        "micromatch": "~4.0.4",
+        "micromatch": "~4.0.8",
         "net-browserify": "^0.2.4",
         "portfinder": "^1.0.32",
         "request": "~2.88.2",
