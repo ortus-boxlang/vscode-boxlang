@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.3.4] - 2024-09-06
+
 ## [1.3.3] - 2024-08-23
 
 - Bumped BoxLang release version to Beta 11
@@ -26,7 +28,9 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.3...HEAD
+[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.4...HEAD
+
+[1.3.4]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.3...v1.3.4
 
 [1.3.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.2...v1.3.3
 
