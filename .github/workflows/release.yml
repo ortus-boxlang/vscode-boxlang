@@ -155,7 +155,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         if: env.SNAPSHOT == 'false'
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         if: env.SNAPSHOT == 'false'
         with:
           name: ${{ needs.package.outputs.packageName }}
@@ -171,7 +171,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         if: env.SNAPSHOT == 'false'
         with:
           name: ${{ needs.package.outputs.packageName }}
