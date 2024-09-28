@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-- Bumped BoxLang release version to Beta 16. Now with 100% more websockets!
+## [1.3.5] - 2024-09-28
+
+-   Bumped BoxLang release version to Beta 16. Now with 100% more websockets!
 
 ## [1.3.5] - 2024-09-25
 
@@ -10,29 +12,31 @@
 
 ## [1.3.3] - 2024-08-23
 
-- Bumped BoxLang release version to Beta 11
+-   Bumped BoxLang release version to Beta 11
 
 ## [1.3.2] - 2024-08-12
 
-- Bumped BoxLang release version to Beta 9
+-   Bumped BoxLang release version to Beta 9
 
 ## [1.3.1] - 2024-08-05
 
-- Bumped BoxLang release version to Beta 8
-- Added acknowledgements for prior work from @ghedwards and @KamasamaK - thanks guys!
+-   Bumped BoxLang release version to Beta 8
+-   Added acknowledgements for prior work from @ghedwards and @KamasamaK - thanks guys!
 
 ## [1.0.0] - 2024-06-25
 
-- Going 1.0!
-- Added BoxLang language support
-- BoxLang runtime debugger
-- BoxLang LSP
-- Added BoxLang Server panel
-- Added experimental support for diagnostics
-- Added experimental support for file formatting
-- JSON schema for boxlang.json
+-   Going 1.0!
+-   Added BoxLang language support
+-   BoxLang runtime debugger
+-   BoxLang LSP
+-   Added BoxLang Server panel
+-   Added experimental support for diagnostics
+-   Added experimental support for file formatting
+-   JSON schema for boxlang.json
 
 [Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.5...HEAD
+
+[1.3.5]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.5...v1.3.5
 
 [1.3.5]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.4...v1.3.5
 
