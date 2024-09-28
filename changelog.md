@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Bumped BoxLang release version to Beta 16 - Now with 100% more websockets!
+
 ## [1.3.5] - 2024-09-25
 
 ## [1.3.4] - 2024-09-06
