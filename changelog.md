@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.3.7] - 2024-09-28
+
 ## [1.3.5] - 2024-09-28
 
 -   Bumped BoxLang release version to Beta 16. Now with 100% more websockets!
@@ -34,7 +36,9 @@
 -   Added experimental support for file formatting
 -   JSON schema for boxlang.json
 
-[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.5...HEAD
+[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.7...HEAD
+
+[1.3.7]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.5...v1.3.7
 
 [1.3.5]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.5...v1.3.5
 
