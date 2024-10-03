@@ -2,6 +2,10 @@
 import * as vscode from "vscode";
 import { getServerData, updateServerProperty } from "../../utils/Server";
 
+const clearable = [
+    "configFile"
+];
+
 export async function editServerProperty({ key }) {
     let [serverName, property] = key.split(".");
 
@@ -16,7 +20,10 @@ export async function editServerProperty({ key }) {
         value: serverData[property]
     });
 
-    if (newValue == null || newValue == "") {
+    if (
+        (newValue == null || newValue == "")
+        && !clearable.includes(property)
+    ) {
         return;
     }
 

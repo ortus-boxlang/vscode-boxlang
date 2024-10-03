@@ -44,7 +44,9 @@ export async function addServer() {
         directory,
         port: Number.parseInt(port),
         host: "localhost",
-        type: "miniserver"
+        type: "miniserver",
+        debugMode: false,
+        configFile: ""
     });
 }
 

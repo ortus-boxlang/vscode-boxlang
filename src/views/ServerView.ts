@@ -6,7 +6,9 @@ const editableProperties = {
     "directory": true,
     "type": false,
     "status": false,
-    "port": true
+    "port": true,
+    "debugMode": true,
+    "configFile": true
 };
 
 const _onDidChangeTreeData: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
@@ -22,7 +24,14 @@ export function boxlangServerTreeDataProvider(): vscode.TreeDataProvider<{ key: 
         onDidChangeTreeData: onDidChangeTreeData,
         getChildren: (element: { key: string }): { key: string }[] => {
             return !element ? Object.keys(servers).map(s => ({ key: s }))
-                : [{ key: element.key + ".directory" }, { key: element.key + ".type" }, { key: element.key + ".status" }, { key: element.key + ".port" }];
+                : [
+                    { key: element.key + ".directory" },
+                    { key: element.key + ".type" },
+                    { key: element.key + ".status" },
+                    { key: element.key + ".port" },
+                    { key: element.key + ".debugMode" },
+                    { key: element.key + ".configFile" }
+                ];
         },
         getTreeItem: (element: { key: string }): vscode.TreeItem => {
             const parts = element.key.split(".");

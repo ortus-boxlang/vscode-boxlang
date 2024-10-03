@@ -17,6 +17,8 @@ export type BoxServerConfig = {
     debugPort?: Number,
     directory: string,
     directoryAbsolute?: string,
+    debugMode: boolean,
+    configFile: string,
     status?: "running" | "stopped",
     type: "miniserver" | "remote"
 }
@@ -111,18 +113,29 @@ function getServerConfigs(context: vscode.ExtensionContext): Record<string, BoxS
     for (let key in servers) {
         servers[key].status = "stopped";
         servers[key].debugging = false;
+
+        if (!servers[key].hasOwnProperty("debugMode")) {
+            servers[key].debugMode = false;
+        }
+
+        if (!servers[key].hasOwnProperty("configFile")) {
+            servers[key].configFile = "";
+        }
     }
 
     return servers;
 }
 
-export function updateServerProperty(serverName: string, property: string, value: any) {
+export function updateServerProperty(serverName: string, property: string, value: string) {
 
     if (property === "name") {
         const serverConfig = servers[serverName];
         delete servers[serverName];
         servers[value] = serverConfig;
         servers[value].name = value;
+    }
+    else if (property === "debugMode") {
+        servers[serverName][property] = value.toLowerCase() === "true";
     }
     else {
         servers[serverName][property] = value;
@@ -148,7 +161,9 @@ function persistCurrentServerConfig() {
             host: servers[serverName].host,
             port: servers[serverName].port,
             directory: servers[serverName].directory,
-            type: servers[serverName].type
+            type: servers[serverName].type,
+            debugMode: servers[serverName].debugMode,
+            configFile: servers[serverName].configFile
         };
 
         return cleaned;

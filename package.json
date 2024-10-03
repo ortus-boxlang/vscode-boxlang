@@ -202,6 +202,16 @@
                     "description": "The path to the boxlang jar you want to use for execution",
                     "scope": "window"
                 },
+                "cfml.boxlang.miniserverjarpath": {
+                    "type": "string",
+                    "description": "The path to the miniserver jar you want to use for execution",
+                    "scope": "window"
+                },
+                "cfml.boxlang.lspjarpath": {
+                    "type": "string",
+                    "description": "The path to the lsp jar you want to use for execution",
+                    "scope": "window"
+                },
                 "cfml.boxlang.webPort": {
                     "type": "number",
                     "description": "The port to use for local development",
@@ -327,7 +337,7 @@
                         "description": "A snippet key to exclude from suggestions",
                         "type": "string"
                     },
-                    "default": [],
+                    "default": [ ],
                     "scope": "resource"
                 },
                 "cfml.suggest.snippets.localPath": {
@@ -422,7 +432,7 @@
                 "cfml.suggest.globalTags.includeAttributes.custom": {
                     "type": "object",
                     "description": "A custom set of attributes to include for given tags when suggestion is selected. This setting overrides the set type.",
-                    "default": {},
+                    "default": { },
                     "patternProperties": {
                         "^cf[a-z0-9_]+$": {
                             "description": "The tag name and its attribute overrides",
@@ -449,7 +459,7 @@
                                     "name"
                                 ]
                             },
-                            "default": []
+                            "default": [ ]
                         }
                     },
                     "additionalProperties": false,
@@ -536,7 +546,7 @@
                 },
                 "cfml.docBlock.extra": {
                     "type": "array",
-                    "default": [],
+                    "default": [ ],
                     "items": {
                         "type": "object",
                         "properties": {
@@ -590,7 +600,7 @@
                 },
                 "cfml.mappings": {
                     "type": "array",
-                    "default": [],
+                    "default": [ ],
                     "items": {
                         "type": "object",
                         "properties": {

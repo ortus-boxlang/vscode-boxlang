@@ -42,7 +42,9 @@ export async function runServerFromLocation(file: vscode.Uri) {
         directory,
         port: Number.parseInt(port),
         host: "localhost",
-        type: "miniserver"
+        type: "miniserver",
+        debugMode: false,
+        configFile: ""
     });
 
     runServer(getServerData(name), file.fsPath);

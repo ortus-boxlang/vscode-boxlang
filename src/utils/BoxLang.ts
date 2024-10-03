@@ -125,15 +125,17 @@ export class BoxLang {
     }
 
     static async startMiniServer(server: BoxServerConfig): Promise<void> {
-        const debugPort = await findAvailableDebugPort();
-        const agentLibArg = await getAgentLibArg(debugPort);
         return new Promise(async (resolve, reject) => {
             const javaExecutable = ExtensionConfig.boxlangJavaHome;
-            const boxLang = trackedSpawn(javaExecutable, [agentLibArg, "ortus.boxlang.web.MiniServer", "--port", "" + server.port, "--webroot", server.directoryAbsolute], {
+            const debugPort = await findAvailableDebugPort();
+            const cliArgs = await getMiniServerCLIArgs(server, debugPort);
+            const boxLang = trackedSpawn(javaExecutable, cliArgs, {
                 env: {
                     CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
                 }
             });
+
+            const t = ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath;
 
             const outputChannel = window.createOutputChannel(`BoxLang - ${server.name}`);
             outputChannel.appendLine(`Using port ${debugPort} for debugging`);
@@ -153,7 +155,7 @@ export class BoxLang {
 
             boxLang.on("close", () => {
                 trackServerStop(server.name);
-                outputChannel.dispose();
+                // outputChannel.dispose();
             });
         });
     }
@@ -193,4 +195,27 @@ async function getAgentLibArg(port: number): Promise<string> {
 
 async function findAvailableDebugPort(): Promise<number> {
     return await portFinder.getPortPromise({ port: 4500 });
+}
+
+async function getMiniServerCLIArgs(server: BoxServerConfig, debugPort: number): Promise<String[]> {
+    const agentLibArg = await getAgentLibArg(debugPort);
+
+    const cliArgs = [
+        agentLibArg,
+        "ortus.boxlang.web.MiniServer",
+        "--port",
+        "" + server.port,
+        "--webroot",
+        server.directoryAbsolute
+    ];
+
+    if (server.debugMode) {
+        cliArgs.push("--debug");
+    }
+
+    if (server.configFile) {
+        cliArgs.push("--configPath", `${server.configFile}`);
+    }
+
+    return cliArgs;
 }
