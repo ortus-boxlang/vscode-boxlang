@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 - BLIDE-48 Add debugMode and configFile properties to MiniServer config
+- Added ability to configure external MiniServer JAR path
+- Added ability to configure external LSP JAR path
 
 ## [1.3.7] - 2024-09-28
 
