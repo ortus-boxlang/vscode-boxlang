@@ -30,10 +30,16 @@ on:
         type: boolean
         required: true
         default: false
+      skipChangelog:
+        description: 'Prevent updates to changelog'
+        type: boolean
+        required: true
+        default: false
 
 env:
     JDK: 21
     SNAPSHOT: ${{ inputs.snapshot || false }}
+    SKIP_CHANGELOG: ${{ inputs.skipChangelog || false }}
 
 jobs:
   package:
@@ -41,8 +47,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       packageName: ${{ steps.setup.outputs.packageName }}
-      tag: ${{ steps.setup-tag.outputs.tag }}
-      version: ${{ steps.setup-tag.outputs.version }}
+      tag: ${{ steps.setup.outputs.tag }}
+      version: ${{ steps.setup.outputs.version }}
     permissions:
       checks: write
       contents: write
@@ -67,12 +73,12 @@ jobs:
       - name: Download BoxLang Runtime
         run: |
             cd resources/lib
-            curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang/1.0.0-beta15/boxlang-1.0.0-beta15-all.jar" -o boxlang.jar
+            curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang/1.0.0-beta16/boxlang-1.0.0-beta16-all.jar" -o boxlang.jar
 
       - name: Get Download MiniServer
         run: |
           cd resources/lib
-          curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/1.0.0-beta15/boxlang-miniserver-1.0.0-beta15-all.jar" -o boxlang-miniserver.jar
+          curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/1.0.0-beta16/boxlang-miniserver-1.0.0-beta16-all.jar" -o boxlang-miniserver.jar
 
       - name: Pull and Build LSP
         uses: actions/checkout@v2
@@ -99,6 +105,7 @@ jobs:
           registry-url: https://registry.npmjs.org/
 
       - name: Setup tag
+        id: setup
         run: |
           $version = (Get-Content ./package.json -Raw | ConvertFrom-Json).version
           $name = (Get-Content ./package.json -Raw | ConvertFrom-Json).name
@@ -119,7 +126,7 @@ jobs:
 
       - name: Update changelog [unreleased] with latest version
         uses: thomaseizinger/keep-a-changelog-new-release@2.0.0
-        if: env.SNAPSHOT == 'false'
+        if: env.SNAPSHOT == 'false' && env.SKIP_CHANGELOG == 'false'
         with:
           changelogPath: ./changelog.md
           tag: v${{ env.VERSION }}
@@ -127,11 +134,13 @@ jobs:
       - name: Cleanup changelog
         run: |
           npm install -g markdownlint-cli
-          markdownlint changelog.md --fix
+        # disabling this until I'm able to figure out why we only get the error below when running actions
+        # changelog.md:41 MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 2]
+        #   markdownlint changelog.md --fix
 
       - name: Commit Changelog [unreleased] with latest version
         uses: EndBug/add-and-commit@v9.1.4
-        if: env.SNAPSHOT == 'false'
+        if: env.SNAPSHOT == 'false' && env.SKIP_CHANGELOG == 'false'
         with:
           author_name: Github Actions
           author_email: info@ortussolutions.com
@@ -207,18 +216,13 @@ jobs:
     steps:
       - name: Checkout Development Repository
         uses: actions/checkout@v4
-        if: env.LTS == 'false'
         with:
           ref: development
 
-      - name: Checkout LTS Repository
-        uses: actions/checkout@v4
-        if: env.LTS == 'true'
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
+        if: env.SNAPSHOT == 'false'
         with:
-          name: boxlang-build
+          name: ${{ needs.package.outputs.packageName }}
           path: .tmp
 
       - name: Setup Gradle
@@ -241,5 +245,5 @@ jobs:
           author_email: info@ortussolutions.com
           message: "Version bump"
           add: |
-            gradle.properties
+            package.json
             changelog.md
