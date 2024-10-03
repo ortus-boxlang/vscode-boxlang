@@ -2,9 +2,11 @@
 
 ## [Unreleased]
 
-- BLIDE-48 Add debugMode and configFile properties to MiniServer config
-- Added ability to configure external MiniServer JAR path
-- Added ability to configure external LSP JAR path
+## [1.3.8] - 2024-10-03
+
+-   BLIDE-48 Add debugMode and configFile properties to MiniServer config
+-   Added ability to configure external MiniServer JAR path
+-   Added ability to configure external LSP JAR path
 
 ## [1.3.7] - 2024-09-28
 
@@ -40,7 +42,9 @@
 -   Added experimental support for file formatting
 -   JSON schema for boxlang.json
 
-[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.7...HEAD
+[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.8...HEAD
+
+[1.3.8]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.7...v1.3.8
 
 [1.3.7]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.5...v1.3.7
 
