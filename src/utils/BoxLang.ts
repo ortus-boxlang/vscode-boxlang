@@ -135,8 +135,6 @@ export class BoxLang {
                 }
             });
 
-            const t = ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath;
-
             const outputChannel = window.createOutputChannel(`BoxLang - ${server.name}`);
             outputChannel.appendLine(`Using port ${debugPort} for debugging`);
             outputChannel.show();
