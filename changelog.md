@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-48 Add debugMode and configFile properties to MiniServer config
+
 ## [1.3.7] - 2024-09-28
 
 ## [1.3.5] - 2024-09-28
