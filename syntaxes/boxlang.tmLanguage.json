@@ -51,7 +51,11 @@
                     "end": "\\)",
                     "endCaptures": {
                         "0": { "name": "punctuation.definition.parenthesis.end.boxlang" }
-                    }
+                    },
+                    "patterns": [
+                        { "include": "#comma" },
+                        { "include": "#functionArgument" }
+                    ]
                 },
                 { "include": "#storage-return-type" },
                 {
@@ -69,6 +73,10 @@
                     ]
                 }
             ]
+        },
+        "comma": {
+            "name": "punctuation.comma",
+            "match": ","
         },
         "storage-return-type": {
             "name": "storage.type.boxlang",
@@ -190,6 +198,19 @@
             "patterns": [
                 { "match": "''" },
                 { "include": "#literalStringInterpolation" }
+            ]
+        },
+        "functionArgument": {
+            "name": "meta.udf.arg",
+            "begin": "( *)?(required)?( *)?(([a-z][a-z0-9]+)( +))?([a-z][a-z0-9]*)( *\\=)?",
+            "beginCaptures": {
+                "2": { "name": "keyword.other.required" },
+                "4": { "name": "support.type" },
+                "7": { "name": "variable.parameter.function" }
+            },
+            "end": "(\\)|\\s|,)",
+            "patterns": [
+                { "include": "#expression" }
             ]
         }
     }
