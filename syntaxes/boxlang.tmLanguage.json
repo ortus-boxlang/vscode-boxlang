@@ -14,6 +14,9 @@
         "expression": {
             "name": "meta.expression",
             "patterns": [
+                { "include": "#scriptKeyword" },
+                { "include": "#newExpression" },
+                { "include": "#functionInvocation" },
                 { "include": "#function" },
                 { "include": "#punctuationColon" },
                 { "include": "#punctuationParens" },
@@ -41,7 +44,7 @@
             "patterns": [
                 { "include": "#storage-modifier" },
                 {
-                    "name": "storage.type.function.boxlang",
+                    "name": "meta.function.declaration.boxlang",
                     "begin": "(?i)(function)\\s+([a-z][a-z0-9]*)(\\()",
                     "beginCaptures": {
                         "1": { "name": "storage.type.function.boxlang" },
@@ -64,7 +67,7 @@
                     "beginCaptures": {
                         "0": "punctuation.definition.block.begin.boxlang"
                     },
-                    "end": "\\}",
+                    "end": "(?=\\})",
                     "endCaptures": {
                         "0": "punctuation.definition.block.end.boxlang"
                     },
@@ -72,6 +75,28 @@
                         { "include": "#expression" }
                     ]
                 }
+            ]
+        },
+        "functionInvocation": {
+            "name": "meta.function-invocation.boxlang",
+            "begin": "(?i)([a-z][a-z0-9]*)\\(",
+            "beginCaptures": {
+                "1": { "name": "support.function.boxlang" }
+            },
+            "end": "\\)",
+            "patterns": [
+                { "include": "#expression" }
+            ]
+        },
+        "methodInvocation": {
+            "name": "meta.function-invocation.boxlang",
+            "begin": "(?i)([a-z][a-z0-9]*)\\(",
+            "beginCaptures": {
+                "1": { "name": "support.function.boxlang" }
+            },
+            "end": "\\)",
+            "patterns": [
+                { "include": "#expression" }
             ]
         },
         "comma": {
@@ -91,7 +116,7 @@
             "match": "\\(|\\)"
         },
         "punctuationColon": {
-            "name": "punctuation.definition.colon.boxlang",
+            "name": "punctuation.separator.colon.boxlang",
             "match": ":"
         },
         "identifier": {
@@ -200,15 +225,36 @@
                 { "include": "#literalStringInterpolation" }
             ]
         },
+        "newExpression": {
+            "name": "meta.instance.constructor.boxlang",
+            "begin": "(?i)(new)( *)?([a-z][a-z0-9*)( *)?\\(",
+            "beginCaptures": {
+                "1": { "name": "support.operator.new.boxlang" },
+                "2": { "name": "entity.name.class.boxlang" }
+            },
+            "end": "\\)",
+            "patterns": [
+                { "include": "#expression" }
+            ]
+        },
+        "scriptKeyword": {
+            "name": "keyword.control",
+            "match": "return|new"
+        },
+        "scriptBIFNames": {
+            "name": "support.function.boxlang",
+            "match": "(?i)randRange|len"
+        },
         "functionArgument": {
             "name": "meta.udf.arg",
-            "begin": "( *)?(required)?( *)?(([a-z][a-z0-9]+)( +))?([a-z][a-z0-9]*)( *\\=)?",
+            "begin": "( *)?(required)?( *)?(([a-z][a-z0-9]+)( +))?([a-z][a-z0-9]*)( *=)?",
             "beginCaptures": {
                 "2": { "name": "keyword.other.required" },
                 "4": { "name": "support.type" },
-                "7": { "name": "variable.parameter.function" }
+                "7": { "name": "variable.parameter.function" },
+                "8": { "name": "keyword.operator.assignment" }
             },
-            "end": "(\\)|\\s|,)",
+            "end": "(?=\\)|,)",
             "patterns": [
                 { "include": "#expression" }
             ]
