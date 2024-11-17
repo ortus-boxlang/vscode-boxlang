@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.3.9] - 2024-11-17
+
 ## [1.3.8] - 2024-10-03
 
 -   BLIDE-48 Add debugMode and configFile properties to MiniServer config
@@ -42,7 +44,9 @@
 -   Added experimental support for file formatting
 -   JSON schema for boxlang.json
 
-[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.8...HEAD
+[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.9...HEAD
+
+[1.3.9]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.8...v1.3.9
 
 [1.3.8]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.7...v1.3.8
 
