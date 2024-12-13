@@ -50,6 +50,10 @@
             {
                 "fileMatch": "boxlang.json",
                 "url": "./resources/boxlang_schema.json"
+            },
+            {
+                "fileMatch": "*.boxlang.json",
+                "url": "./resources/boxlang_schema.json"
             }
         ],
         "debuggers": [
@@ -746,6 +750,54 @@
                 "command": "cfml.foldAllFunctions",
                 "category": "CFML",
                 "title": "Fold all functions in active editor"
+            },
+            {
+                "command": "boxlang.openLogFile",
+                "title": "Open server log file",
+                "category": "BoxLang",
+                "icon": "$(pencil)"
+            },
+            {
+                "command": "boxlang.clearLogFile",
+                "title": "Clear log file",
+                "category": "BoxLang",
+                "icon": "$(clear-all)"
+            },
+            {
+                "command": "boxlang.removeModule",
+                "title": "Remove Module",
+                "category": "BoxLang",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "boxlang.openModuleHomePage",
+                "title": "Open Module HomePage",
+                "category": "BoxLang",
+                "icon": "$(browser)"
+            },
+            {
+                "command": "boxlang.installModule",
+                "title": "Install BoxLang Module",
+                "category": "BoxLang",
+                "icon": "$(add)"
+            },
+            {
+                "command": "boxlang.openBoxLangHome",
+                "title": "Open BoxLang Server Home",
+                "category": "BoxLang",
+                "icon": "$(folder-opened)"
+            },
+            {
+                "command": "boxlang.openBoxLangConfigFile",
+                "title": "Open BoxLang Config File",
+                "category": "BoxLang",
+                "icon": "$(pencil)"
+            },
+            {
+                "command": "boxlang.clearClassFiles",
+                "title": "Clear Class Files",
+                "category": "BoxLang",
+                "icon": "$(clear-all)"
             }
         ],
         "viewsContainers": {
@@ -762,6 +814,11 @@
                 {
                     "id": "boxlang-servers",
                     "name": "BoxLang Servers",
+                    "type": "tree"
+                },
+                {
+                    "id": "boxlang-server-homes",
+                    "name": "Boxlang Homes",
                     "type": "tree"
                 }
             ]
@@ -804,6 +861,46 @@
                     "command": "boxlang.editServerProperty",
                     "when": "viewItem == boxlangServerStoppedContext || viewItem == editableBoxlangServerPropertyContext",
                     "group": "inline"
+                },
+                {
+                    "group": "inline",
+                    "command": "boxlang.clearLogFile",
+                    "when": "viewItem == boxlangServerHome-logFileItem"
+                },
+                {
+                    "group": "inline",
+                    "command": "boxlang.openLogFile",
+                    "when": "viewItem == boxlangServerHome-logFileItem"
+                },
+                {
+                    "group": "inline",
+                    "command": "boxlang.removeModule",
+                    "when": "viewItem == boxlangServerHome-moduleTreeItem"
+                },
+                {
+                    "group": "inline",
+                    "command": "boxlang.openModuleHomePage",
+                    "when": "viewItem == boxlangServerHome-moduleTreeItem"
+                },
+                {
+                    "group": "inline",
+                    "command": "boxlang.installModule",
+                    "when": "viewItem == boxlangServerHome-modulesDirectoryTreeItem"
+                },
+                {
+                    "group": "inline",
+                    "command": "boxlang.openBoxLangHome",
+                    "when": "viewItem == boxlangServerHome-serverHome"
+                },
+                {
+                    "group": "inline",
+                    "command": "boxlang.openBoxLangConfigFile",
+                    "when": "viewItem == boxlangServerHome-configFile"
+                },
+                {
+                    "group": "inline",
+                    "command": "boxlang.clearClassFiles",
+                    "when": "viewItem == boxlangServerHome-serverHome"
                 }
             ],
             "explorer/context": [
@@ -901,6 +998,7 @@
         "browserify": "^17.0.0",
         "browserify-fs": "^1.0.0",
         "buffer": "^6.0.3",
+        "comment-json": "^4.2.5",
         "findup-sync": "~5.0.0",
         "html-entities": "~2.3.2",
         "isomorphic-fetch": "^3.0.0",

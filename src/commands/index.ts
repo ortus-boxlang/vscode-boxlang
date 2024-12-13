@@ -1,4 +1,12 @@
 
+export * from "./boxlangHome/clearClassFiles"
+export * from "./boxlangHome/clearLogFile"
+export * from "./boxlangHome/installModule"
+export * from "./boxlangHome/openBoxLangConfigFile"
+export * from "./boxlangHome/openBoxLangHome"
+export * from "./boxlangHome/openLogFile"
+export * from "./boxlangHome/openModuleHome"
+export * from "./boxlangHome/removeModule"
 export * from "./outputVersionInfo"
 export * from "./runBoxLangFile"
 export * from "./runBoxLangWebServer"

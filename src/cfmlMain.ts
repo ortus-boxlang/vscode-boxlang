@@ -48,6 +48,7 @@ import { BoxLang } from "./utils/BoxLang";
 import { detectJavaVerison } from "./utils/Java";
 import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
 import { setupServers } from "./utils/Server";
+import { boxlangServerHomeTreeDataProvider } from "./views/ServerHomesView";
 import { boxlangServerTreeDataProvider } from "./views/ServerView";
 
 export const CFML_LANGUAGE_ID: string = "cfml";
@@ -238,7 +239,14 @@ export function activate(context: ExtensionContext): void {
             return fn(context, ...arguments);
         }
     };
-
+    context.subscriptions.push(commands.registerCommand("boxlang.clearClassFiles", extensionCommands.clearClassFiles));
+    context.subscriptions.push(commands.registerCommand("boxlang.openBoxLangConfigFile", extensionCommands.openBoxLangConfigFile));
+    context.subscriptions.push(commands.registerCommand("boxlang.openBoxLangHome", extensionCommands.openBoxLangHome));
+    context.subscriptions.push(commands.registerCommand("boxlang.removeModule", extensionCommands.removeModule));
+    context.subscriptions.push(commands.registerCommand("boxlang.installModule", extensionCommands.installModule));
+    context.subscriptions.push(commands.registerCommand("boxlang.openModuleHomePage", extensionCommands.openModuleHomePage));
+    context.subscriptions.push(commands.registerCommand("boxlang.openLogFile", extensionCommands.openLogFile));
+    context.subscriptions.push(commands.registerCommand("boxlang.clearLogFile", extensionCommands.clearLogFile));
     context.subscriptions.push(commands.registerCommand("boxlang.addServer", extensionCommands.addServer));
     context.subscriptions.push(commands.registerCommand("boxlang.openServerInBrowser", extensionCommands.openServerInBrowser));
     context.subscriptions.push(commands.registerCommand("boxlang.stopServer", extensionCommands.stopServer));
@@ -460,6 +468,7 @@ export function activate(context: ExtensionContext): void {
 
 
     window.registerTreeDataProvider("boxlang-servers", boxlangServerTreeDataProvider());
+    window.registerTreeDataProvider("boxlang-server-homes", boxlangServerHomeTreeDataProvider());
 }
 
 
