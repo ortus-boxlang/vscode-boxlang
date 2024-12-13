@@ -96,17 +96,17 @@ async function displayTokenOutput(output) {
 }
 
 function getShowLexerTokens() {
-    return !!vscode.workspace.getConfiguration("cfml.boxlang").get<boolean>('showLexerTokens');
+    return !!vscode.workspace.getConfiguration("boxlang").get<boolean>('showLexerTokens');
 }
 
 function getPathToLexerFile() {
-    const configPath = vscode.workspace.getConfiguration("cfml.boxlang").get<string>('lexerPath');
+    const configPath = vscode.workspace.getConfiguration("boxlang").get<string>('lexerPath');
 
     return configPath ? configPath : path.resolve(__dirname, '../../resources/CFLexer.g4');
 }
 
 function getPathToParserFile() {
-    const configPath = vscode.workspace.getConfiguration("cfml.boxlang").get<string>('parserPath');
+    const configPath = vscode.workspace.getConfiguration("boxlang").get<string>('parserPath');
 
     return configPath ? configPath : path.resolve(__dirname, '../../resources/CFParser.g4');
 }

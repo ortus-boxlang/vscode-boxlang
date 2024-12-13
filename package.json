@@ -192,31 +192,37 @@
             }
         ],
         "configuration": {
-            "id": "cfml",
+            "id": "boxlang",
             "type": "object",
-            "title": "CFML Configuration",
+            "title": "BoxLang Configuration",
             "properties": {
+                "boxlang.settings.ignoreOldSettings": {
+                    "scope": "application",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Ignore old settings that could be migrated to the new format. This will be set automatically after importing settings. If you would like to migrate settings manually run the Boxlang: Migrate Settings command."
+                },
                 "boxlang.java.javaHome": {
                     "type": "string",
                     "description": "The path to the JVM you want to use. Must be Java 21 or higher. If not set it will use java. Use multiple backslashes on Windows i.e. C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-21.0.2.13-hotspot\\\\bin",
                     "scope": "window"
                 },
-                "cfml.boxlang.jarpath": {
+                "boxlang.jarpath": {
                     "type": "string",
                     "description": "The path to the boxlang jar you want to use for execution",
                     "scope": "window"
                 },
-                "cfml.boxlang.miniserverjarpath": {
+                "boxlang.miniserverjarpath": {
                     "type": "string",
                     "description": "The path to the miniserver jar you want to use for execution",
                     "scope": "window"
                 },
-                "cfml.boxlang.lspjarpath": {
+                "boxlang.lspjarpath": {
                     "type": "string",
                     "description": "The path to the lsp jar you want to use for execution",
                     "scope": "window"
                 },
-                "cfml.boxlang.webPort": {
+                "boxlang.webPort": {
                     "type": "number",
                     "description": "The port to use for local development",
                     "scope": "window"
@@ -226,33 +232,33 @@
                     "description": "Set the heap size of the JVM, default is 512 megabytes",
                     "scope": "window"
                 },
-                "cfml.boxlang.lsp.enableExperimentalDiagnostics": {
+                "boxlang.lsp.enableExperimentalDiagnostics": {
                     "type": "boolean",
                     "description": "Enable expermiental support for boxlang diagnostic reporting",
                     "scope": "window"
                 },
-                "cfml.boxlang.showLexerTokens": {
+                "boxlang.showLexerTokens": {
                     "type": "boolean",
                     "description": "Controls whether to show the lexer processing output",
                     "scope": "window",
                     "default": false
                 },
-                "cfml.boxlang.lexerPath": {
+                "boxlang.lexerPath": {
                     "type": "string",
                     "description": "The path to the ANTLR lexer file to use when generating AST visualizations",
                     "scope": "window"
                 },
-                "cfml.boxlang.parserPath": {
+                "boxlang.parserPath": {
                     "type": "string",
                     "description": "The path to the ANTLR parser file to use when generating AST visualizations",
                     "scope": "window"
                 },
-                "cfml.boxlang.customAntlrToolsCommand": {
+                "boxlang.customAntlrToolsCommand": {
                     "type": "string",
                     "description": "The custom path to execute when generating a antlr graph",
                     "scope": "window"
                 },
-                "cfml.globalDefinitions.source": {
+                "boxlang.cfml.globalDefinitions.source": {
                     "type": "string",
                     "description": "The source of the global definitions.",
                     "enum": [
@@ -261,7 +267,7 @@
                     "default": "cfdocs",
                     "scope": "window"
                 },
-                "cfml.cfDocs.source": {
+                "boxlang.cfml.cfDocs.source": {
                     "type": "string",
                     "description": "Indicates the source location type to be used for CFDocs. Remote is GitHub repo. Local is based on cfml.cfDocs.localPath.",
                     "markdownDescription": "Indicates the source location type to be used for CFDocs. Remote is GitHub repo. Local is based on `cfml.cfDocs.localPath`.",
@@ -283,7 +289,7 @@
                     "default": "extension",
                     "scope": "window"
                 },
-                "cfml.cfDocs.localPath": {
+                "boxlang.cfml.cfDocs.localPath": {
                     "type": [
                         "string",
                         "null"
@@ -292,59 +298,59 @@
                     "default": null,
                     "scope": "machine-overridable"
                 },
-                "cfml.hover.enable": {
+                "boxlang.cfml.hover.enable": {
                     "type": "boolean",
                     "description": "Whether hover is enabled for CFML entities.",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.hover.html.enable": {
+                "boxlang.cfml.hover.html.enable": {
                     "type": "boolean",
                     "description": "Whether hover is enabled for HTML entities.",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.hover.css.enable": {
+                "boxlang.cfml.hover.css.enable": {
                     "type": "boolean",
                     "description": "Whether hover is enabled for CSS entities.",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.signature.enable": {
+                "boxlang.cfml.signature.enable": {
                     "type": "boolean",
                     "description": "Whether signature help is enabled.",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.outline.showImplicitFunctions": {
+                "boxlang.cfml.outline.showImplicitFunctions": {
                     "type": "boolean",
                     "description": "Whether to show implicit Functions in Outline View.",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.suggest.enable": {
+                "boxlang.cfml.suggest.enable": {
                     "type": "boolean",
                     "description": "Whether completion help is enabled.",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.suggest.snippets.enable": {
+                "boxlang.cfml.suggest.snippets.enable": {
                     "type": "boolean",
                     "description": "Whether snippets are part of completion help.",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.suggest.snippets.exclude": {
+                "boxlang.cfml.suggest.snippets.exclude": {
                     "type": "array",
                     "description": "Set of snippet keys you would like excluded from suggestions.",
                     "items": {
                         "description": "A snippet key to exclude from suggestions",
                         "type": "string"
                     },
-                    "default": [],
+                    "default": [ ],
                     "scope": "resource"
                 },
-                "cfml.suggest.snippets.localPath": {
+                "boxlang.cfml.suggest.snippets.localPath": {
                     "type": [
                         "string",
                         "null"
@@ -353,7 +359,7 @@
                     "default": null,
                     "scope": "machine-overridable"
                 },
-                "cfml.suggest.scopes.case": {
+                "boxlang.cfml.suggest.scopes.case": {
                     "type": "string",
                     "description": "What case should be used for the scopes in completion suggestions.",
                     "enum": [
@@ -367,13 +373,13 @@
                     "default": "lower",
                     "scope": "resource"
                 },
-                "cfml.suggest.globalFunctions.enable": {
+                "boxlang.cfml.suggest.globalFunctions.enable": {
                     "type": "boolean",
                     "description": "Whether global functions are part of completion help.",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.suggest.globalFunctions.firstLetterCase": {
+                "boxlang.cfml.suggest.globalFunctions.firstLetterCase": {
                     "type": "string",
                     "description": "What case should be used for the first letter of global function suggestions.",
                     "enum": [
@@ -389,13 +395,13 @@
                     "default": "default",
                     "scope": "resource"
                 },
-                "cfml.suggest.globalTags.enable": {
+                "boxlang.cfml.suggest.globalTags.enable": {
                     "type": "boolean",
                     "description": "Whether global tags are part of completion help.",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.suggest.globalTags.attributes.quoteType": {
+                "boxlang.cfml.suggest.globalTags.attributes.quoteType": {
                     "type": "string",
                     "enum": [
                         "none",
@@ -411,13 +417,13 @@
                     "description": "Which quote type to use when completing attribute suggestion.",
                     "scope": "resource"
                 },
-                "cfml.suggest.globalTags.attributes.defaultValue": {
+                "boxlang.cfml.suggest.globalTags.attributes.defaultValue": {
                     "type": "boolean",
                     "description": "Whether to populate the default value for an attribute if it has one.",
                     "default": false,
                     "scope": "resource"
                 },
-                "cfml.suggest.globalTags.includeAttributes.setType": {
+                "boxlang.cfml.suggest.globalTags.includeAttributes.setType": {
                     "type": "string",
                     "description": "What set of attributes to include when global tag suggestion is selected",
                     "default": "none",
@@ -433,10 +439,10 @@
                     ],
                     "scope": "resource"
                 },
-                "cfml.suggest.globalTags.includeAttributes.custom": {
+                "boxlang.cfml.suggest.globalTags.includeAttributes.custom": {
                     "type": "object",
                     "description": "A custom set of attributes to include for given tags when suggestion is selected. This setting overrides the set type.",
-                    "default": {},
+                    "default": { },
                     "patternProperties": {
                         "^cf[a-z0-9_]+$": {
                             "description": "The tag name and its attribute overrides",
@@ -463,19 +469,19 @@
                                     "name"
                                 ]
                             },
-                            "default": []
+                            "default": [ ]
                         }
                     },
                     "additionalProperties": false,
                     "scope": "resource"
                 },
-                "cfml.suggest.htmlTags.enable": {
+                "boxlang.cfml.suggest.htmlTags.enable": {
                     "type": "boolean",
                     "description": "Whether HTML tags are part of completion help.",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.suggest.htmlTags.attributes.quoteType": {
+                "boxlang.cfml.suggest.htmlTags.attributes.quoteType": {
                     "type": "string",
                     "enum": [
                         "none",
@@ -491,44 +497,44 @@
                     "description": "Which quote type to use when completing attribute suggestion.",
                     "scope": "resource"
                 },
-                "cfml.suggest.css.enable": {
+                "boxlang.cfml.suggest.css.enable": {
                     "type": "boolean",
                     "description": "Whether CSS properties and values are part of completion help.",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.suggest.replaceComments": {
+                "boxlang.cfml.suggest.replaceComments": {
                     "type": "boolean",
                     "description": "Whether comments are replaced during parsing (**Disabing this is Experimental**)",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.definition.enable": {
+                "boxlang.cfml.definition.enable": {
                     "type": "boolean",
                     "description": "Whether providing definitions is enabled.",
                     "default": true,
                     "scope": "resource"
                 },
-                "cfml.definition.userFunctions.search.enable": {
+                "boxlang.cfml.definition.userFunctions.search.enable": {
                     "type": "boolean",
                     "description": "Whether to search for matching functions throughout the workspace when a reliable match cannot be determined.",
                     "default": false,
                     "scope": "resource"
                 },
-                "cfml.indexComponents.enable": {
+                "boxlang.cfml.indexComponents.enable": {
                     "type": "boolean",
                     "description": "Whether to index the components in workspace. This is done on each startup and is required for most features to work properly.",
                     "default": true,
                     "scope": "window"
                 },
-                "cfml.autoCloseTags.enable": {
+                "boxlang.cfml.autoCloseTags.enable": {
                     "type": "boolean",
                     "description": "Whether to enable auto-closing tags for CFML. This uses the third-party extension 'auto-close-tag'. This is only checked and set on startup.",
                     "markdownDescription": "Whether to enable auto-closing tags for CFML. This uses the third-party extension `auto-close-tag`. This is only checked and set on startup.",
                     "default": true,
                     "scope": "window"
                 },
-                "cfml.autoCloseTags.configurationTarget": {
+                "boxlang.cfml.autoCloseTags.configurationTarget": {
                     "type": "string",
                     "description": "Auto-configuration target for auto-closing tags.",
                     "enum": [
@@ -542,15 +548,15 @@
                     "default": "Global",
                     "scope": "window"
                 },
-                "cfml.docBlock.gap": {
+                "boxlang.cfml.docBlock.gap": {
                     "type": "boolean",
                     "default": true,
                     "description": "Whether there should be a gap between the hint and other tags in a docblock",
                     "scope": "resource"
                 },
-                "cfml.docBlock.extra": {
+                "boxlang.cfml.docBlock.extra": {
                     "type": "array",
-                    "default": [],
+                    "default": [ ],
                     "items": {
                         "type": "object",
                         "properties": {
@@ -585,7 +591,7 @@
                     "description": "Extra tags you wish to include in every DocBlock",
                     "scope": "resource"
                 },
-                "cfml.engine.name": {
+                "boxlang.cfml.engine.name": {
                     "type": "string",
                     "description": "Name of the CFML engine against which to filter.",
                     "enum": [
@@ -596,15 +602,15 @@
                     ],
                     "scope": "window"
                 },
-                "cfml.engine.version": {
+                "boxlang.cfml.engine.version": {
                     "type": "string",
                     "pattern": "^((0|[1-9]\\d*)(\\.(0|[1-9]\\d*)(\\.(0|[1-9]\\d*))?)?)?$",
                     "description": "Version of the CFML engine against which to filter. SemVer format is preferred.",
                     "scope": "window"
                 },
-                "cfml.mappings": {
+                "boxlang.cfml.mappings": {
                     "type": "array",
-                    "default": [],
+                    "default": [ ],
                     "items": {
                         "type": "object",
                         "properties": {
@@ -643,6 +649,10 @@
             }
         },
         "commands": [
+            {
+                "command": "boxlang.migrateVSCodeSettings",
+                "title": "BoxLang: Migrate VSCode Settings"
+            },
             {
                 "command": "boxlang.outputVersionInfo",
                 "title": "BoxLang: Output Version Info"
@@ -929,6 +939,9 @@
                 }
             ],
             "commandPalette": [
+                {
+                    "command": "boxlang.migrateVSCodeSettings"
+                },
                 {
                     "command": "boxlang.outputVersionInfo"
                 },

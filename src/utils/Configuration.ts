@@ -15,7 +15,7 @@ export const ExtensionConfig = {
     },
 
     get customAntlrToolsCommand() {
-        return workspace.getConfiguration("cfml.boxlang").get<string>('customAntlrToolsCommand');
+        return workspace.getConfiguration("boxlang").get<string>('customAntlrToolsCommand');
     },
 
     get boxlangJavaHome() {
@@ -25,19 +25,19 @@ export const ExtensionConfig = {
     },
 
     get boxlangMiniServerJarPath() {
-        const jarPath = workspace.getConfiguration("cfml.boxlang").get<string>('miniserverjarpath');
+        const jarPath = workspace.getConfiguration("boxlang").get<string>('miniserverjarpath');
 
         return jarPath || INCLUDED_BOXLANG_MINISERVER_JAR_PATH;
     },
 
     get boxlangJarPath() {
-        const jarPath = workspace.getConfiguration("cfml.boxlang").get<string>('jarpath');
+        const jarPath = workspace.getConfiguration("boxlang").get<string>('jarpath');
 
         return jarPath || INCLUDED_BOXLANG_JAR_PATH;
     },
 
     get boxlangLSPPath() {
-        const jarPath = workspace.getConfiguration("cfml.boxlang").get<string>('lspjarpath');
+        const jarPath = workspace.getConfiguration("boxlang").get<string>('lspjarpath');
 
         return jarPath || INCLUDED_BOXLANG_LSP_PATH;
     },
@@ -50,10 +50,10 @@ export const ExtensionConfig = {
     },
 
     get boxlangServerPort() {
-        return Number.parseInt(workspace.getConfiguration("cfml.boxlang").get<string>('webPort')) || 8080;
+        return Number.parseInt(workspace.getConfiguration("boxlang").get<string>('webPort')) || 8080;
     },
 
     get showImplicitFunctions() {
-        return workspace.getConfiguration("cfml.outline").get<boolean>("showImplicitFunctions", true);
+        return workspace.getConfiguration("boxlang.cfml.outline").get<boolean>("showImplicitFunctions", true);
     }
 }

@@ -36,7 +36,7 @@ export interface DocumentPositionStateContext extends DocumentStateContext {
  * @param fast Whether to use the faster, but less accurate parsing
  */
 export function getDocumentStateContext(document: TextDocument, fast: boolean = false, replaceComments: boolean = false): DocumentStateContext {
-    const cfmlEngineSettings: WorkspaceConfiguration = workspace.getConfiguration("cfml.engine");
+    const cfmlEngineSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.engine");
     const userEngineName: CFMLEngineName = CFMLEngineName.valueOf(cfmlEngineSettings.get<string>("name"));
     const userEngine: CFMLEngine = new CFMLEngine(userEngineName, cfmlEngineSettings.get<string>("version"));
 

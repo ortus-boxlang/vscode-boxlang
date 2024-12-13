@@ -20,11 +20,11 @@ export default class SnippetService {
 
         return new Promise<Snippets>((resolve, reject) => {
 
-            const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("cfml.suggest");
+            const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.suggest");
 
             const snippetsLocalPath: string = cfmlCompletionSettings.get("snippets.localPath");
 
-            if ( snippetsLocalPath && snippetsLocalPath.length > 0 ) {
+            if (snippetsLocalPath && snippetsLocalPath.length > 0) {
 
                 const snippetsPathUri: Uri = Uri.file(snippetsLocalPath);
 

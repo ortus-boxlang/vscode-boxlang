@@ -48,7 +48,7 @@ export default class CFMLHoverProvider implements HoverProvider {
      * @param _token A cancellation token.
      */
     public async provideHover(document: TextDocument, position: Position, _token: CancellationToken): Promise<Hover | undefined> {
-        const cfmlHoverSettings: WorkspaceConfiguration = workspace.getConfiguration("cfml.hover", document.uri);
+        const cfmlHoverSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.hover", document.uri);
         if (!cfmlHoverSettings.get<boolean>("enable", true)) {
             return undefined;
         }
@@ -69,7 +69,7 @@ export default class CFMLHoverProvider implements HoverProvider {
     public async getHover(document: TextDocument, position: Position): Promise<Hover | undefined> {
         let definition: HoverProviderItem;
 
-        const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("cfml.suggest", document.uri);
+        const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.suggest", document.uri);
         const replaceComments = cfmlCompletionSettings.get<boolean>("replaceComments", true);
 
         const documentPositionStateContext: DocumentPositionStateContext = getDocumentPositionStateContext(document, position, false, replaceComments);
@@ -165,7 +165,7 @@ export default class CFMLHoverProvider implements HoverProvider {
             // TODO: Function arguments used within function body, or named argument invocation. Component properties.
 
             // HTML tags
-            const htmlHoverSettings: WorkspaceConfiguration = workspace.getConfiguration("cfml.hover.html", document.uri);
+            const htmlHoverSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.hover.html", document.uri);
             if (isCfmFile(document) && htmlHoverSettings.get<boolean>("enable", true) && tagPrefixPattern.test(docPrefix) && isKnownHTMLTag(lowerCurrentWord)) {
                 definition = this.htmlTagToHoverProviderItem(getHTMLTag(lowerCurrentWord));
                 return this.createHover(definition);
@@ -173,7 +173,7 @@ export default class CFMLHoverProvider implements HoverProvider {
         }
 
         // CSS
-        const cssHoverSettings: WorkspaceConfiguration = workspace.getConfiguration("cfml.hover.css", document.uri);
+        const cssHoverSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.hover.css", document.uri);
         const cssRanges: Range[] = getCssRanges(documentPositionStateContext);
         if (cssHoverSettings.get<boolean>("enable", true)) {
             for (const cssRange of cssRanges) {

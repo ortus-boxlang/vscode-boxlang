@@ -295,7 +295,7 @@ export function activate(context: ExtensionContext): void {
         }
 
         if (isCfcFile(document)) {
-            const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("cfml.suggest", document.uri);
+            const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.suggest", document.uri);
             const replaceComments = cfmlCompletionSettings.get<boolean>("replaceComments", true);
             cachedEntity.cacheComponentFromDocument(document, false, replaceComments);
         } else if (path.basename(document.fileName) === "Application.cfm") {
@@ -315,7 +315,7 @@ export function activate(context: ExtensionContext): void {
         }
 
         workspace.openTextDocument(componentUri).then((document: TextDocument) => {
-            const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("cfml.suggest", document.uri);
+            const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.suggest", document.uri);
             const replaceComments = cfmlCompletionSettings.get<boolean>("replaceComments", true);
             cachedEntity.cacheComponentFromDocument(document, false, replaceComments);
         });
@@ -359,7 +359,7 @@ export function activate(context: ExtensionContext): void {
     });
 
     context.subscriptions.push(workspace.onDidChangeConfiguration((evt: ConfigurationChangeEvent) => {
-        if (evt.affectsConfiguration("cfml.globalDefinitions") || evt.affectsConfiguration("cfml.cfDocs") || evt.affectsConfiguration("cfml.engine")) {
+        if (evt.affectsConfiguration("boxlang.cfml.globalDefinitions") || evt.affectsConfiguration("boxlang.cfml.cfDocs") || evt.affectsConfiguration("boxlang.cfml.engine")) {
             commands.executeCommand("cfml.refreshGlobalDefinitionCache");
         }
     }));
@@ -434,8 +434,8 @@ export function activate(context: ExtensionContext): void {
     commands.executeCommand("cfml.refreshWorkspaceDefinitionCache");
 
     context.subscriptions.push(workspace.onDidChangeConfiguration((e: ConfigurationChangeEvent) => {
-        if (e.affectsConfiguration("cfml.boxlang.lsp")) {
-            client.sendRequest("boxlang/changesettings", workspace.getConfiguration("cfml.boxlang.lsp"));
+        if (e.affectsConfiguration("boxlang.lsp")) {
+            client.sendRequest("boxlang/changesettings", workspace.getConfiguration("boxlang.lsp"));
         }
     }));
 
@@ -499,7 +499,7 @@ function startLSP() {
 
     client.start().then(() => {
         boxlangOutputChannel.appendLine("The language server was succesfully started");
-        client.sendRequest("boxlang/changesettings", workspace.getConfiguration("cfml.boxlang.lsp"));
+        client.sendRequest("boxlang/changesettings", workspace.getConfiguration("boxlang.lsp"));
     });
 }
 
