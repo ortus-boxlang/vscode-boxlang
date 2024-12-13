@@ -3,43 +3,54 @@ import * as vscode from "vscode";
 import { boxlangModuleCache, installBoxLangModule } from "../../utils/CommandBox";
 import { ModulesDirectoryTreeItem, notifyServerHomeDataChange } from "../../views/ServerHomesView";
 
+async function getModuleNameToInstall(installedModules): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const choices = boxlangModuleCache
+            .filter(module => !installedModules.includes(module.slug))
+            .map(module => {
+                return {
+                    label: module.slug,
+                    description: module.versions[0].version,
+                    detail: module.summary
+                }
+            });
 
+        const picker = vscode.window.createQuickPick();
+        picker.title = "Install BoxLang Module";
+        picker.items = choices;
+
+        picker.onDidChangeValue(() => {
+
+            if (!picker.value) {
+                picker.items = choices;
+                return;
+            }
+
+            const matches = choices.filter(choice => choice.label.includes(picker.value));
+
+            if (matches.length) {
+                return;
+            }
+
+            picker.items = [
+                { label: picker.value },
+                ...choices
+            ]
+        })
+
+        picker.onDidAccept(() => {
+            const selection = picker.activeItems[0]
+            resolve(selection.label)
+            picker.hide()
+        })
+        picker.show();
+    })
+}
 
 export async function installModule(modulesDirectory: ModulesDirectoryTreeItem) {
     const installedModules = modulesDirectory.modules.map(m => m.name);
 
-    let name = "";
-
-    if (boxlangModuleCache.length === 0) {
-        name = await vscode.window.showInputBox({
-            title: "Install BoxLang Module",
-            prompt: "Enter the name of the module you would like to install",
-            value: ""
-        });
-    }
-    else {
-        const pick = await vscode.window.showQuickPick(
-            boxlangModuleCache
-                .filter(module => !installedModules.includes(module.slug))
-                .map(module => {
-                    return {
-                        label: module.slug,
-                        description: module.versions[0].version,
-                        detail: module.summary
-                    }
-                }),
-            {
-                title: "Install BoxLang Module"
-            }
-
-        )
-
-        name = pick && pick.label;
-    }
-
-
-
-
+    let name = await getModuleNameToInstall(installedModules);
 
     if (!name) {
         vscode.window.showErrorMessage(`Could not install module. You must provide a valid module name`);
