@@ -10,3 +10,4 @@ resources/.antlr
 boxlang-*.vsix
 resources/lib/boxlang*.jar
 dist/
+workbench
