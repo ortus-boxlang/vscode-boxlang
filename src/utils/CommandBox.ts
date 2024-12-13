@@ -7,6 +7,30 @@ type CommandBoxResult = {
     stderr: string
 }
 
+export let boxlangModuleCache = [];
+
+async function refresBoxLangModuleCache() {
+    boxlangModuleCache = [];
+
+    try {
+
+        const res = await getBoxlangModuleList();
+
+        if (res.code != 0) {
+            return;
+        }
+
+        boxlangModuleCache = JSON.parse(res.stdout).results;
+    }
+    catch (e) {
+        boxlangOutputChannel.appendLine("Unable to retrieve boxlang modules from forgebox");
+        boxlangOutputChannel.append(e.toString());
+    }
+}
+
+refresBoxLangModuleCache();
+
+
 // function getCommandBoxHome() {
 //     if (process.env.COMMANDBOX_HOME) {
 //         return process.env.COMMANDBOX_HOME
@@ -49,4 +73,8 @@ export async function installBoxLangModule(boxlangHome: string, moduleName: stri
 
 export async function uninstallBoxLangModule(boxlangHome, moduleName: string): Promise<CommandBoxResult> {
     return runCommandBox({ BOXLANG_HOME: boxlangHome }, "uninstall", moduleName, "--verbose");
+}
+
+export async function getBoxlangModuleList(): Promise<CommandBoxResult> {
+    return runCommandBox({}, "forgebox", "show", "boxlang-modules", "--json");
 }
