@@ -1143,7 +1143,7 @@ function getDottedPathCompletions(state: CompletionState, parentDottedPath: stri
     });
 
     // custom mappings
-    const cfmlMappings: CFMLMapping[] = workspace.getConfiguration("cfml", state.document.uri).get<CFMLMapping[]>("mappings", []);
+    const cfmlMappings: CFMLMapping[] = workspace.getConfiguration("boxlang", state.document.uri).get<CFMLMapping[]>("mappings", []);
     const splitParentPath: string[] = parentDottedPath === "" ? [] : parentDottedPath.split(".");
     for (const cfmlMapping of cfmlMappings) {
         const slicedLogicalPath: string = cfmlMapping.logicalPath.slice(1);

@@ -1,10 +1,10 @@
 'use strict';
-import { TextDocumentChangeEvent, TextDocumentChangeReason, workspace, window, Range, Position, Selection, TextDocumentContentChangeEvent, TextEditor, WorkspaceConfiguration } from 'vscode';
+import { Position, Range, Selection, TextDocumentChangeEvent, TextDocumentChangeReason, TextDocumentContentChangeEvent, TextEditor, window, workspace, WorkspaceConfiguration } from 'vscode';
 import { nonClosingTags } from '../entities/tag';
 
 export function insertAutoCloseTag(event: TextDocumentChangeEvent): void {
 
-    if (!event.contentChanges[0] || event.reason == TextDocumentChangeReason.Undo || event.reason == TextDocumentChangeReason.Redo ) {
+    if (!event.contentChanges[0] || event.reason == TextDocumentChangeReason.Undo || event.reason == TextDocumentChangeReason.Redo) {
         return;
     }
 
@@ -14,11 +14,11 @@ export function insertAutoCloseTag(event: TextDocumentChangeEvent): void {
     }
 
     const editor = window.activeTextEditor;
-    if ( !editor || editor && event.document !== editor.document ) {
+    if (!editor || editor && event.document !== editor.document) {
         return;
     }
 
-    const cfmlSettings: WorkspaceConfiguration = workspace.getConfiguration("cfml");
+    const cfmlSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang");
     if (!cfmlSettings.get<boolean>("autoCloseTags.enable", true)) {
         return;
     }
@@ -39,7 +39,7 @@ export function insertAutoCloseTag(event: TextDocumentChangeEvent): void {
     let isFullMode = true;
 
     if ((isSublimeText3Mode || isFullMode) && event.contentChanges[0].text === "/") {
-        let text = editor.document.getText(new Range(new Position(Math.max(originalPosition.line - 1000,0), 0), originalPosition));
+        let text = editor.document.getText(new Range(new Position(Math.max(originalPosition.line - 1000, 0), 0), originalPosition));
         let last2chars = "";
         if (text.length > 2) {
             last2chars = text.substr(text.length - 2);
@@ -138,9 +138,9 @@ function getCloseTag(text: string, excludedTags: string[]): string {
     const s = text[text.length - 1] === '/' && text[text.length - 2] === '<' ? text.slice(0, -2) : text[text.length - 1] === '<' ? text.slice(0, -1) : text;
     let m = s.match(TAG_RE);
     // while we catch a closing tag, we jump directly to the matching opening tag
-    while (m && ( m[1][0] === '/' || excludedTags.indexOf(m[1].toLowerCase()) !== -1 )) {
+    while (m && (m[1][0] === '/' || excludedTags.indexOf(m[1].toLowerCase()) !== -1)) {
         const s2 = s.slice(0, m.index);
-        if ( m[1][0] === '/' ) {
+        if (m[1][0] === '/') {
             // Already Closed Tags
             const m2 = s2.match(RegExp(`<${m[1].slice(1)}.*$`, 'm'));
             if (!m2) return '';

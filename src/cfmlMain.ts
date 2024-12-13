@@ -265,15 +265,15 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(commands.registerCommand("boxlang.showANTLRGraph", extensionCommands.showANTLRGraph));
     context.subscriptions.push(commands.registerCommand("boxlang.showBoxLangASTGraph", extensionCommands.showBoxLangASTGraph));
     context.subscriptions.push(commands.registerCommand("boxlang.outputVersionInfo", applyContext(extensionCommands.outputVersionInfo)));
-    context.subscriptions.push(commands.registerCommand("cfml.refreshGlobalDefinitionCache", refreshGlobalDefinitionCache));
-    context.subscriptions.push(commands.registerCommand("cfml.refreshWorkspaceDefinitionCache", refreshWorkspaceDefinitionCache));
-    context.subscriptions.push(commands.registerTextEditorCommand("cfml.toggleLineComment", toggleComment(CommentType.Line)));
-    context.subscriptions.push(commands.registerTextEditorCommand("cfml.toggleBlockComment", toggleComment(CommentType.Block)));
-    context.subscriptions.push(commands.registerTextEditorCommand("cfml.openActiveApplicationFile", showApplicationDocument));
-    context.subscriptions.push(commands.registerTextEditorCommand("cfml.goToMatchingTag", goToMatchingTag));
-    context.subscriptions.push(commands.registerTextEditorCommand("cfml.openCfDocs", CFDocsService.openCfDocsForCurrentWord));
-    context.subscriptions.push(commands.registerTextEditorCommand("cfml.openEngineDocs", CFDocsService.openEngineDocsForCurrentWord));
-    context.subscriptions.push(commands.registerTextEditorCommand("cfml.foldAllFunctions", foldAllFunctions));
+    context.subscriptions.push(commands.registerCommand("boxlang.refreshGlobalDefinitionCache", refreshGlobalDefinitionCache));
+    context.subscriptions.push(commands.registerCommand("boxlang.refreshWorkspaceDefinitionCache", refreshWorkspaceDefinitionCache));
+    context.subscriptions.push(commands.registerTextEditorCommand("boxlang.toggleLineComment", toggleComment(CommentType.Line)));
+    context.subscriptions.push(commands.registerTextEditorCommand("boxlang.toggleBlockComment", toggleComment(CommentType.Block)));
+    context.subscriptions.push(commands.registerTextEditorCommand("boxlang.openActiveApplicationFile", showApplicationDocument));
+    context.subscriptions.push(commands.registerTextEditorCommand("boxlang.goToMatchingTag", goToMatchingTag));
+    context.subscriptions.push(commands.registerTextEditorCommand("boxlang.openCfDocs", CFDocsService.openCfDocsForCurrentWord));
+    context.subscriptions.push(commands.registerTextEditorCommand("boxlang.openEngineDocs", CFDocsService.openEngineDocsForCurrentWord));
+    context.subscriptions.push(commands.registerTextEditorCommand("boxlang.foldAllFunctions", foldAllFunctions));
 
 
     context.subscriptions.push(languages.registerHoverProvider(DOCUMENT_SELECTOR, new CFMLHoverProvider()));
@@ -360,11 +360,11 @@ export function activate(context: ExtensionContext): void {
 
     context.subscriptions.push(workspace.onDidChangeConfiguration((evt: ConfigurationChangeEvent) => {
         if (evt.affectsConfiguration("boxlang.cfml.globalDefinitions") || evt.affectsConfiguration("boxlang.cfml.cfDocs") || evt.affectsConfiguration("boxlang.cfml.engine")) {
-            commands.executeCommand("cfml.refreshGlobalDefinitionCache");
+            commands.executeCommand("boxlang.refreshGlobalDefinitionCache");
         }
     }));
 
-    const cfmlSettings: WorkspaceConfiguration = workspace.getConfiguration("cfml");
+    const cfmlSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang");
     const autoCloseTagExtId = "formulahendry.auto-close-tag";
     const autoCloseTagExt = extensions.getExtension(autoCloseTagExtId);
     const enableAutoCloseTags: boolean = cfmlSettings.get<boolean>("autoCloseTags.enable", true);
@@ -430,8 +430,8 @@ export function activate(context: ExtensionContext): void {
         });
     }
 
-    commands.executeCommand("cfml.refreshGlobalDefinitionCache");
-    commands.executeCommand("cfml.refreshWorkspaceDefinitionCache");
+    commands.executeCommand("boxlang.refreshGlobalDefinitionCache");
+    commands.executeCommand("boxlang.refreshWorkspaceDefinitionCache");
 
     context.subscriptions.push(workspace.onDidChangeConfiguration((e: ConfigurationChangeEvent) => {
         if (e.affectsConfiguration("boxlang.lsp")) {

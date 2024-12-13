@@ -717,48 +717,48 @@
                 "title": "BoxLang: Show BoxLang AST Graph"
             },
             {
-                "command": "cfml.refreshGlobalDefinitionCache",
-                "category": "CFML",
+                "command": "boxlang.refreshGlobalDefinitionCache",
+                "category": "BoxLang",
                 "title": "Refresh cache for global definitions"
             },
             {
-                "command": "cfml.refreshWorkspaceDefinitionCache",
-                "category": "CFML",
+                "command": "boxlang.refreshWorkspaceDefinitionCache",
+                "category": "BoxLang",
                 "title": "Refresh cache for workspace definitions"
             },
             {
-                "command": "cfml.toggleLineComment",
-                "category": "CFML",
+                "command": "boxlang.toggleLineComment",
+                "category": "BoxLang",
                 "title": "Toggle CFML line comment"
             },
             {
-                "command": "cfml.toggleBlockComment",
-                "category": "CFML",
+                "command": "boxlang.toggleBlockComment",
+                "category": "BoxLang",
                 "title": "Toggle CFML block comment"
             },
             {
-                "command": "cfml.openActiveApplicationFile",
-                "category": "CFML",
+                "command": "boxlang.openActiveApplicationFile",
+                "category": "BoxLang",
                 "title": "Open Application file for currently active document"
             },
             {
-                "command": "cfml.goToMatchingTag",
-                "category": "CFML",
+                "command": "boxlang.goToMatchingTag",
+                "category": "BoxLang",
                 "title": "Go to Matching Tag"
             },
             {
-                "command": "cfml.openCfDocs",
-                "category": "CFML",
+                "command": "boxlang.openCfDocs",
+                "category": "BoxLang",
                 "title": "Open CFDocs page for current word"
             },
             {
-                "command": "cfml.openEngineDocs",
-                "category": "CFML",
+                "command": "boxlang.openEngineDocs",
+                "category": "BoxLang",
                 "title": "Open CFML engine docs page for current word"
             },
             {
-                "command": "cfml.foldAllFunctions",
-                "category": "CFML",
+                "command": "boxlang.foldAllFunctions",
+                "category": "BoxLang",
                 "title": "Fold all functions in active editor"
             },
             {
@@ -939,6 +939,23 @@
                 }
             ],
             "commandPalette": [
+                { "command": "boxlang.runServerFromLocation", "when": "false" },
+                { "command": "boxlang.editServerProperty", "when": "false" },
+                { "command": "boxlang.openServerInBrowser", "when": "false" },
+                { "command": "boxlang.deleteServer", "when": "false" },
+                { "command": "boxlang.stopServer", "when": "false" },
+                { "command": "boxlang.debugServer", "when": "false" },
+                { "command": "boxlang.runConfiguredServer", "when": "false" },
+                { "command": "boxlang.runWebServer", "when": "false" },
+                { "command": "boxlang.showBoxLangASTGraph", "when": "false" },
+                { "command": "boxlang.openLogFile", "when": "false" },
+                { "command": "boxlang.clearLogFile", "when": "false" },
+                { "command": "boxlang.removeModule", "when": "false" },
+                { "command": "boxlang.openModuleHomePage", "when": "false" },
+                { "command": "boxlang.installModule", "when": "false" },
+                { "command": "boxlang.openBoxLangHome", "when": "false" },
+                { "command": "boxlang.openBoxLangConfigFile", "when": "false" },
+                { "command": "boxlang.clearClassFiles", "when": "false" },
                 {
                     "command": "boxlang.migrateVSCodeSettings"
                 },
@@ -949,44 +966,44 @@
                     "command": "boxlang.runFile"
                 },
                 {
-                    "command": "cfml.toggleLineComment",
+                    "command": "boxlang.toggleLineComment",
                     "when": "!editorReadonly && ( editorLangId == cfml || editorLangId == boxlang )"
                 },
                 {
-                    "command": "cfml.toggleBlockComment",
+                    "command": "boxlang.toggleBlockComment",
                     "when": "!editorReadonly && ( editorLangId == cfml || editorLangId == boxlang )"
                 },
                 {
-                    "command": "cfml.openActiveApplicationFile",
+                    "command": "boxlang.openActiveApplicationFile",
                     "when": "editorLangId == cfml"
                 },
                 {
-                    "command": "cfml.goToMatchingTag",
+                    "command": "boxlang.goToMatchingTag",
                     "when": "editorLangId == cfml"
                 },
                 {
-                    "command": "cfml.openCfDocs",
+                    "command": "boxlang.openCfDocs",
                     "when": "editorLangId == cfml"
                 },
                 {
-                    "command": "cfml.openEngineDocs",
+                    "command": "boxlang.openEngineDocs",
                     "when": "editorLangId == cfml"
                 },
                 {
-                    "command": "cfml.foldAllFunctions",
+                    "command": "boxlang.foldAllFunctions",
                     "when": "editorLangId == cfml"
                 }
             ]
         },
         "keybindings": [
             {
-                "command": "cfml.toggleLineComment",
+                "command": "boxlang.toggleLineComment",
                 "key": "ctrl+/",
                 "mac": "cmd+/",
                 "when": "editorTextFocus && !editorReadonly && ( editorLangId == cfml || editorLangId == boxlang )"
             },
             {
-                "command": "cfml.toggleBlockComment",
+                "command": "boxlang.toggleBlockComment",
                 "key": "shift+alt+a",
                 "mac": "shift+alt+a",
                 "when": "editorTextFocus && !editorReadonly && ( editorLangId == cfml || editorLangId == boxlang )"
