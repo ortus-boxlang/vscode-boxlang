@@ -50,6 +50,10 @@
             {
                 "fileMatch": "boxlang.json",
                 "url": "./resources/boxlang_schema.json"
+            },
+            {
+                "fileMatch": "*.boxlang.json",
+                "url": "./resources/boxlang_schema.json"
             }
         ],
         "debuggers": [
