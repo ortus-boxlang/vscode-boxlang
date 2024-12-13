@@ -44,6 +44,7 @@ import {
 } from 'vscode-languageclient/node';
 import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
+import { migrateSettings } from "./settingMigration";
 import { BoxLang } from "./utils/BoxLang";
 import { detectJavaVerison } from "./utils/Java";
 import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
@@ -53,6 +54,8 @@ import { boxlangServerTreeDataProvider } from "./views/ServerView";
 
 export const CFML_LANGUAGE_ID: string = "cfml";
 export const BL_LANGUAGE_ID: string = "boxlang";
+
+
 const DOCUMENT_SELECTOR: DocumentSelector = [
     {
         language: CFML_LANGUAGE_ID,
@@ -148,8 +151,8 @@ function shouldExcludeDocument(documentUri: Uri): boolean {
  * @param context The context object for this extension.
  */
 export function activate(context: ExtensionContext): void {
-
     extensionContext = context;
+    migrateSettings(false);
 
     try {
         setupServers(context);
@@ -239,6 +242,7 @@ export function activate(context: ExtensionContext): void {
             return fn(context, ...arguments);
         }
     };
+    context.subscriptions.push(commands.registerCommand("boxlang.migrateVSCodeSettings", extensionCommands.migrateVSCodeSettings));
     context.subscriptions.push(commands.registerCommand("boxlang.clearClassFiles", extensionCommands.clearClassFiles));
     context.subscriptions.push(commands.registerCommand("boxlang.openBoxLangConfigFile", extensionCommands.openBoxLangConfigFile));
     context.subscriptions.push(commands.registerCommand("boxlang.openBoxLangHome", extensionCommands.openBoxLangHome));
