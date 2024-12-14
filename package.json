@@ -347,7 +347,7 @@
                         "description": "A snippet key to exclude from suggestions",
                         "type": "string"
                     },
-                    "default": [ ],
+                    "default": [],
                     "scope": "resource"
                 },
                 "boxlang.cfml.suggest.snippets.localPath": {
@@ -442,7 +442,7 @@
                 "boxlang.cfml.suggest.globalTags.includeAttributes.custom": {
                     "type": "object",
                     "description": "A custom set of attributes to include for given tags when suggestion is selected. This setting overrides the set type.",
-                    "default": { },
+                    "default": {},
                     "patternProperties": {
                         "^cf[a-z0-9_]+$": {
                             "description": "The tag name and its attribute overrides",
@@ -469,7 +469,7 @@
                                     "name"
                                 ]
                             },
-                            "default": [ ]
+                            "default": []
                         }
                     },
                     "additionalProperties": false,
@@ -556,7 +556,7 @@
                 },
                 "boxlang.cfml.docBlock.extra": {
                     "type": "array",
-                    "default": [ ],
+                    "default": [],
                     "items": {
                         "type": "object",
                         "properties": {
@@ -610,7 +610,7 @@
                 },
                 "boxlang.cfml.mappings": {
                     "type": "array",
-                    "default": [ ],
+                    "default": [],
                     "items": {
                         "type": "object",
                         "properties": {
@@ -649,6 +649,10 @@
             }
         },
         "commands": [
+            {
+                "command": "boxlang.downloadJava",
+                "title": "BoxLang: Download Java 21"
+            },
             {
                 "command": "boxlang.migrateVSCodeSettings",
                 "title": "BoxLang: Migrate VSCode Settings"
@@ -939,23 +943,74 @@
                 }
             ],
             "commandPalette": [
-                { "command": "boxlang.runServerFromLocation", "when": "false" },
-                { "command": "boxlang.editServerProperty", "when": "false" },
-                { "command": "boxlang.openServerInBrowser", "when": "false" },
-                { "command": "boxlang.deleteServer", "when": "false" },
-                { "command": "boxlang.stopServer", "when": "false" },
-                { "command": "boxlang.debugServer", "when": "false" },
-                { "command": "boxlang.runConfiguredServer", "when": "false" },
-                { "command": "boxlang.runWebServer", "when": "false" },
-                { "command": "boxlang.showBoxLangASTGraph", "when": "false" },
-                { "command": "boxlang.openLogFile", "when": "false" },
-                { "command": "boxlang.clearLogFile", "when": "false" },
-                { "command": "boxlang.removeModule", "when": "false" },
-                { "command": "boxlang.openModuleHomePage", "when": "false" },
-                { "command": "boxlang.installModule", "when": "false" },
-                { "command": "boxlang.openBoxLangHome", "when": "false" },
-                { "command": "boxlang.openBoxLangConfigFile", "when": "false" },
-                { "command": "boxlang.clearClassFiles", "when": "false" },
+                {
+                    "command": "boxlang.runServerFromLocation",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.editServerProperty",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.openServerInBrowser",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.deleteServer",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.stopServer",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.debugServer",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.runConfiguredServer",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.runWebServer",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.showBoxLangASTGraph",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.openLogFile",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.clearLogFile",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.removeModule",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.openModuleHomePage",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.installModule",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.openBoxLangHome",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.openBoxLangConfigFile",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.clearClassFiles",
+                    "when": "false"
+                },
                 {
                     "command": "boxlang.migrateVSCodeSettings"
                 },
@@ -1025,10 +1080,12 @@
     },
     "dependencies": {
         "async_hooks": "^1.0.0",
+        "axios": "^1.7.9",
         "browserify": "^17.0.0",
         "browserify-fs": "^1.0.0",
         "buffer": "^6.0.3",
         "comment-json": "^4.2.5",
+        "extract-zip": "^2.0.1",
         "findup-sync": "~5.0.0",
         "html-entities": "~2.3.2",
         "isomorphic-fetch": "^3.0.0",
@@ -1042,7 +1099,8 @@
         "vscode-css-languageservice": "~6.2.12",
         "vscode-debugadapter": "^1.51.0",
         "vscode-html-languageservice": "2.1.11-next.11",
-        "vscode-languageclient": "^9.0.1"
+        "vscode-languageclient": "^9.0.1",
+        "yauzl": "^3.2.0"
     },
     "devDependencies": {
         "@types/findup-sync": "~4.0.2",

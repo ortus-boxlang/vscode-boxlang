@@ -1,5 +1,5 @@
+import * as fs from "fs";
 import * as micromatch from "micromatch";
-import * as net from 'net';
 import * as path from "path";
 import {
     ConfigurationChangeEvent, ConfigurationTarget, DocumentSelector, ExtensionContext,
@@ -40,13 +40,13 @@ import { DocumentStateContext, getDocumentStateContext } from "./utils/documentU
 
 
 import {
-    LanguageClient, ServerOptions
+    LanguageClient
 } from 'vscode-languageclient/node';
 import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
 import { migrateSettings } from "./settingMigration";
-import { BoxLang } from "./utils/BoxLang";
 import { detectJavaVerison } from "./utils/Java";
+import * as LSP from "./utils/LanguageServer";
 import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
 import { setupServers } from "./utils/Server";
 import { boxlangServerHomeTreeDataProvider } from "./views/ServerHomesView";
@@ -154,6 +154,10 @@ export function activate(context: ExtensionContext): void {
     extensionContext = context;
     migrateSettings(false);
 
+    if (!fs.existsSync(context.globalStorageUri.fsPath)) {
+        fs.mkdirSync(context.globalStorageUri.fsPath);
+    }
+
     try {
         setupServers(context);
     }
@@ -242,6 +246,7 @@ export function activate(context: ExtensionContext): void {
             return fn(context, ...arguments);
         }
     };
+    context.subscriptions.push(commands.registerCommand("boxlang.downloadJava", applyContext(extensionCommands.downloadJava)));
     context.subscriptions.push(commands.registerCommand("boxlang.migrateVSCodeSettings", extensionCommands.migrateVSCodeSettings));
     context.subscriptions.push(commands.registerCommand("boxlang.clearClassFiles", extensionCommands.clearClassFiles));
     context.subscriptions.push(commands.registerCommand("boxlang.openBoxLangConfigFile", extensionCommands.openBoxLangConfigFile));
@@ -443,33 +448,18 @@ export function activate(context: ExtensionContext): void {
         if (e.affectsConfiguration("boxlang.java.javaHome")) {
             boxlangOutputChannel.appendLine("Switching to new JVM: " + workspace.getConfiguration("boxlang.java").get("javaHome"));
             deactivate();
-            detectJavaVerison(true).then(valid => {
-                if (!valid) {
-                    window.showWarningMessage("The BoxLang extension requires Java 21 or higher to run the language server and runtime. You can configure a custom JVM for BoxLang to use in your settings.");
-                    return;
-                }
-
-                startLSP();
-            });
+            testJavaVersion(true);
         }
 
         if (e.affectsConfiguration("boxlang.lsp.maxHeapSize")) {
             boxlangOutputChannel.appendLine("Detected a change in LSP maxHeapSize configuration: " + workspace.getConfiguration("boxlang.lsp").get("maxHeapSize"));
             deactivate();
-            startLSP();
+            LSP.startLSP();
         }
     }));
 
 
-    detectJavaVerison().then(valid => {
-        if (!valid) {
-            window.showWarningMessage("The BoxLang extension requires Java 21 or higher to run the language server and runtime. You can configure a custom JVM for BoxLang to use in your settings.");
-            return;
-        }
-
-        startLSP();
-    });
-
+    testJavaVersion();
 
     window.registerTreeDataProvider("boxlang-servers", boxlangServerTreeDataProvider());
     window.registerTreeDataProvider("boxlang-server-homes", boxlangServerHomeTreeDataProvider());
@@ -480,50 +470,29 @@ export function activate(context: ExtensionContext): void {
  * This method is called when the extension is deactivated.
  */
 export function deactivate(): void {
-    if (client) {
-        boxlangOutputChannel.appendLine("Shutting down the language server");
-        client.stop();
-    }
+    LSP.stop();
 
     cleanupTrackedProcesses();
 }
 
-function startLSP() {
-    client = new LanguageClient(
-        "BoxLang Language Support",
-        getLSPServerConfig(),
-        {
-            documentSelector: [{ scheme: "file", language: "boxlang" }]
+function testJavaVersion(refresh = false) {
+    detectJavaVerison(refresh).then(valid => {
+        if (valid) {
+            return;
         }
-    );
 
-    client.start().then(() => {
-        boxlangOutputChannel.appendLine("The language server was succesfully started");
-        client.sendRequest("boxlang/changesettings", workspace.getConfiguration("boxlang.lsp"));
-    });
-}
+        return window.showWarningMessage(
+            "The BoxLang extension requires Java 21 or higher to run the language server and runtime. We can automatically download it for you or you can configure a custom JVM for BoxLang to use in your settings.",
+            "Download",
+            "Configure Manually",
+            "Cancel"
+        ).then(choice => {
+            if (choice != "Download") {
+                return Promise.reject();
+            }
 
-
-function getLSPServerConfig(): ServerOptions {
-    if (process.env.BOXLANG_LSP_PORT) {
-        return () => {
-            let socket = net.connect(5173, "0.0.0.0");
-            let result = {
-                writer: socket,
-                reader: socket
-            };
-
-            return Promise.resolve(result);
-        };
-    }
-
-    return async () => {
-        const [_process, port] = await BoxLang.startLSP();
-
-        let socket = net.connect(port, "0.0.0.0");
-        return {
-            writer: socket,
-            reader: socket
-        };
-    };
+            commands.executeCommand("boxlang.downloadJava");
+        });
+    })
+        .then(() => LSP.startLSP());
 }

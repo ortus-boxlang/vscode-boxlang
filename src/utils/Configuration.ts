@@ -18,6 +18,10 @@ export const ExtensionConfig = {
         return workspace.getConfiguration("boxlang").get<string>('customAntlrToolsCommand');
     },
 
+    set boxlangJavaHome(path: string) {
+        workspace.getConfiguration("boxlang.java").update("javaHome", path, ConfigurationTarget.Global);
+    },
+
     get boxlangJavaHome() {
         const javaPath = workspace.getConfiguration("boxlang.java").get<string>('javaHome');
         // figure out how to make this work!
