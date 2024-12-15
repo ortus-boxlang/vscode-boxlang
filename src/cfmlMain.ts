@@ -45,6 +45,7 @@ import {
 import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
 import { migrateSettings } from "./settingMigration";
+import { setupVSCodeBoxLangHome } from "./utils/BoxLang";
 import { detectJavaVerison } from "./utils/Java";
 import * as LSP from "./utils/LanguageServer";
 import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
@@ -152,6 +153,8 @@ function shouldExcludeDocument(documentUri: Uri): boolean {
  */
 export function activate(context: ExtensionContext): void {
     extensionContext = context;
+
+    setupVSCodeBoxLangHome(context);
     migrateSettings(false);
 
     if (!fs.existsSync(context.globalStorageUri.fsPath)) {
@@ -462,7 +465,7 @@ export function activate(context: ExtensionContext): void {
     testJavaVersion();
 
     window.registerTreeDataProvider("boxlang-servers", boxlangServerTreeDataProvider());
-    window.registerTreeDataProvider("boxlang-server-homes", boxlangServerHomeTreeDataProvider());
+    window.registerTreeDataProvider("boxlang-server-homes", boxlangServerHomeTreeDataProvider(context));
 }
 
 

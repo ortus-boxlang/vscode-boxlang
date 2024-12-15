@@ -1,6 +1,8 @@
 import { ChildProcessWithoutNullStreams } from "child_process";
+import fs from "fs";
+import path from "path";
 import * as portFinder from "portfinder";
-import { window } from "vscode";
+import { ExtensionContext, window } from "vscode";
 import { ExtensionConfig } from "../utils/Configuration";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
 import { trackedSpawn } from "./ProcessTracker";
@@ -13,12 +15,25 @@ type BoxLangResult = {
 }
 
 const runningServers: Record<string, ChildProcessWithoutNullStreams> = {};
+let BOXLANG_HOME = "";
+
+
+export async function setupVSCodeBoxLangHome(context: ExtensionContext): Promise<void> {
+    BOXLANG_HOME = path.join(context.globalStorageUri.fsPath, ".boxlang");
+
+    if (fs.existsSync(BOXLANG_HOME)) {
+        return;
+    }
+
+    BoxLang.getVersionOutput();
+}
 
 async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
     return new Promise((resolve, reject) => {
         const javaExecutable = ExtensionConfig.boxlangJavaHome;
         const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner"].concat(args), {
             env: {
+                BOXLANG_HOME: BOXLANG_HOME,
                 CLASSPATH: ExtensionConfig.boxlangJarPath
             }
         });
@@ -40,6 +55,7 @@ async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
 }
 
 export class BoxLang {
+
     static startLSP(): Promise<Array<any>> {
         boxlangOutputChannel.appendLine("Starting the LSP");
         return new Promise((resolve, reject) => {
@@ -82,6 +98,7 @@ export class BoxLang {
             const javaExecutable = ExtensionConfig.boxlangJavaHome;
             const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.debugger.DebugMain"], {
                 env: {
+                    BOXLANG_HOME: BOXLANG_HOME,
                     CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
                 }
             });

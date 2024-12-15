@@ -121,7 +121,7 @@ function getFileName(url: string) {
 async function getDownloadLink(os: string, architecture: string) {
     const res = await axios.get("https://api.adoptium.net/v3/assets/feature_releases/21/ga", {
         params: {
-            image_type: "jre",
+            image_type: "jdk",
             os,
             architecture
         }

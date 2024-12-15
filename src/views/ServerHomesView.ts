@@ -3,13 +3,14 @@ import fs from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
 
+let extensionContext = null;
 let serverHomes = [];
 
 const _onDidChangeTreeData: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
 export const onDidChangeTreeData: vscode.Event<void> = _onDidChangeTreeData.event;
 
 export const notifyServerHomeDataChange = () => {
-    loadBoxLangHomeData();
+    loadBoxLangHomeData(extensionContext);
     _onDidChangeTreeData.fire();
 }
 
@@ -189,7 +190,10 @@ export class ServerHomeRootTreeItem extends BLServerHomeTreeItem {
     }
 }
 
-export function boxlangServerHomeTreeDataProvider(): vscode.TreeDataProvider<BLServerHomeTreeItem> {
+export function boxlangServerHomeTreeDataProvider(context: vscode.ExtensionContext): vscode.TreeDataProvider<BLServerHomeTreeItem> {
+    extensionContext = context;
+    loadBoxLangHomeData(context);
+
     return {
         onDidChangeTreeData: onDidChangeTreeData,
         getChildren: (element: BLServerHomeTreeItem): BLServerHomeTreeItem[] => {
@@ -214,8 +218,12 @@ function replaceBoxLangHomeInPath(homeDir: string, filePath: string): string {
 }
 
 
-function loadBoxLangHomeData() {
+function loadBoxLangHomeData(context: vscode.ExtensionContext) {
     serverHomes = [];
+
+    if (fs.existsSync(path.join(context.globalStorageUri.fsPath, ".boxlang"))) {
+        serverHomes.push(new ServerHomeRootTreeItem("VSCode BoxLang Home", path.join(context.globalStorageUri.fsPath, ".boxlang")));
+    }
 
     if (fs.existsSync(path.join(process.env.USERPROFILE, ".boxlang"))) {
         serverHomes.push(new ServerHomeRootTreeItem("Default", path.join(process.env.USERPROFILE, ".boxlang")));
@@ -226,4 +234,4 @@ function loadBoxLangHomeData() {
     }
 }
 
-loadBoxLangHomeData();
+
