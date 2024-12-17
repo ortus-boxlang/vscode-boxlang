@@ -481,7 +481,7 @@ export function deactivate(): void {
 function testJavaVersion(refresh = false) {
     detectJavaVerison(refresh).then(valid => {
         if (valid) {
-            return;
+            return null;
         }
 
         return window.showWarningMessage(
@@ -495,6 +495,8 @@ function testJavaVersion(refresh = false) {
             }
 
             commands.executeCommand("boxlang.downloadJava");
+
+            return null;
         });
     })
         .then(() => LSP.startLSP());
