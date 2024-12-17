@@ -96,7 +96,7 @@ jobs:
           ./gradlew :app:downloadBoxLang
           ./gradlew :app:build -x test --stacktrace --console=plain
           cd ..
-          cp boxlang-lsp/app/build/libs/boxlang-lsp-0.0.1-all.jar resources/lib/boxlang-lsp.jar
+          cp boxlang-lsp/app/build/libs/boxlang-lsp-0.0.2-all.jar resources/lib/boxlang-lsp.jar
 
 
       - name: Setup Node
