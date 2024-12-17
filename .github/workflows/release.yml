@@ -93,6 +93,7 @@ jobs:
           cp resources/lib/boxlang.jar boxlang-lsp/resources/libs/boxlang-1.0.0-all.jar
           cd boxlang-lsp
           chmod +x ./gradlew
+          ./gradlew :app:downloadBoxLang
           ./gradlew :app:build -x test --stacktrace --console=plain
           cd ..
           cp boxlang-lsp/app/build/libs/boxlang-lsp-0.0.1-all.jar resources/lib/boxlang-lsp.jar
