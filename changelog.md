@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.3.10] - 2024-12-19
+
 ## [1.3.9] - 2024-11-17
 
 ## [1.3.8] - 2024-10-03
@@ -44,7 +46,9 @@
 -   Added experimental support for file formatting
 -   JSON schema for boxlang.json
 
-[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.9...HEAD
+[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.10...HEAD
+
+[1.3.10]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.9...v1.3.10
 
 [1.3.9]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.8...v1.3.9
 
