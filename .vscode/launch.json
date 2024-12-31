@@ -18,7 +18,7 @@
                 "${workspaceFolder}/out/**/*.js"
             ],
             "env": {
-                "BOXLANG_LSP_PORT": "5173"
+                "BOXLANG_LSP_PORT": "7777"
             },
             "skipFiles": [
                 "<node_internals>/**"
