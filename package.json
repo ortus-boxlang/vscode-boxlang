@@ -1094,6 +1094,7 @@
         "portfinder": "^1.0.32",
         "request": "~2.88.2",
         "semver": "~7.5.3",
+        "tar": "^7.4.3",
         "tls-browserify": "^0.2.2",
         "trie-prefix-tree": "1.5.1",
         "vscode-css-languageservice": "~6.2.12",

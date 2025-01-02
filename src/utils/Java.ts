@@ -28,7 +28,7 @@ export function detectJavaVerison(refresh = false) {
         boxLang.on("exit", code => {
             const matches = /(\d+)\.\d+\.\d+/g.exec(stdout);
 
-            if (!matches.length) {
+            if ( !matches || !matches.length) {
                 boxlangOutputChannel.appendLine("No java executable was found on the path");
                 javaIsOkay = false;
                 resolve(javaIsOkay);

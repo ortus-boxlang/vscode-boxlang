@@ -1,9 +1,15 @@
 import path from "path";
-import { ConfigurationTarget, workspace } from "vscode";
+import { ConfigurationTarget, ExtensionContext, workspace } from "vscode";
 
-export const INCLUDED_BOXLANG_JAR_PATH = path.resolve(__dirname, path.join("../../", "resources", "lib", "boxlang.jar"));
-export const INCLUDED_BOXLANG_MINISERVER_JAR_PATH = path.resolve(__dirname, path.join("../../", "resources", "lib", "boxlang-miniserver.jar"));
-export const INCLUDED_BOXLANG_LSP_PATH = path.resolve(__dirname, path.join("../../", "resources", "lib", "boxlang-lsp.jar"));
+let INCLUDED_BOXLANG_JAR_PATH = "";
+let INCLUDED_BOXLANG_MINISERVER_JAR_PATH = "";
+let INCLUDED_BOXLANG_LSP_PATH = "";
+
+export function setupConfiguration( context: ExtensionContext ){
+    INCLUDED_BOXLANG_JAR_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang.jar");
+    INCLUDED_BOXLANG_MINISERVER_JAR_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang-miniserver.jar");
+    INCLUDED_BOXLANG_LSP_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang-lsp.jar");
+}
 
 export const ExtensionConfig = {
     set ignoreOldSettings(value) {

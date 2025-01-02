@@ -225,8 +225,10 @@ function loadBoxLangHomeData(context: vscode.ExtensionContext) {
         serverHomes.push(new ServerHomeRootTreeItem("VSCode BoxLang Home", path.join(context.globalStorageUri.fsPath, ".boxlang")));
     }
 
-    if (fs.existsSync(path.join(process.env.USERPROFILE, ".boxlang"))) {
-        serverHomes.push(new ServerHomeRootTreeItem("Default", path.join(process.env.USERPROFILE, ".boxlang")));
+    const userProfile = process.env.USERPROFILE || process.env.HOME;
+
+    if (fs.existsSync(path.join(userProfile, ".boxlang"))) {
+        serverHomes.push(new ServerHomeRootTreeItem("Default", path.join(userProfile, ".boxlang")));
     }
 
     if (process.env.BOXLANG_HOME && fs.existsSync(process.env.BOXLANG_HOME)) {
