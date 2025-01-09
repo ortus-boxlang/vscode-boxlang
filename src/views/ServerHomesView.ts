@@ -2,12 +2,44 @@ import { parse } from 'comment-json';
 import fs from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
+import { BoxLangWithHome } from '../utils/BoxLang';
+import { boxlangOutputChannel } from '../utils/OutputChannels';
 
-let extensionContext = null;
+let extensionContext: vscode.ExtensionContext = null;
 let serverHomes = [];
 
 const _onDidChangeTreeData: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
 export const onDidChangeTreeData: vscode.Event<void> = _onDidChangeTreeData.event;
+
+export function addBoxLangHome(name: string, dirPath: string) {
+    const stateValue = extensionContext.workspaceState.get("boxlang_server_homes");
+
+    const savedServerHomes = stateValue == null ? [] : JSON.parse(stateValue as string);
+
+    savedServerHomes.push({ name, dirPath });
+
+    extensionContext.workspaceState.update("boxlang_server_homes", JSON.stringify(savedServerHomes));
+
+    new BoxLangWithHome(dirPath)
+        .getVersionOutput()
+        .then(() => notifyServerHomeDataChange());
+}
+
+export function removeBoxLangHome(name: string) {
+    const stateValue = extensionContext.workspaceState.get("boxlang_server_homes");
+
+    const savedServerHomes = stateValue == null ? [] : JSON.parse(stateValue as string);
+
+    if (savedServerHomes.length == 0) {
+        return;
+    }
+
+    const updated = savedServerHomes.filter(record => record.name != name);
+
+    extensionContext.workspaceState.update("boxlang_server_homes", JSON.stringify(updated));
+
+    notifyServerHomeDataChange();
+}
 
 export const notifyServerHomeDataChange = () => {
     loadBoxLangHomeData(extensionContext);
@@ -136,6 +168,13 @@ export class ConfigTreeItem extends BLServerHomeTreeItem {
     }
 }
 
+export class InvalidServerHomeRootTreeItem extends BLServerHomeTreeItem {
+    constructor(label: string, directory: string) {
+        super(null, label, vscode.TreeItemCollapsibleState.None);
+        this.contextValue = "boxlangServerHome-serverHome-invalid";
+    }
+}
+
 export class ServerHomeRootTreeItem extends BLServerHomeTreeItem {
     name: string;
     directory: string;
@@ -233,6 +272,23 @@ function loadBoxLangHomeData(context: vscode.ExtensionContext) {
 
     if (process.env.BOXLANG_HOME && fs.existsSync(process.env.BOXLANG_HOME)) {
         serverHomes.push(new ServerHomeRootTreeItem("BOXLANG_HOME", process.env.BOXLANG_HOME));
+    }
+
+    const savedServerHomes = context.workspaceState.get("boxlang_server_homes");
+
+    if (savedServerHomes != null) {
+        const serverHomeConfigs: Record<any, any>[] = JSON.parse(savedServerHomes as string);
+
+        serverHomeConfigs.forEach(r => {
+            try {
+                serverHomes.push(new ServerHomeRootTreeItem(r.name, r.dirPath));
+            }
+            catch (e) {
+                serverHomes.push(new InvalidServerHomeRootTreeItem(r.name, r.dirPath));
+                vscode.window.showErrorMessage("Unable to read BoxLang home: " + r.dirPath);
+                boxlangOutputChannel.appendLine(e);
+            }
+        });
     }
 }
 

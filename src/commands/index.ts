@@ -1,4 +1,5 @@
 
+export * from "./boxlangHome/addBoxLangHome"
 export * from "./boxlangHome/clearClassFiles"
 export * from "./boxlangHome/clearLogFile"
 export * from "./boxlangHome/installModule"
@@ -6,6 +7,7 @@ export * from "./boxlangHome/openBoxLangConfigFile"
 export * from "./boxlangHome/openBoxLangHome"
 export * from "./boxlangHome/openLogFile"
 export * from "./boxlangHome/openModuleHome"
+export * from "./boxlangHome/removeBoxLangHome"
 export * from "./boxlangHome/removeModule"
 export * from "./downloadJava"
 export * from "./migrateVSCodeSettings"

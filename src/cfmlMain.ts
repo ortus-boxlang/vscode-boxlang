@@ -46,13 +46,13 @@ import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
 import { migrateSettings } from "./settingMigration";
 import { setupVSCodeBoxLangHome } from "./utils/BoxLang";
+import { setupConfiguration } from "./utils/Configuration";
 import { detectJavaVerison } from "./utils/Java";
 import * as LSP from "./utils/LanguageServer";
 import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
 import { setupServers } from "./utils/Server";
 import { boxlangServerHomeTreeDataProvider } from "./views/ServerHomesView";
 import { boxlangServerTreeDataProvider } from "./views/ServerView";
-import { setupConfiguration } from "./utils/Configuration";
 
 export const CFML_LANGUAGE_ID: string = "cfml";
 export const BL_LANGUAGE_ID: string = "boxlang";
@@ -155,7 +155,7 @@ function shouldExcludeDocument(documentUri: Uri): boolean {
 export function activate(context: ExtensionContext): void {
     extensionContext = context;
 
-    setupConfiguration( context );
+    setupConfiguration(context);
     setupVSCodeBoxLangHome(context);
     migrateSettings(false);
 
@@ -251,6 +251,8 @@ export function activate(context: ExtensionContext): void {
             return fn(context, ...arguments);
         }
     };
+    context.subscriptions.push(commands.registerCommand("boxlang.addBoxLangHome", extensionCommands.addBoxLangHome));
+    context.subscriptions.push(commands.registerCommand("boxlang.removeBoxLangHome", extensionCommands.removeBoxLangHome));
     context.subscriptions.push(commands.registerCommand("boxlang.downloadJava", applyContext(extensionCommands.downloadJava)));
     context.subscriptions.push(commands.registerCommand("boxlang.migrateVSCodeSettings", extensionCommands.migrateVSCodeSettings));
     context.subscriptions.push(commands.registerCommand("boxlang.clearClassFiles", extensionCommands.clearClassFiles));

@@ -31,12 +31,12 @@ export async function setupVSCodeBoxLangHome(context: ExtensionContext): Promise
     BoxLang.getVersionOutput();
 }
 
-async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
+async function runBoxLangWithHome(boxlangHome, ...args: string[]): Promise<BoxLangResult> {
     return new Promise((resolve, reject) => {
         const javaExecutable = ExtensionConfig.boxlangJavaHome;
         const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner"].concat(args), {
             env: {
-                BOXLANG_HOME: BOXLANG_HOME,
+                BOXLANG_HOME: boxlangHome,
                 CLASSPATH: ExtensionConfig.boxlangJarPath
             }
         });
@@ -55,6 +55,25 @@ async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
             });
         });
     });
+}
+
+async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
+    return runBoxLangWithHome(BOXLANG_HOME, ...args);
+}
+
+export class BoxLangWithHome {
+    boxlangHome: string;
+
+    constructor(boxlangHome: string | null) {
+        this.boxlangHome = boxlangHome || BOXLANG_HOME;
+    }
+
+    async getVersionOutput(): Promise<string> {
+        const res = runBoxLangWithHome(this.boxlangHome, "--version");
+
+        return (await res).stdout;
+    }
+
 }
 
 export class BoxLang {
