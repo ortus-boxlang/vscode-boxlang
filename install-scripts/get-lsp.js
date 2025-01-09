@@ -37,7 +37,13 @@ async function downloadFile(installDir, url) {
 }
 
 (async () => {
-    fs.rmSync(path.join("resources/lsp"), { recursive: true });
+    try {
+        fs.rmSync(path.join("resources/lsp"), { recursive: true });
+    }
+    catch (e) {
+        // ignore if this errors
+    }
+
     const link = await getDownloadLink(forgeboxEndpoint);
 
     await downloadFile(path.join("resources/lsp"), link);
