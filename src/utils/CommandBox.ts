@@ -48,7 +48,6 @@ async function runCommandBox(env: Record<string, any>, ...args: string[]): Promi
         let stderr = '';
 
         boxLang.stdout.on("data", data => {
-            boxlangOutputChannel.appendLine(data + "");
             stdout += data;
         });
 

@@ -80,30 +80,15 @@ jobs:
           cd resources/lib
           curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/1.0.0-beta25/boxlang-miniserver-1.0.0-beta25-all.jar" -o boxlang-miniserver.jar
 
-      - name: Pull and Build LSP
-        uses: actions/checkout@v2
-        with:
-          ssh-key: ${{ secrets.boxlang_lsp_ssh_key }}
-          repository: ortus-boxlang/boxlang-lsp
-          ref: b87e6b07b60881a7df6bca53a0d84dbdc875a0b6
-          path: boxlang-lsp
-      - name: Build LSP
-        run: |
-          mkdir -p boxlang-lsp/resources/libs
-          cp resources/lib/boxlang.jar boxlang-lsp/resources/libs/boxlang-1.0.0-all.jar
-          cd boxlang-lsp
-          chmod +x ./gradlew
-          ./gradlew :app:downloadBoxLang
-          ./gradlew :app:build -x test --stacktrace --console=plain
-          cd ..
-          cp boxlang-lsp/app/build/libs/boxlang-lsp-0.0.2-all.jar resources/lib/boxlang-lsp.jar
-
-
       - name: Setup Node
         uses: actions/setup-node@v2
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org/
+
+      - name: Get LSP
+        run: |
+          npm run download-lsp
 
       - name: Setup tag
         id: setup

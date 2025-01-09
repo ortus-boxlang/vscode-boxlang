@@ -16,15 +16,18 @@ type BoxLangResult = {
 
 const runningServers: Record<string, ChildProcessWithoutNullStreams> = {};
 let BOXLANG_HOME = "";
+let LSP_MODULE_DIR = "";
 
 
 export async function setupVSCodeBoxLangHome(context: ExtensionContext): Promise<void> {
     BOXLANG_HOME = path.join(context.globalStorageUri.fsPath, ".boxlang");
+    LSP_MODULE_DIR = path.join(context.extensionPath, "resources", "lsp");
 
     if (fs.existsSync(BOXLANG_HOME)) {
         return;
     }
 
+    // use this to generate a home folder
     BoxLang.getVersionOutput();
 }
 
@@ -61,9 +64,10 @@ export class BoxLang {
         return new Promise((resolve, reject) => {
             const javaExecutable = ExtensionConfig.boxlangJavaHome;
             const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
-            const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, "ortus.boxlanglsp.App"], {
+            const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
                 env: {
-                    CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangLSPPath
+                    CLASSPATH: ExtensionConfig.boxlangJarPath,
+                    BOXLANG_MODULESDIRECTORY: LSP_MODULE_DIR
                 }
             });
 

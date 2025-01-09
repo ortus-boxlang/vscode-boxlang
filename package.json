@@ -1066,6 +1066,7 @@
         ]
     },
     "scripts": {
+        "download-lsp": "node install-scripts/get-lsp.js",
         "clean": "rimraf out *.vsix",
         "build": "tsc -p ./",
         "compile-web": "webpack",
