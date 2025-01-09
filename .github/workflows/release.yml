@@ -81,9 +81,9 @@ jobs:
           curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/1.0.0-beta25/boxlang-miniserver-1.0.0-beta25-all.jar" -o boxlang-miniserver.jar
 
       - name: Setup Node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4.1.0
         with:
-          node-version: 20
+          node-version: 23
           registry-url: https://registry.npmjs.org/
 
       - name: Get LSP
