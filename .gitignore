@@ -11,3 +11,4 @@ boxlang-*.vsix
 resources/lib/boxlang*.jar
 dist/
 workbench
+resources/lsp
