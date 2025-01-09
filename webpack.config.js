@@ -61,7 +61,13 @@ const webExtensionConfig = {
         new webpack.ProvidePlugin({
             Buffer: ['buffer', 'Buffer'],
             process: 'process/browser'
-        })
+        }),
+        new webpack.NormalModuleReplacementPlugin(
+            /^node:/,
+            (resource) => {
+                resource.request = resource.request.replace(/^node:/, '');
+            },
+        )
     ],
     externals: {
         vscode: 'commonjs vscode' // ignored because it doesn't exist
