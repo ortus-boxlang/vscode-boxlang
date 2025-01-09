@@ -88,6 +88,7 @@ jobs:
 
       - name: Get LSP
         run: |
+          npm i
           npm run download-lsp
 
       - name: Setup tag
@@ -107,7 +108,6 @@ jobs:
 
       - name: Package VSIX
         run: |
-          npm i
           npx vsce package --out ${{ env.PACKAGENAME }}
 
       - name: Update changelog [unreleased] with latest version
