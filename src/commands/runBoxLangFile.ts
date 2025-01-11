@@ -36,6 +36,9 @@ async function hasMainFunction(filePath) {
 }
 
 function determineFile(filePath) {
+    if (typeof filePath === "string") {
+        return vscode.Uri.parse(filePath).fsPath;
+    }
     if (filePath != null) {
         return filePath.fsPath;
     }
