@@ -976,10 +976,6 @@
                     "when": "false"
                 },
                 {
-                    "command": "boxlang.showBoxLangASTGraph",
-                    "when": "false"
-                },
-                {
                     "command": "boxlang.openLogFile",
                     "when": "false"
                 },
