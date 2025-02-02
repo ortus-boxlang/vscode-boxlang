@@ -5,7 +5,7 @@ let INCLUDED_BOXLANG_JAR_PATH = "";
 let INCLUDED_BOXLANG_MINISERVER_JAR_PATH = "";
 let INCLUDED_BOXLANG_LSP_PATH = "";
 
-export function setupConfiguration( context: ExtensionContext ){
+export function setupConfiguration(context: ExtensionContext) {
     INCLUDED_BOXLANG_JAR_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang.jar");
     INCLUDED_BOXLANG_MINISERVER_JAR_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang-miniserver.jar");
     INCLUDED_BOXLANG_LSP_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang-lsp.jar");
@@ -30,8 +30,18 @@ export const ExtensionConfig = {
 
     get boxlangJavaHome() {
         const javaPath = workspace.getConfiguration("boxlang.java").get<string>('javaHome');
-        // figure out how to make this work!
-        return javaPath ? javaPath + "/java" : "java";
+
+        // if we don't have a path configured just use the executable directly and let the OS figure it out
+        if (!javaPath) {
+            return "java";
+        }
+
+        // if the user added the path with bin on the end we will only append "java"
+        if (/bin$/.test(javaPath)) {
+            return path.join(javaPath, "java");
+        }
+
+        return path.join(javaPath, "bin", "java");
     },
 
     get boxlangMiniServerJarPath() {

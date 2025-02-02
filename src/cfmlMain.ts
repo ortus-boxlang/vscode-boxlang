@@ -273,9 +273,11 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(commands.registerCommand("boxlang.editServerProperty", extensionCommands.editServerProperty));
     context.subscriptions.push(commands.registerCommand("boxlang.runFile", applyContext(extensionCommands.runBoxLangFile)));
     context.subscriptions.push(commands.registerCommand("boxlang.runWebServer", extensionCommands.runBoxLangWebServer));
-    context.subscriptions.push(commands.registerCommand("boxlang.transpileToJava", extensionCommands.transpileToJava));
-    context.subscriptions.push(commands.registerCommand("boxlang.showANTLRGraph", extensionCommands.showANTLRGraph));
-    context.subscriptions.push(commands.registerCommand("boxlang.showBoxLangASTGraph", extensionCommands.showBoxLangASTGraph));
+    // commenting these out as they broke sometime over the past few months
+    // these should be moved into a bx-language-tools repo instead
+    // context.subscriptions.push(commands.registerCommand("boxlang.transpileToJava", extensionCommands.transpileToJava));
+    // context.subscriptions.push(commands.registerCommand("boxlang.showANTLRGraph", extensionCommands.showANTLRGraph));
+    // context.subscriptions.push(commands.registerCommand("boxlang.showBoxLangASTGraph", extensionCommands.showBoxLangASTGraph));
     context.subscriptions.push(commands.registerCommand("boxlang.outputVersionInfo", applyContext(extensionCommands.outputVersionInfo)));
     context.subscriptions.push(commands.registerCommand("boxlang.refreshGlobalDefinitionCache", refreshGlobalDefinitionCache));
     context.subscriptions.push(commands.registerCommand("boxlang.refreshWorkspaceDefinitionCache", refreshWorkspaceDefinitionCache));

@@ -701,24 +701,12 @@
                 "icon": "$(run)"
             },
             {
-                "command": "boxlang.transpileToJava",
-                "title": "BoxLang: Transpile to Java"
-            },
-            {
                 "command": "boxlang.runFile",
                 "title": "BoxLang: Run File"
             },
             {
                 "command": "boxlang.runWebServer",
                 "title": "BoxLang: Run Web Server"
-            },
-            {
-                "command": "boxlang.showANTLRGraph",
-                "title": "BoxLang: Show ANTLR Graph"
-            },
-            {
-                "command": "boxlang.showBoxLangASTGraph",
-                "title": "BoxLang: Show BoxLang AST Graph"
             },
             {
                 "command": "boxlang.refreshGlobalDefinitionCache",
@@ -952,16 +940,6 @@
                 {
                     "command": "boxlang.runFile",
                     "when": "resourceLangId == boxlang || resourceLangId == cfml"
-                },
-                {
-                    "command": "boxlang.transpileToJava",
-                    "when": "resourceLangId == boxlang || resourceLangId == cfml"
-                },
-                {
-                    "command": "boxlang.showANTLRGraph"
-                },
-                {
-                    "command": "boxlang.showBoxLangASTGraph"
                 }
             ],
             "commandPalette": [

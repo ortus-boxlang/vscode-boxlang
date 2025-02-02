@@ -2,10 +2,10 @@ import axios from "axios";
 import extract from "extract-zip";
 import fs from "fs";
 import path from "path";
+import * as tar from "tar";
 import vscode, { ExtensionContext, ProgressLocation } from "vscode";
 import { ExtensionConfig } from "../utils/Configuration";
 import * as LSP from "../utils/LanguageServer";
-import * as tar from "tar";
 
 
 // pulled from https://api.adoptium.net/v3/types/operating_systems
@@ -69,8 +69,8 @@ export async function downloadJava(context: ExtensionContext) {
                 const extractedPath = await extractArchive(javaInstallDir, filePath);
 
                 const settingPath = os == "windows"
-                    ? path.join(extractedPath, "bin")
-                    : path.join(extractedPath, "Contents", "Home", "bin");
+                    ? path.join(extractedPath)
+                    : path.join(extractedPath, "Contents", "Home");
 
                 ExtensionConfig.boxlangJavaHome = settingPath;
             }
@@ -87,11 +87,11 @@ export async function downloadJava(context: ExtensionContext) {
 async function extractArchive(javaInstallDir: string, archiveFilePath: string) {
     const existingFiles = fs.readdirSync(javaInstallDir);
 
-    if( /\.zip$/.test( archiveFilePath ) ){
-        await extractZip( javaInstallDir, archiveFilePath );
+    if (/\.zip$/.test(archiveFilePath)) {
+        await extractZip(javaInstallDir, archiveFilePath);
     }
-    else{
-        await extractTarGz( javaInstallDir, archiveFilePath );
+    else {
+        await extractTarGz(javaInstallDir, archiveFilePath);
     }
 
     const newFiles = fs.readdirSync(javaInstallDir);
@@ -99,14 +99,14 @@ async function extractArchive(javaInstallDir: string, archiveFilePath: string) {
     return path.join(javaInstallDir, newFiles.find(file => !existingFiles.includes(file)));
 }
 
-async function extractTarGz( javaInstallDir: string, archiveFilePath: string ){
-    return  tar.x({
+async function extractTarGz(javaInstallDir: string, archiveFilePath: string) {
+    return tar.x({
         f: archiveFilePath,
         C: javaInstallDir // alias for cwd:'some-dir', also ok
     });
 }
 
-async function extractZip( javaInstallDir: string, archiveFilePath: string ){
+async function extractZip(javaInstallDir: string, archiveFilePath: string) {
     await extract(archiveFilePath, {
         dir: javaInstallDir
     });
