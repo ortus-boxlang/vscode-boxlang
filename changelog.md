@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Bump included BoxLang version to Beta26
+
 ## [1.3.11] - 2025-02-02
 
 ## [1.3.10] - 2024-12-19
