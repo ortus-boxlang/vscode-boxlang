@@ -347,7 +347,7 @@
                         "description": "A snippet key to exclude from suggestions",
                         "type": "string"
                     },
-                    "default": [],
+                    "default": [ ],
                     "scope": "resource"
                 },
                 "boxlang.cfml.suggest.snippets.localPath": {
@@ -442,7 +442,7 @@
                 "boxlang.cfml.suggest.globalTags.includeAttributes.custom": {
                     "type": "object",
                     "description": "A custom set of attributes to include for given tags when suggestion is selected. This setting overrides the set type.",
-                    "default": {},
+                    "default": { },
                     "patternProperties": {
                         "^cf[a-z0-9_]+$": {
                             "description": "The tag name and its attribute overrides",
@@ -469,7 +469,7 @@
                                     "name"
                                 ]
                             },
-                            "default": []
+                            "default": [ ]
                         }
                     },
                     "additionalProperties": false,
@@ -556,7 +556,7 @@
                 },
                 "boxlang.cfml.docBlock.extra": {
                     "type": "array",
-                    "default": [],
+                    "default": [ ],
                     "items": {
                         "type": "object",
                         "properties": {
@@ -610,7 +610,7 @@
                 },
                 "boxlang.cfml.mappings": {
                     "type": "array",
-                    "default": [],
+                    "default": [ ],
                     "items": {
                         "type": "object",
                         "properties": {
@@ -649,6 +649,18 @@
             }
         },
         "commands": [
+            {
+                "command": "boxlang.selectBoxLangVersion",
+                "title": "BoxLang: Select Default BoxLang Version"
+            },
+            {
+                "command": "boxlang.installBoxLangVersion",
+                "title": "BoxLang: Install BoxLang Version"
+            },
+            {
+                "command": "boxlang.removeBoxLangVersion",
+                "title": "BoxLang: Remove BoxLang Version"
+            },
             {
                 "command": "boxlang.downloadJava",
                 "title": "BoxLang: Download Java 21"
@@ -1089,6 +1101,7 @@
     },
     "dependencies": {
         "async_hooks": "^1.0.0",
+        "aws-sdk": "^2.1692.0",
         "axios": "^1.7.9",
         "browserify": "^17.0.0",
         "browserify-fs": "^1.0.0",

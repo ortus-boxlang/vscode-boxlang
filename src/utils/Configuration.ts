@@ -50,6 +50,10 @@ export const ExtensionConfig = {
         return jarPath || INCLUDED_BOXLANG_MINISERVER_JAR_PATH;
     },
 
+    set boxlangJarPath(path: string) {
+        workspace.getConfiguration("boxlang").update("jarpath", path, ConfigurationTarget.Global);
+    },
+
     get boxlangJarPath() {
         const jarPath = workspace.getConfiguration("boxlang").get<string>('jarpath');
 
