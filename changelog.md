@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+-   BLIDE-65 Add ability to install and manage BoxLang versions
+
 ## [1.3.12] - 2025-02-02
 
 -   Bump included BoxLang version to Beta26
