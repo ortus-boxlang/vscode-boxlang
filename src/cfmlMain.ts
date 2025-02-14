@@ -51,6 +51,7 @@ import { detectJavaVerison } from "./utils/Java";
 import * as LSP from "./utils/LanguageServer";
 import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
 import { setupServers } from "./utils/Server";
+import { setupVersionManagement } from "./utils/versionManager";
 import { boxlangServerHomeTreeDataProvider } from "./views/ServerHomesView";
 import { boxlangServerTreeDataProvider } from "./views/ServerView";
 
@@ -157,6 +158,7 @@ export function activate(context: ExtensionContext): void {
 
     setupConfiguration(context);
     setupVSCodeBoxLangHome(context);
+    setupVersionManagement(context);
     migrateSettings(false);
 
     if (!fs.existsSync(context.globalStorageUri.fsPath)) {
@@ -251,6 +253,9 @@ export function activate(context: ExtensionContext): void {
             return fn(context, ...arguments);
         }
     };
+    context.subscriptions.push(commands.registerCommand("boxlang.selectBoxLangVersion", applyContext(extensionCommands.selectBoxLangVersion)));
+    context.subscriptions.push(commands.registerCommand("boxlang.installBoxLangVersion", applyContext(extensionCommands.installBoxLangVersion)));
+    context.subscriptions.push(commands.registerCommand("boxlang.removeBoxLangVersion", applyContext(extensionCommands.removeBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.addBoxLangHome", extensionCommands.addBoxLangHome));
     context.subscriptions.push(commands.registerCommand("boxlang.removeBoxLangHome", extensionCommands.removeBoxLangHome));
     context.subscriptions.push(commands.registerCommand("boxlang.downloadJava", applyContext(extensionCommands.downloadJava)));

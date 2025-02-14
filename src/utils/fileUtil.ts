@@ -1,5 +1,8 @@
+import axios from "axios";
+import extract from "extract-zip";
 import * as fs from "fs";
 import * as path from "path";
+import * as tar from "tar";
 import { Uri, workspace, WorkspaceFolder } from "vscode";
 import { COMPONENT_EXT } from "../entities/component";
 import { equalsIgnoreCase } from "./textUtil";
@@ -136,4 +139,51 @@ export function resolveCustomMappingPaths(baseUri: Uri, appendingPath: string): 
     }
 
     return customMappingPaths;
+}
+
+export async function downloadFile(url: string, path: string): Promise<string> {
+    const readStream = await axios.get(url, {
+        responseType: "stream"
+    });
+
+    return new Promise((resolve, reject) => {
+        const stream = fs.createWriteStream(path);
+        readStream.data.pipe(stream);
+
+        stream.on("error", (err) => {
+            reject(err);
+        });
+
+        stream.on("close", () => {
+            resolve(path);
+        });
+    });
+}
+
+export async function extractArchive(archiveFilePath: string, parentDir: string) {
+    const existingFiles = fs.readdirSync(parentDir);
+
+    if (/\.zip$/.test(archiveFilePath)) {
+        await extractZip(archiveFilePath, parentDir);
+    }
+    else {
+        await extractTarGz(archiveFilePath, parentDir);
+    }
+
+    const newFiles = fs.readdirSync(parentDir);
+
+    return path.join(parentDir, newFiles.find(file => !existingFiles.includes(file)));
+}
+
+async function extractTarGz(archiveFilePath: string, destPath: string) {
+    return tar.x({
+        f: archiveFilePath,
+        C: destPath // alias for cwd:'some-dir', also ok
+    });
+}
+
+async function extractZip(archiveFilePath: string, destPath: string) {
+    await extract(archiveFilePath, {
+        dir: destPath
+    });
 }
