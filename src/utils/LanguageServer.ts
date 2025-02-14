@@ -22,9 +22,13 @@ export function startLSP() {
         "BoxLang Language Support",
         getLSPServerConfig(),
         {
-            documentSelector: [{ scheme: "file", language: "boxlang" }]
+            documentSelector: [
+                { scheme: "file", language: "boxlang" },
+                { scheme: "file", language: "cfml" }
+            ]
         }
     );
+
 
     client.start().then(() => {
         boxlangOutputChannel.appendLine("The language server was succesfully started");
