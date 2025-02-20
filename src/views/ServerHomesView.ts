@@ -2,7 +2,7 @@ import { parse } from 'comment-json';
 import fs from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
-import { BoxLangWithHome } from '../utils/BoxLang';
+import { BoxLangWithHome, getUserProfileBoxLangHome } from '../utils/BoxLang';
 import { boxlangOutputChannel } from '../utils/OutputChannels';
 import { getWorkspaceBoxLangHome } from "../utils/workspaceSetup";
 
@@ -265,10 +265,10 @@ function loadBoxLangHomeData(context: vscode.ExtensionContext) {
         serverHomes.push( new ServerHomeRootTreeItem( "VSCode Workspace Home", getWorkspaceBoxLangHome() ) );
     }
 
-    const userProfile = process.env.USERPROFILE || process.env.HOME;
+    const userProfileHome = getUserProfileBoxLangHome()
 
-    if (fs.existsSync(path.join(userProfile, ".boxlang"))) {
-        serverHomes.push(new ServerHomeRootTreeItem("Default", path.join(userProfile, ".boxlang")));
+    if (fs.existsSync(userProfileHome)) {
+        serverHomes.push(new ServerHomeRootTreeItem("Default", userProfileHome));
     }
 
     if (process.env.BOXLANG_HOME && fs.existsSync(process.env.BOXLANG_HOME)) {

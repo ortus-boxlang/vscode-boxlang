@@ -2,6 +2,7 @@
 export * from "./boxlangHome/addBoxLangHome"
 export * from "./boxlangHome/clearClassFiles"
 export * from "./boxlangHome/clearLogFile"
+export * from "./boxlangHome/hardResetWorkspaceHome"
 export * from "./boxlangHome/installModule"
 export * from "./boxlangHome/openBoxLangConfigFile"
 export * from "./boxlangHome/openBoxLangHome"

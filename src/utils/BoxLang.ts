@@ -18,6 +18,12 @@ const runningServers: Record<string, ChildProcessWithoutNullStreams> = {};
 let BOXLANG_HOME = "";
 let LSP_MODULE_DIR = "";
 
+export function getUserProfileBoxLangHome() {
+    const userProfile = process.env.USERPROFILE || process.env.HOME;
+
+    return path.join(userProfile, ".boxlang");
+}
+
 
 export async function setupVSCodeBoxLangHome(context: ExtensionContext): Promise<void> {
     BOXLANG_HOME = path.join(context.globalStorageUri.fsPath, ".boxlang");

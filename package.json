@@ -650,6 +650,10 @@
         },
         "commands": [
             {
+                "command": "boxlang.hardResetWorkspaceHome",
+                "title": "BoxLang: Hard Reset Workspace Home"
+            },
+            {
                 "command": "boxlang.selectBoxLangVersion",
                 "title": "BoxLang: Select Default BoxLang Version"
             },

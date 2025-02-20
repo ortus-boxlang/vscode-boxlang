@@ -239,6 +239,7 @@ export function activate(context: ExtensionContext): void {
             return fn(context, ...arguments);
         }
     };
+    context.subscriptions.push(commands.registerCommand("boxlang.hardResetWorkspaceHome", applyContext(extensionCommands.hardResetWorkspaceHome)));
     context.subscriptions.push(commands.registerCommand("boxlang.restartLSP", applyContext(extensionCommands.restartLSP)));
     context.subscriptions.push(commands.registerCommand("boxlang.selectBoxLangVersion", applyContext(extensionCommands.selectBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.installBoxLangVersion", applyContext(extensionCommands.installBoxLangVersion)));
@@ -500,6 +501,10 @@ async function testJavaVersion(refresh = false) {
 async function runSetup( context: ExtensionContext ){
     if (!fs.existsSync(context.globalStorageUri.fsPath)) {
         fs.mkdirSync(context.globalStorageUri.fsPath);
+    }
+
+    if (!fs.existsSync(context.globalStorageUri.fsPath)) {
+        fs.mkdirSync(path.join( context.globalStorageUri.fsPath, "globalModules" ));
     }
 
     await setupWorkspace( context );
