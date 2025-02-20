@@ -4,6 +4,7 @@ import path from 'path';
 import * as vscode from 'vscode';
 import { BoxLangWithHome } from '../utils/BoxLang';
 import { boxlangOutputChannel } from '../utils/OutputChannels';
+import { getWorkspaceBoxLangHome } from "../utils/workspaceSetup";
 
 let extensionContext: vscode.ExtensionContext = null;
 let serverHomes = [];
@@ -260,8 +261,8 @@ function replaceBoxLangHomeInPath(homeDir: string, filePath: string): string {
 function loadBoxLangHomeData(context: vscode.ExtensionContext) {
     serverHomes = [];
 
-    if (fs.existsSync(path.join(context.globalStorageUri.fsPath, ".boxlang"))) {
-        serverHomes.push(new ServerHomeRootTreeItem("VSCode BoxLang Home", path.join(context.globalStorageUri.fsPath, ".boxlang")));
+    if( fs.existsSync( getWorkspaceBoxLangHome() ) ){
+        serverHomes.push( new ServerHomeRootTreeItem( "VSCode Workspace Home", getWorkspaceBoxLangHome() ) );
     }
 
     const userProfile = process.env.USERPROFILE || process.env.HOME;

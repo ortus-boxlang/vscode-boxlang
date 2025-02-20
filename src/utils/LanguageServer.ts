@@ -1,8 +1,8 @@
 import net from "net";
 import vscode from "vscode";
 import { LanguageClient, ServerOptions } from "vscode-languageclient/node";
-import { BoxLang } from "./BoxLang";
 import { boxlangOutputChannel } from "./OutputChannels";
+import { boxLangLauncher } from "./workspaceSetup";
 
 
 let client: LanguageClient;
@@ -51,7 +51,7 @@ export function getLSPServerConfig(): ServerOptions {
     }
 
     return async () => {
-        const [_process, port] = await BoxLang.startLSP();
+        const [_process, port] = await boxLangLauncher.startLSP();
 
         let socket = net.connect(port, "0.0.0.0");
         return {
