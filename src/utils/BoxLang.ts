@@ -82,7 +82,8 @@ export class BoxLangWithHome {
             fs.cpSync( LSP_MODULE_DIR, path.join( this.boxlangHome, "modules" ), { force: true, recursive: true } );
         }
         catch( e ){
-            var i = 0;
+            boxlangOutputChannel.appendLine("Error copying LSP module" );
+            boxlangOutputChannel.appendLine( e );
         }
 
         return new Promise((resolve, reject) => {

@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import { ExtensionContext } from "vscode";
 import * as fileUtil from "./fileUtil";
+import { boxlangOutputChannel } from "./OutputChannels";
 
 const AWS = require('aws-sdk');
 
@@ -20,26 +21,6 @@ export type BoxLangVersion = {
 let BOXLANG_INSTALLATIONS = "";
 let context = null;
 
-// function watchForVersionShutdownSignal() {
-//     const ac = new AbortController();
-//     const { signal } = ac;
-//     // setTimeout(() => ac.abort(), 10000);
-
-//     (async () => {
-//         try {
-//             const watcher = fs.watch(path.join(BOXLANG_INSTALLATIONS, "signal.txt"), { signal });
-//             for await (const event of watcher) {
-//                 console.log(event);
-//             }
-//         } catch (err) {
-//             if (err.name === 'AbortError')
-//                 return;
-//             throw err;
-//         }
-//     })();
-// }
-
-
 
 export async function setupVersionManagement(_context: ExtensionContext): Promise<void> {
     context = _context;
@@ -51,8 +32,6 @@ export async function setupVersionManagement(_context: ExtensionContext): Promis
     catch (e) {
         fs.mkdir(BOXLANG_INSTALLATIONS);
     }
-
-    // watchForVersionShutdownSignal();
 }
 
 export async function removeVersion(versionToRemove: BoxLangVersion): Promise<void> {
@@ -72,8 +51,8 @@ export async function getDownloadedBoxLangVersions(): Promise<BoxLangVersion[]> 
             versions.push(version);
         }
         catch (e) {
-            const i = 0;
-            // pass
+            boxlangOutputChannel.appendLine( "Error reading BoxLang version: " + entry );
+            boxlangOutputChannel.appendLine( e );
         }
     }
 
