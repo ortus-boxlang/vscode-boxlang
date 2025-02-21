@@ -75,9 +75,13 @@ export class BoxLangWithHome {
     }
 
     async getVersionOutput(): Promise<string> {
-        const res = runBoxLangWithHome(this.boxlangHome, "--version");
+        const res = await runBoxLangWithHome(this.boxlangHome, "--version");
 
-        return (await res).stdout;
+        if( res.code != 0 ){
+            return res.stderr
+        }
+
+        return res.stdout;
     }
 
     async startLSP(): Promise<Array<any>> {
@@ -217,9 +221,13 @@ export class BoxLang {
     }
 
     static async getVersionOutput(): Promise<string> {
-        const res = runBoxLang("--version");
+        const res = await runBoxLangWithHome(BOXLANG_HOME, "--version");
 
-        return (await res).stdout;
+        if( res.code != 0 ){
+            return res.stderr
+        }
+
+        return res.stdout;
     }
 
     static async stopMiniServer(server: BoxServerConfig): Promise<void> {

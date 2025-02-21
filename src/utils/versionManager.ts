@@ -46,7 +46,7 @@ export async function getDownloadedBoxLangVersions(): Promise<BoxLangVersion[]> 
         try {
             const version = JSON.parse((await fs.readFile(path.join(BOXLANG_INSTALLATIONS, entry, "version.json"))) + "");
             version.lastModified = new Date(version.lastModified);
-            version.jarPath = path.join(BOXLANG_INSTALLATIONS, version.name + ".jar");
+            version.jarPath = path.join(BOXLANG_INSTALLATIONS, entry, version.name + ".jar");
 
             versions.push(version);
         }
