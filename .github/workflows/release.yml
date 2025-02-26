@@ -11,7 +11,7 @@ on:
       snapshot:
         description: "Is this a snapshot build?"
         required: false
-        default: false
+        default: true
         type: boolean
   workflow_dispatch:
     inputs:
