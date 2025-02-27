@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "1.3.13",
+    "version": "1.3.14",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
