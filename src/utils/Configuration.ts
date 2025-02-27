@@ -73,6 +73,10 @@ export const ExtensionConfig = {
         return Number.isNaN(parsed) || parsed == 0 ? 512 : parsed;
     },
 
+    get boxlangLSPJVMArgs() {
+        return workspace.getConfiguration("boxlang.lsp").get<string>('jvmArgs');
+    },
+
     get boxlangServerPort() {
         return Number.parseInt(workspace.getConfiguration("boxlang").get<string>('webPort')) || 8080;
     },

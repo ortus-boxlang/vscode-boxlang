@@ -232,6 +232,11 @@
                     "description": "Set the heap size of the JVM, default is 512 megabytes",
                     "scope": "window"
                 },
+                "boxlang.lsp.jvmArgs": {
+                    "type": "string",
+                    "description": "Set additional JVM args for the LSP process",
+                    "scope": "window"
+                },
                 "boxlang.lsp.enableExperimentalDiagnostics": {
                     "type": "boolean",
                     "description": "Enable expermiental support for boxlang diagnostic reporting",

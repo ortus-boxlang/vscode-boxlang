@@ -99,7 +99,8 @@ export class BoxLangWithHome {
         return new Promise((resolve, reject) => {
             const javaExecutable = ExtensionConfig.boxlangJavaHome;
             const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
-            const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
+            const jvmArgs = ExtensionConfig.boxlangLSPJVMArgs.split( " " );
+            const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
                 env: {
                     BOXLANG_HOME: this.boxlangHome,
                     CLASSPATH: ExtensionConfig.boxlangJarPath
