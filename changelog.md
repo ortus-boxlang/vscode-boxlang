@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.3.13] - 2025-02-27
+
 -   BLIDE-65 Add ability to install and manage BoxLang versions
 
 ## [1.3.12] - 2025-02-02
@@ -54,7 +56,9 @@
 -   Added experimental support for file formatting
 -   JSON schema for boxlang.json
 
-[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.12...HEAD
+[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.13...HEAD
+
+[1.3.13]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.12...v1.3.13
 
 [1.3.12]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.11...v1.3.12
 
