@@ -19,6 +19,10 @@ export function getWorkspaceBoxLangHome(){
 }
 
 export async function setupWorkspace( context: ExtensionContext ){
+    boxLangLauncher = new BoxLangWithHome( getUserProfileBoxLangHome() );
+}
+
+export async function setupWorkspaceSpecificBoxLangHome( context: ExtensionContext ){
     if( !context.workspaceState.get( WORKSPACE_ID_KEY ) ){
         context.workspaceState.update( WORKSPACE_ID_KEY, randomUUID() );
     }

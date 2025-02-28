@@ -80,7 +80,7 @@ export async function installVersion(version: BoxLangVersion) {
 export async function getAvailableBoxLangVerions(): Promise<BoxLangVersion[]> {
     return new Promise((resolve, reject) => {
         const boxlangVersions = [];
-        const versionPattern = /^ortussolutions\/boxlang\/.+?-all.jar/i;
+        const versionPattern = /^ortussolutions\/boxlang\/.+?.jar/i;
 
         client.makeUnauthenticatedRequest(
             'listObjects',

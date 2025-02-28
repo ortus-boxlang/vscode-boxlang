@@ -1,5 +1,6 @@
 
 import vscode, { ExtensionContext, ProgressLocation } from "vscode";
+import { ExtensionConfig } from "../../utils/Configuration";
 import { BoxLangVersion, getAvailableBoxLangVerions, getDownloadedBoxLangVersions, installVersion } from "../../utils/versionManager";
 
 export async function installBoxLangVersion(context: ExtensionContext) {
@@ -11,6 +12,19 @@ export async function installBoxLangVersion(context: ExtensionContext) {
             { title: `BoxLang: Downloading BoxLang Version: ${versionToInstall.name}`, location: ProgressLocation.Notification },
             async () => {
                 await installVersion(versionToInstall);
+
+                const choice = await vscode.window.showInformationMessage(`${versionToInstall.name} was successfully installed. Do you want to make it the default version?`, "Make Default", "No" );
+
+                if( choice !== "Make Default" ){
+                    return;
+                }
+
+                const downloaded = await getDownloadedBoxLangVersions();
+                const versionToSelect = downloaded.find( v => v.name === versionToInstall.name );
+
+                ExtensionConfig.boxlangJarPath = versionToSelect.jarPath;
+
+                vscode.window.showInformationMessage(`BoxLang: Version ${versionToSelect.name} is now the default version`);
             }
         );
     }
