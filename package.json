@@ -655,6 +655,10 @@
         },
         "commands": [
             {
+                "command": "boxlang.runBoxLangREPL",
+                "title": "BoxLang: Run REPL"
+            },
+            {
                 "command": "boxlang.hardResetWorkspaceHome",
                 "title": "BoxLang: Hard Reset Workspace Home"
             },

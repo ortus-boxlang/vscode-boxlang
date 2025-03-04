@@ -12,7 +12,7 @@ import { BoxLangWithHome, getUserProfileBoxLangHome } from "./BoxLang";
 
 const WORKSPACE_ID_KEY = "boxlang_workspace_id";
 let workspaceBoxLangHome = "";
-export let boxLangLauncher = null;
+export let boxLangLauncher: BoxLangWithHome = null;
 
 export function getWorkspaceBoxLangHome(){
     return workspaceBoxLangHome;

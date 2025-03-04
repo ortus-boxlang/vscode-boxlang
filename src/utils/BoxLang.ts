@@ -1,6 +1,7 @@
 import { ChildProcessWithoutNullStreams } from "child_process";
 import fs from "fs";
 import path from "path";
+import vscode from "vscode";
 import * as portFinder from "portfinder";
 import { ExtensionContext, window } from "vscode";
 import { ExtensionConfig } from "../utils/Configuration";
@@ -72,6 +73,32 @@ export class BoxLangWithHome {
 
     constructor(boxlangHome: string | null) {
         this.boxlangHome = boxlangHome || BOXLANG_HOME;
+    }
+
+    async openREPL(){
+        let boxLangREPL = vscode.window.terminals.find( t => t.name == "BoxLang REPL" );
+
+        if( !boxLangREPL ){
+            boxLangREPL = vscode.window.createTerminal({
+                name: "BoxLang REPL",
+                env: {
+                    BOXLANG_HOME: this.boxlangHome,
+                    CLASSPATH: ExtensionConfig.boxlangJarPath
+                }
+            });
+            boxLangREPL.sendText( this.getExecutableString(), true );
+        }
+
+        boxLangREPL.show();
+    }
+
+    getExecutableString() {
+        const javaExecutable = ExtensionConfig.boxlangJavaHome;
+
+        return [
+            `'${javaExecutable}'`,
+            "ortus.boxlang.runtime.BoxRunner"
+        ].join( " " );
     }
 
     async getVersionOutput(): Promise<string> {
