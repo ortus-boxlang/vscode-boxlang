@@ -147,7 +147,15 @@ export class ModulesDirectoryTreeItem extends BLServerHomeTreeItem {
 
         this.modules = dirs.map(dir => {
             return fs.readdirSync(dir)
-                .map(file => new ModuleTreeItem(this, path.join(dir, file)));
+                .map(file => {
+                    try{
+                        new ModuleTreeItem(this, path.join(dir, file));
+                    }catch( e ){
+                        boxlangOutputChannel.appendLine( "Error reading BoxLang module: " + file );
+                        boxlangOutputChannel.appendLine( e );
+                        return null;
+                    }
+                }).filter( x => x != null );
         }).flatMap(dirs => dirs);
 
     }
