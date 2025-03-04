@@ -47,7 +47,7 @@ import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTr
 import { migrateSettings } from "./settingMigration";
 import { setupVSCodeBoxLangHome } from "./utils/BoxLang";
 import { setupConfiguration } from "./utils/Configuration";
-import { detectJavaVerison, setupLocalJavaInstall } from "./utils/Java";
+import { setupLocalJavaInstall } from "./utils/Java";
 import * as LSP from "./utils/LanguageServer";
 import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
 import { setupServers } from "./utils/Server";
