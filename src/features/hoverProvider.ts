@@ -1,6 +1,6 @@
 import * as path from "path";
 import { CancellationToken, Hover, HoverProvider, MarkdownString, Position, Range, TextDocument, TextLine, Uri, workspace, WorkspaceConfiguration } from "vscode";
-import { CFML_LANGUAGE_ID, extensionContext } from "../cfmlMain";
+import { CFML_LANGUAGE_ID, extensionContext } from "../main";
 import { VALUE_PATTERN } from "../entities/attribute";
 import { Component, COMPONENT_EXT, objectNewInstanceInitPrefix } from "../entities/component";
 import { IAtDirectiveData, IPropertyData } from "../entities/css/cssLanguageTypes";

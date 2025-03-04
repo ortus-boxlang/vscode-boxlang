@@ -1,5 +1,5 @@
 import { CharacterPair, LanguageConfiguration, Position, TextDocument, TextEditor, commands, languages, window } from "vscode";
-import { BL_LANGUAGE_ID, CFML_LANGUAGE_ID } from "../cfmlMain";
+import { BL_LANGUAGE_ID, CFML_LANGUAGE_ID } from "../main";
 import { isCfcFile, isColdFusionFile, isInCfScript, isScriptFile, isTemplateFile } from "../utils/contextUtil";
 import { getComponent, hasComponent } from "./cachedEntities";
 

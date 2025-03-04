@@ -35,8 +35,8 @@
         "workspaceContains:**/*.cfc"
     ],
     "icon": "images/horn-gradient.png",
-    "main": "./out/cfmlMain",
-    "browser": "./dist/web/cfmlMain.js",
+    "main": "./out/main",
+    "browser": "./dist/web/main.js",
     "contributes": {
         "breakpoints": [
             {
@@ -641,6 +641,11 @@
                         ]
                     },
                     "description": "Represents CFML mappings from logicalPath to directoryPath.",
+                    "scope": "resource"
+                },
+                "boxlang.boxLangHome": {
+                    "type": "string",
+                    "description": "An alternative locatin to use as your BoxLang Home",
                     "scope": "resource"
                 }
             }
