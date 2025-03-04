@@ -7,6 +7,11 @@ import { boxLangLauncher } from "./workspaceSetup";
 
 let client: LanguageClient;
 
+export async function restart(){
+    await stop();
+    startLSP();
+}
+
 export async function stop() {
     if (!client) {
         return;

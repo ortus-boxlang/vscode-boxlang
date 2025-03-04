@@ -47,7 +47,7 @@ import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTr
 import { migrateSettings } from "./settingMigration";
 import { setupVSCodeBoxLangHome } from "./utils/BoxLang";
 import { setupConfiguration } from "./utils/Configuration";
-import { detectJavaVerison } from "./utils/Java";
+import { detectJavaVerison, setupLocalJavaInstall } from "./utils/Java";
 import * as LSP from "./utils/LanguageServer";
 import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
 import { setupServers } from "./utils/Server";
@@ -450,14 +450,17 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(workspace.onDidChangeConfiguration((e: ConfigurationChangeEvent) => {
         if (e.affectsConfiguration("boxlang.java.javaHome")) {
             boxlangOutputChannel.appendLine("Switching to new JVM: " + workspace.getConfiguration("boxlang.java").get("javaHome"));
-            deactivate();
-            testJavaVersion(true);
+            restartAllProcesses();
         }
 
         if (e.affectsConfiguration("boxlang.lsp.maxHeapSize")) {
             boxlangOutputChannel.appendLine("Detected a change in LSP maxHeapSize configuration: " + workspace.getConfiguration("boxlang.lsp").get("maxHeapSize"));
-            deactivate();
-            LSP.startLSP();
+            restartAllProcesses();
+        }
+
+        if (e.affectsConfiguration("boxlang.boxLangHome")) {
+            boxlangOutputChannel.appendLine("Switching to new BoxLang Home: " + workspace.getConfiguration("boxlang.boxLangHome").get("boxLangHome"));
+            restartAllProcesses();
         }
     }));
 
@@ -475,28 +478,16 @@ export function deactivate(): void {
     cleanupTrackedProcesses();
 }
 
-async function testJavaVersion(refresh = false) {
-    detectJavaVerison(refresh).then(valid => {
-        if (valid) {
-            return null;
-        }
+export function restartAllProcesses( refreshWorkspace = false) {
+    deactivate();
 
-        return window.showWarningMessage(
-            "The BoxLang extension requires Java 21 or higher to run the language server and runtime. We can automatically download it for you or you can configure a custom JVM for BoxLang to use in your settings.",
-            "Download",
-            "Configure Manually",
-            "Cancel"
-        ).then(choice => {
-            if (choice != "Download") {
-                return Promise.reject();
-            }
+    if( refreshWorkspace ){
+        setupWorkspace( extensionContext );
+    }
 
-            commands.executeCommand("boxlang.downloadJava");
-
-            return null;
-        });
-    })
-        .then(() => LSP.startLSP());
+    setTimeout(() => {
+        LSP.startLSP();
+    }, 5000);
 }
 
 async function runSetup( context: ExtensionContext ){
@@ -508,13 +499,14 @@ async function runSetup( context: ExtensionContext ){
         fs.mkdirSync(path.join( context.globalStorageUri.fsPath, "globalModules" ));
     }
 
+    await setupLocalJavaInstall( context );
     await setupWorkspace( context );
     setupConfiguration(context);
     setupVSCodeBoxLangHome(context);
     setupVersionManagement(context);
     migrateSettings(false);
 
-    await testJavaVersion();
+    LSP.startLSP()
 
     try {
         setupServers(context);

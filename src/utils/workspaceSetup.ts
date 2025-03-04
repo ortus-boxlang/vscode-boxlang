@@ -7,7 +7,8 @@ import {
 } from 'comment-json';
 import fs from "fs/promises";
 import path from "path";
-import { BoxLangWithHome, getUserProfileBoxLangHome } from "./BoxLang";
+import { BoxLangWithHome } from "./BoxLang";
+import { ExtensionConfig } from "./Configuration";
 
 
 const WORKSPACE_ID_KEY = "boxlang_workspace_id";
@@ -19,7 +20,7 @@ export function getWorkspaceBoxLangHome(){
 }
 
 export async function setupWorkspace( context: ExtensionContext ){
-    boxLangLauncher = new BoxLangWithHome( getUserProfileBoxLangHome() );
+    boxLangLauncher = new BoxLangWithHome( ExtensionConfig.boxLangHome );
 }
 
 export async function setupWorkspaceSpecificBoxLangHome( context: ExtensionContext ){
@@ -50,7 +51,7 @@ async function addGlobalModulePathToConfig( context: ExtensionContext, homePath:
     const configPath = path.join( homePath, "config", "boxlang.json");
     const data: any = parse( (await fs.readFile( configPath )) + "" );
 
-    data.modulesDirectory.push( path.join( getUserProfileBoxLangHome(), "modules" ) );
+    data.modulesDirectory.push( path.join( ExtensionConfig.boxLangHome, "modules" ) );
 
     await fs.writeFile( configPath, stringify( data, null, 2 ) );
 }

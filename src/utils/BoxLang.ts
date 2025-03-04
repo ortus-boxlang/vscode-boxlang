@@ -19,12 +19,6 @@ const runningServers: Record<string, ChildProcessWithoutNullStreams> = {};
 let BOXLANG_HOME = "";
 let LSP_MODULE_DIR = "";
 
-export function getUserProfileBoxLangHome() {
-    const userProfile = process.env.USERPROFILE || process.env.HOME;
-
-    return path.join(userProfile, ".boxlang");
-}
-
 
 export async function setupVSCodeBoxLangHome(context: ExtensionContext): Promise<void> {
     BOXLANG_HOME = path.join(context.globalStorageUri.fsPath, ".boxlang");
@@ -40,7 +34,7 @@ export async function setupVSCodeBoxLangHome(context: ExtensionContext): Promise
 
 async function runBoxLangWithHome(boxlangHome, ...args: string[]): Promise<BoxLangResult> {
     return new Promise((resolve, reject) => {
-        const javaExecutable = ExtensionConfig.boxlangJavaHome;
+        const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
         const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner"].concat(args), {
             env: {
                 BOXLANG_HOME: boxlangHome,
@@ -93,7 +87,7 @@ export class BoxLangWithHome {
     }
 
     getExecutableString() {
-        const javaExecutable = ExtensionConfig.boxlangJavaHome;
+        const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
 
         return [
             `'${javaExecutable}'`,
@@ -113,10 +107,11 @@ export class BoxLangWithHome {
 
     async startDebugger(): Promise<string> {
         return new Promise((resolve, reject) => {
-            const javaExecutable = ExtensionConfig.boxlangJavaHome;
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
             const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.debugger.DebugMain"], {
                 env: {
                     ...process.env,
+                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
                     BOXLANG_HOME: this.boxlangHome,
                     CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
                 }
@@ -168,12 +163,13 @@ export class BoxLangWithHome {
         }
 
         return new Promise((resolve, reject) => {
-            const javaExecutable = ExtensionConfig.boxlangJavaHome;
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
             const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
             const jvmArgs = ExtensionConfig.boxlangLSPJVMArgs.length ? ExtensionConfig.boxlangLSPJVMArgs.split( " " ) : [];
             const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
                 env: {
                     ...process.env,
+                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
                     BOXLANG_HOME: this.boxlangHome,
                     CLASSPATH: ExtensionConfig.boxlangJarPath
                 }
@@ -220,11 +216,12 @@ export class BoxLang {
     static startLSP(): Promise<Array<any>> {
         boxlangOutputChannel.appendLine("Starting the LSP");
         return new Promise((resolve, reject) => {
-            const javaExecutable = ExtensionConfig.boxlangJavaHome;
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
             const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
             const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
                 env: {
                     ...process.env,
+                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
                     CLASSPATH: ExtensionConfig.boxlangJarPath,
                     BOXLANG_MODULESDIRECTORY: LSP_MODULE_DIR
                 }
@@ -258,10 +255,11 @@ export class BoxLang {
 
     static async startDebugger(): Promise<string> {
         return new Promise((resolve, reject) => {
-            const javaExecutable = ExtensionConfig.boxlangJavaHome;
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
             const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.debugger.DebugMain"], {
                 env: {
                     ...process.env,
+                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
                     BOXLANG_HOME: BOXLANG_HOME,
                     CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
                 }
@@ -311,12 +309,13 @@ export class BoxLang {
 
     static async startMiniServer(server: BoxServerConfig): Promise<void> {
         return new Promise(async (resolve, reject) => {
-            const javaExecutable = ExtensionConfig.boxlangJavaHome;
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
             const debugPort = await findAvailableDebugPort();
             const cliArgs = await getMiniServerCLIArgs(server, debugPort);
             const boxLang = trackedSpawn(javaExecutable, cliArgs, {
                 env: {
                     ...process.env,
+                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
                     CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
                 }
             });
