@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-72 Add welcome views
+
 ## [1.3.15] - 2025-03-05
 
 -   Bump included BoxLang version to RC.2
