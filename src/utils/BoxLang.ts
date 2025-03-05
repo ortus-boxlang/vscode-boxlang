@@ -1,6 +1,7 @@
 import { ChildProcessWithoutNullStreams } from "child_process";
 import fs from "fs";
 import path from "path";
+import vscode from "vscode";
 import * as portFinder from "portfinder";
 import { ExtensionContext, window } from "vscode";
 import { ExtensionConfig } from "../utils/Configuration";
@@ -33,7 +34,7 @@ export async function setupVSCodeBoxLangHome(context: ExtensionContext): Promise
 
 async function runBoxLangWithHome(boxlangHome, ...args: string[]): Promise<BoxLangResult> {
     return new Promise((resolve, reject) => {
-        const javaExecutable = ExtensionConfig.boxlangJavaHome;
+        const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
         const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner"].concat(args), {
             env: {
                 BOXLANG_HOME: boxlangHome,
@@ -68,10 +69,144 @@ export class BoxLangWithHome {
         this.boxlangHome = boxlangHome || BOXLANG_HOME;
     }
 
-    async getVersionOutput(): Promise<string> {
-        const res = runBoxLangWithHome(this.boxlangHome, "--version");
+    async openREPL(){
+        let boxLangREPL = vscode.window.terminals.find( t => t.name == "BoxLang REPL" );
 
-        return (await res).stdout;
+        if( !boxLangREPL ){
+            boxLangREPL = vscode.window.createTerminal({
+                name: "BoxLang REPL",
+                env: {
+                    BOXLANG_HOME: this.boxlangHome,
+                    CLASSPATH: ExtensionConfig.boxlangJarPath
+                }
+            });
+            boxLangREPL.sendText( this.getExecutableString(), true );
+        }
+
+        boxLangREPL.show();
+    }
+
+    getExecutableString() {
+        const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+
+        return [
+            `'${javaExecutable}'`,
+            "ortus.boxlang.runtime.BoxRunner"
+        ].join( " " );
+    }
+
+    async getVersionOutput(): Promise<string> {
+        const res = await runBoxLangWithHome(this.boxlangHome, "--version");
+
+        if( res.code != 0 ){
+            return res.stderr
+        }
+
+        return res.stdout;
+    }
+
+    async startDebugger(): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+            const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.debugger.DebugMain"], {
+                env: {
+                    ...process.env,
+                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
+                    BOXLANG_HOME: this.boxlangHome,
+                    CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
+                }
+            });
+            let stdout = '';
+            let found = false;
+
+            boxLang.on( "error", ( err ) => {
+                boxlangOutputChannel.appendLine("Debugger failed to launch");
+                boxlangOutputChannel.appendLine( "" + err );
+            } )
+
+            boxLang.stdout.on("data", data => {
+                boxlangOutputChannel.appendLine("Debugger - output");
+                boxlangOutputChannel.appendLine("" + data);
+                stdout += data;
+
+                if (found) {
+                    return;
+                }
+
+                const matches = /Listening on port: (\d+)/mi.exec(stdout);
+
+                if (!matches) {
+                    return;
+                }
+
+                found = true;
+                resolve(matches[1]);
+            });
+
+            boxLang.stderr.on("data", data => {
+                boxlangOutputChannel.appendLine("Debugger - error");
+                boxlangOutputChannel.appendLine("" + data);
+            });
+        });
+    }
+
+    async startLSP(): Promise<Array<any>> {
+        boxlangOutputChannel.appendLine("Starting the LSP");
+
+        try{
+
+            fs.cpSync( LSP_MODULE_DIR, path.join( this.boxlangHome, "modules" ), { force: true, recursive: true } );
+        }
+        catch( e ){
+            boxlangOutputChannel.appendLine("Error copying LSP module" );
+            boxlangOutputChannel.appendLine( e );
+        }
+
+        return new Promise((resolve, reject) => {
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+            const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
+            const jvmArgs = ExtensionConfig.boxlangLSPJVMArgs.length ? ExtensionConfig.boxlangLSPJVMArgs.split( " " ) : [];
+            const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
+                env: {
+                    ...process.env,
+                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
+                    BOXLANG_HOME: this.boxlangHome,
+                    CLASSPATH: ExtensionConfig.boxlangJarPath
+                }
+            });
+
+            let stdout = '';
+            let found = false;
+
+            lsp.stdout.on("data", data => {
+                stdout += data;
+
+                if (found) {
+                    return;
+                }
+
+                const matches = /Listening on port: (\d+)/mi.exec(stdout);
+
+                if (!matches) {
+                    return;
+                }
+
+                found = true;
+                resolve([lsp, matches[1]]);
+            });
+
+            lsp.on("close", () => {
+                boxlangOutputChannel.appendLine( "BoxLang language server closed" );
+            });
+
+            lsp.on("exit", ( code ) => {
+                boxlangOutputChannel.appendLine( "BoxLang language server exited with code: " + code );
+            });
+
+            lsp.stderr.on("data", data => {
+                boxlangOutputChannel.appendLine(data + "");
+            });
+        })
     }
 
 }
@@ -81,10 +216,12 @@ export class BoxLang {
     static startLSP(): Promise<Array<any>> {
         boxlangOutputChannel.appendLine("Starting the LSP");
         return new Promise((resolve, reject) => {
-            const javaExecutable = ExtensionConfig.boxlangJavaHome;
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
             const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
             const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
                 env: {
+                    ...process.env,
+                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
                     CLASSPATH: ExtensionConfig.boxlangJarPath,
                     BOXLANG_MODULESDIRECTORY: LSP_MODULE_DIR
                 }
@@ -118,9 +255,11 @@ export class BoxLang {
 
     static async startDebugger(): Promise<string> {
         return new Promise((resolve, reject) => {
-            const javaExecutable = ExtensionConfig.boxlangJavaHome;
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
             const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.debugger.DebugMain"], {
                 env: {
+                    ...process.env,
+                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
                     BOXLANG_HOME: BOXLANG_HOME,
                     CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
                 }
@@ -155,9 +294,13 @@ export class BoxLang {
     }
 
     static async getVersionOutput(): Promise<string> {
-        const res = runBoxLang("--version");
+        const res = await runBoxLangWithHome(BOXLANG_HOME, "--version");
 
-        return (await res).stdout;
+        if( res.code != 0 ){
+            return res.stderr
+        }
+
+        return res.stdout;
     }
 
     static async stopMiniServer(server: BoxServerConfig): Promise<void> {
@@ -166,11 +309,13 @@ export class BoxLang {
 
     static async startMiniServer(server: BoxServerConfig): Promise<void> {
         return new Promise(async (resolve, reject) => {
-            const javaExecutable = ExtensionConfig.boxlangJavaHome;
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
             const debugPort = await findAvailableDebugPort();
             const cliArgs = await getMiniServerCLIArgs(server, debugPort);
             const boxLang = trackedSpawn(javaExecutable, cliArgs, {
                 env: {
+                    ...process.env,
+                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
                     CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
                 }
             });

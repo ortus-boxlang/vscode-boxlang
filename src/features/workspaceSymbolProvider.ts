@@ -1,6 +1,6 @@
 import * as path from "path";
 import { CancellationToken, Location, Position, SymbolInformation, SymbolKind, TextDocument, TextEditor, Uri, window, workspace, WorkspaceSymbolProvider } from "vscode";
-import { BL_LANGUAGE_ID, CFML_LANGUAGE_ID } from "../cfmlMain";
+import { BL_LANGUAGE_ID, CFML_LANGUAGE_ID } from "../main";
 import { Component, COMPONENT_EXT } from "../entities/component";
 import { UserFunction } from "../entities/userFunction";
 import { equalsIgnoreCase } from "../utils/textUtil";

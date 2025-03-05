@@ -1,7 +1,7 @@
 import * as semver from "semver";
 import { DataType } from "../../entities/dataType";
 import { Uri } from "vscode";
-import { extensionContext } from "../../cfmlMain";
+import { extensionContext } from "../../main";
 
 export enum CFMLEngineName {
   ColdFusion = "coldfusion",

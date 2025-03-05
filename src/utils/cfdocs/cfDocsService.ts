@@ -2,7 +2,7 @@ import * as fs from "fs";
 import fetch from 'isomorphic-fetch';
 import * as path from "path";
 import vscode, { commands, Position, Range, TextDocument, TextEditor, TextLine, Uri, window, workspace, WorkspaceConfiguration } from "vscode";
-import { extensionContext } from "../../cfmlMain";
+import { extensionContext } from "../../main";
 import { getFunctionSuffixPattern } from "../../entities/function";
 import { GlobalEntity } from "../../entities/globals";
 import { getTagPrefixPattern } from "../../entities/tag";

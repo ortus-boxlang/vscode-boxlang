@@ -1,5 +1,6 @@
 import path from "path";
 import { ConfigurationTarget, ExtensionContext, workspace } from "vscode";
+import { getJavaInstallDir } from "./Java";
 
 let INCLUDED_BOXLANG_JAR_PATH = "";
 let INCLUDED_BOXLANG_MINISERVER_JAR_PATH = "";
@@ -9,6 +10,12 @@ export function setupConfiguration(context: ExtensionContext) {
     INCLUDED_BOXLANG_JAR_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang.jar");
     INCLUDED_BOXLANG_MINISERVER_JAR_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang-miniserver.jar");
     INCLUDED_BOXLANG_LSP_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang-lsp.jar");
+}
+
+export function getUserProfileBoxLangHome() {
+    const userProfile = process.env.USERPROFILE || process.env.HOME;
+
+    return path.join(userProfile, ".boxlang");
 }
 
 export const ExtensionConfig = {
@@ -24,24 +31,37 @@ export const ExtensionConfig = {
         return workspace.getConfiguration("boxlang").get<string>('customAntlrToolsCommand');
     },
 
+    /**
+     * The path to the boxlang home directory
+     *
+     * Defaults to the user's home directory but this can be overridden by setting the `boxLangHome` setting
+     */
+    get boxLangHome(){
+        const configuredHome = workspace.getConfiguration("boxlang").get<string>('boxLangHome');
+
+        if( !!configuredHome ){
+            return configuredHome;
+        }
+
+        return getUserProfileBoxLangHome();
+    },
+
     set boxlangJavaHome(path: string) {
         workspace.getConfiguration("boxlang.java").update("javaHome", path, ConfigurationTarget.Global);
+    },
+
+    get boxlangJavaExecutable() {
+        return path.join(this.boxlangJavaHome, "bin", "java");
     },
 
     get boxlangJavaHome() {
         const javaPath = workspace.getConfiguration("boxlang.java").get<string>('javaHome');
 
-        // if we don't have a path configured just use the executable directly and let the OS figure it out
         if (!javaPath) {
-            return "java";
+            return getJavaInstallDir();
         }
 
-        // if the user added the path with bin on the end we will only append "java"
-        if (/bin$/.test(javaPath)) {
-            return path.join(javaPath, "java");
-        }
-
-        return path.join(javaPath, "bin", "java");
+        return javaPath;
     },
 
     get boxlangMiniServerJarPath() {
@@ -71,6 +91,10 @@ export const ExtensionConfig = {
         const parsed = Number.parseInt(maxHeapSize);
 
         return Number.isNaN(parsed) || parsed == 0 ? 512 : parsed;
+    },
+
+    get boxlangLSPJVMArgs() {
+        return workspace.getConfiguration("boxlang.lsp").get<string>('jvmArgs');
     },
 
     get boxlangServerPort() {

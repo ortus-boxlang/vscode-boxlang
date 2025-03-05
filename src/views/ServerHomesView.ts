@@ -4,6 +4,8 @@ import path from 'path';
 import * as vscode from 'vscode';
 import { BoxLangWithHome } from '../utils/BoxLang';
 import { boxlangOutputChannel } from '../utils/OutputChannels';
+import { getWorkspaceBoxLangHome } from "../utils/workspaceSetup";
+import { ExtensionConfig, getUserProfileBoxLangHome } from '../utils/Configuration';
 
 let extensionContext: vscode.ExtensionContext = null;
 let serverHomes = [];
@@ -146,7 +148,15 @@ export class ModulesDirectoryTreeItem extends BLServerHomeTreeItem {
 
         this.modules = dirs.map(dir => {
             return fs.readdirSync(dir)
-                .map(file => new ModuleTreeItem(this, path.join(dir, file)));
+                .map(file => {
+                    try{
+                        new ModuleTreeItem(this, path.join(dir, file));
+                    }catch( e ){
+                        boxlangOutputChannel.appendLine( "Error reading BoxLang module: " + file );
+                        boxlangOutputChannel.appendLine( e );
+                        return null;
+                    }
+                }).filter( x => x != null );
         }).flatMap(dirs => dirs);
 
     }
@@ -260,14 +270,18 @@ function replaceBoxLangHomeInPath(homeDir: string, filePath: string): string {
 function loadBoxLangHomeData(context: vscode.ExtensionContext) {
     serverHomes = [];
 
-    if (fs.existsSync(path.join(context.globalStorageUri.fsPath, ".boxlang"))) {
-        serverHomes.push(new ServerHomeRootTreeItem("VSCode BoxLang Home", path.join(context.globalStorageUri.fsPath, ".boxlang")));
+    if( fs.existsSync( getWorkspaceBoxLangHome() ) ){
+        serverHomes.push( new ServerHomeRootTreeItem( "VSCode Workspace Home", getWorkspaceBoxLangHome() ) );
     }
 
-    const userProfile = process.env.USERPROFILE || process.env.HOME;
+    const userProfileHome = getUserProfileBoxLangHome()
 
-    if (fs.existsSync(path.join(userProfile, ".boxlang"))) {
-        serverHomes.push(new ServerHomeRootTreeItem("Default", path.join(userProfile, ".boxlang")));
+    if (fs.existsSync(userProfileHome)) {
+        serverHomes.push(new ServerHomeRootTreeItem("Default", userProfileHome));
+    }
+
+    if( ExtensionConfig.boxLangHome != userProfileHome ){
+        serverHomes.push(new ServerHomeRootTreeItem("Workspace Home", ExtensionConfig.boxLangHome));
     }
 
     if (process.env.BOXLANG_HOME && fs.existsSync(process.env.BOXLANG_HOME)) {

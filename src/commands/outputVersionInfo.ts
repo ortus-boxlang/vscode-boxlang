@@ -1,9 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { BoxLang } from "../utils/BoxLang";
 import { ExtensionConfig } from "../utils/Configuration";
 import { appendToOpenDocument } from "../utils/documentUtil";
+import { boxLangLauncher } from "../utils/workspaceSetup";
 
 export async function outputVersionInfo(context: vscode.ExtensionContext) {
     const versionInfo = [];
@@ -18,6 +18,7 @@ export async function outputVersionInfo(context: vscode.ExtensionContext) {
 
     versionInfo.push(`Setting Configuration`);
     versionInfo.push(``);
+    versionInfo.push(`  boxlangHome:                ${boxLangLauncher.boxlangHome}`);
     versionInfo.push(`  boxlangJavaHome:            ${ExtensionConfig.boxlangJavaHome}`);
     versionInfo.push(`  boxlangJarPath:             ${ExtensionConfig.boxlangJarPath}`);
     versionInfo.push(`  boxlangLSPPath:             ${ExtensionConfig.boxlangLSPPath}`);
@@ -29,7 +30,7 @@ export async function outputVersionInfo(context: vscode.ExtensionContext) {
     versionInfo.push(`BoxLang Version Info`);
     versionInfo.push(``);
 
-    const boxlangVersionInfo = await BoxLang.getVersionOutput();
+    const boxlangVersionInfo = await boxLangLauncher.getVersionOutput();
 
     versionInfo.push(boxlangVersionInfo.split("\n").map(line => "  " + line).join("\n"));
     versionInfo.push(``);

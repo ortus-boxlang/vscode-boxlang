@@ -23,12 +23,10 @@ export function trackedSpawn(...args): ChildProcessWithoutNullStreams {
 
     process.on("error", (err) => {
         boxlangOutputChannel.appendLine(err + "");
-        console.log(err + "");
     });
 
     process.stderr.on("error", (err) => {
         boxlangOutputChannel.appendLine(err + "");
-        console.log(err + "");
     });
 
     processes.push(process);

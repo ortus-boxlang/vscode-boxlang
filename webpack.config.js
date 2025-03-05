@@ -7,10 +7,10 @@ const webExtensionConfig = {
     mode: 'production', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
     target: 'webworker', // extensions run in a webworker context
     entry: {
-        extension: './src/cfmlMain.ts' // source of the web extension test runner
+        extension: './src/main.ts' // source of the web extension test runner
     },
     output: {
-        filename: 'cfmlMain.js',
+        filename: 'main.js',
         path: path.join(__dirname, 'dist/web'),
         libraryTarget: 'commonjs'
     },
@@ -35,7 +35,8 @@ const webExtensionConfig = {
             stream: require.resolve('stream-browserify'),
             timers: require.resolve('timers-browserify'),
             tty: require.resolve('tty-browserify'),
-            fs: require.resolve('browserify-fs'),
+            fs: false,
+            "fs/promises": false,
             vm: require.resolve('vm-browserify'),
             zlib: require.resolve('browserify-zlib'),
             "buffer": false,

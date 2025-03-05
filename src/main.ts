@@ -47,11 +47,12 @@ import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTr
 import { migrateSettings } from "./settingMigration";
 import { setupVSCodeBoxLangHome } from "./utils/BoxLang";
 import { setupConfiguration } from "./utils/Configuration";
-import { detectJavaVerison } from "./utils/Java";
+import { setupLocalJavaInstall } from "./utils/Java";
 import * as LSP from "./utils/LanguageServer";
 import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
 import { setupServers } from "./utils/Server";
 import { setupVersionManagement } from "./utils/versionManager";
+import { setupWorkspace } from "./utils/workspaceSetup";
 import { boxlangServerHomeTreeDataProvider } from "./views/ServerHomesView";
 import { boxlangServerTreeDataProvider } from "./views/ServerView";
 
@@ -156,22 +157,7 @@ function shouldExcludeDocument(documentUri: Uri): boolean {
 export function activate(context: ExtensionContext): void {
     extensionContext = context;
 
-    setupConfiguration(context);
-    setupVSCodeBoxLangHome(context);
-    setupVersionManagement(context);
-    migrateSettings(false);
-
-    if (!fs.existsSync(context.globalStorageUri.fsPath)) {
-        fs.mkdirSync(context.globalStorageUri.fsPath);
-    }
-
-    try {
-        setupServers(context);
-    }
-    catch (e) {
-        boxlangOutputChannel.appendLine("Error setting up BoxLang servers");
-        boxlangOutputChannel.appendLine(e.message);
-    }
+    runSetup( context );
 
     languages.setLanguageConfiguration(CFML_LANGUAGE_ID, {
         indentationRules: {
@@ -253,6 +239,9 @@ export function activate(context: ExtensionContext): void {
             return fn(context, ...arguments);
         }
     };
+    context.subscriptions.push(commands.registerCommand("boxlang.runBoxLangREPL", applyContext(extensionCommands.runBoxLangREPL)));
+    context.subscriptions.push(commands.registerCommand("boxlang.hardResetWorkspaceHome", applyContext(extensionCommands.hardResetWorkspaceHome)));
+    context.subscriptions.push(commands.registerCommand("boxlang.restartLSP", applyContext(extensionCommands.restartLSP)));
     context.subscriptions.push(commands.registerCommand("boxlang.selectBoxLangVersion", applyContext(extensionCommands.selectBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.installBoxLangVersion", applyContext(extensionCommands.installBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.removeBoxLangVersion", applyContext(extensionCommands.removeBoxLangVersion)));
@@ -461,19 +450,19 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(workspace.onDidChangeConfiguration((e: ConfigurationChangeEvent) => {
         if (e.affectsConfiguration("boxlang.java.javaHome")) {
             boxlangOutputChannel.appendLine("Switching to new JVM: " + workspace.getConfiguration("boxlang.java").get("javaHome"));
-            deactivate();
-            testJavaVersion(true);
+            restartAllProcesses();
         }
 
         if (e.affectsConfiguration("boxlang.lsp.maxHeapSize")) {
             boxlangOutputChannel.appendLine("Detected a change in LSP maxHeapSize configuration: " + workspace.getConfiguration("boxlang.lsp").get("maxHeapSize"));
-            deactivate();
-            LSP.startLSP();
+            restartAllProcesses();
+        }
+
+        if (e.affectsConfiguration("boxlang.boxLangHome")) {
+            boxlangOutputChannel.appendLine("Switching to new BoxLang Home: " + workspace.getConfiguration("boxlang.boxLangHome").get("boxLangHome"));
+            restartAllProcesses();
         }
     }));
-
-
-    testJavaVersion();
 
     window.registerTreeDataProvider("boxlang-servers", boxlangServerTreeDataProvider());
     window.registerTreeDataProvider("boxlang-server-homes", boxlangServerHomeTreeDataProvider(context));
@@ -489,26 +478,41 @@ export function deactivate(): void {
     cleanupTrackedProcesses();
 }
 
-function testJavaVersion(refresh = false) {
-    detectJavaVerison(refresh).then(valid => {
-        if (valid) {
-            return null;
-        }
+export function restartAllProcesses( refreshWorkspace = false) {
+    deactivate();
 
-        return window.showWarningMessage(
-            "The BoxLang extension requires Java 21 or higher to run the language server and runtime. We can automatically download it for you or you can configure a custom JVM for BoxLang to use in your settings.",
-            "Download",
-            "Configure Manually",
-            "Cancel"
-        ).then(choice => {
-            if (choice != "Download") {
-                return Promise.reject();
-            }
+    if( refreshWorkspace ){
+        setupWorkspace( extensionContext );
+    }
 
-            commands.executeCommand("boxlang.downloadJava");
+    setTimeout(() => {
+        LSP.startLSP();
+    }, 5000);
+}
 
-            return null;
-        });
-    })
-        .then(() => LSP.startLSP());
+async function runSetup( context: ExtensionContext ){
+    if (!fs.existsSync(context.globalStorageUri.fsPath)) {
+        fs.mkdirSync(context.globalStorageUri.fsPath);
+    }
+
+    if (!fs.existsSync(context.globalStorageUri.fsPath)) {
+        fs.mkdirSync(path.join( context.globalStorageUri.fsPath, "globalModules" ));
+    }
+
+    await setupLocalJavaInstall( context );
+    await setupWorkspace( context );
+    setupConfiguration(context);
+    setupVSCodeBoxLangHome(context);
+    setupVersionManagement(context);
+    migrateSettings(false);
+
+    LSP.startLSP()
+
+    try {
+        setupServers(context);
+    }
+    catch (e) {
+        boxlangOutputChannel.appendLine("Error setting up BoxLang servers");
+        boxlangOutputChannel.appendLine(e.message);
+    }
 }
