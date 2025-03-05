@@ -2,10 +2,12 @@
 
 ## [Unreleased]
 
-- Bump included BoxLang version to RC.2
-- Update BoxLang language server
-- Add run codeaction to executable classes
-- Add BoxLang REPL
+## [1.3.15] - 2025-03-05
+
+-   Bump included BoxLang version to RC.2
+-   Update BoxLang language server
+-   Add run codeaction to executable classes
+-   Add BoxLang REPL
 
 ## [1.3.13] - 2025-02-27
 
@@ -61,7 +63,9 @@
 -   Added experimental support for file formatting
 -   JSON schema for boxlang.json
 
-[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.13...HEAD
+[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.15...HEAD
+
+[1.3.15]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.13...v1.3.15
 
 [1.3.13]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.12...v1.3.13
 
