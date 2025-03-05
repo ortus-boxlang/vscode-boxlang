@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Bump included BoxLang version to RC.2
+- Update BoxLang language server
+- Add run codeaction to executable classes
+- Add BoxLang REPL
+
 ## [1.3.13] - 2025-02-27
 
 -   BLIDE-65 Add ability to install and manage BoxLang versions
