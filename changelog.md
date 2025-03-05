@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-- BLIDE-72 Add welcome views
+## [1.3.16] - 2025-03-05
+
+-   BLIDE-72 Add welcome views
 
 ## [1.3.15] - 2025-03-05
 
@@ -65,7 +67,9 @@
 -   Added experimental support for file formatting
 -   JSON schema for boxlang.json
 
-[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.15...HEAD
+[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.16...HEAD
+
+[1.3.16]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.15...v1.3.16
 
 [1.3.15]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.13...v1.3.15
 
