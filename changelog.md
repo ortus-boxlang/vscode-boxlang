@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+-   BLIDE-83 Fix incorrect function return diagnostic
+-   BLIDE-84 Fix heap space errors
+
 ## [1.3.16] - 2025-03-05
 
 -   BLIDE-72 Add welcome views
