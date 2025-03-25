@@ -871,6 +871,16 @@
                 }
             ]
         },
+        "viewsWelcome": [
+            {
+                "view": "boxlang-servers",
+                "contents": "BoxLang MiniServers are a quick and easy way to run BoxLang code. They are light enough to for simple tests and powerfull enough for local app development.\n[Create MiniServer](command:boxlang.addServer)\nIf you are interested, [read the docs](https://boxlang.ortusbooks.com/getting-started/running-boxlang/miniserver) for more info."
+            },
+            {
+                "view": "boxlang-help",
+                "contents": "$(book) [Read the Docs](https://boxlang.ortusbooks.com)\n$(comment-discussion) [Slack](https://www.ortussolutions.com/community/slack)\n$(code) [Community Forum](https://community.ortussolutions.com/c/boxlang/42)\n$(report) [Report BoxLang Issue](https://ortussolutions.atlassian.net/jira/software/c/projects/BL/boards/127)\n$(report) [Report Extension Issue](https://ortussolutions.atlassian.net/jira/software/c/projects/BLIDE/boards/132)\n\n\n[Open REPL](command:boxlang.runBoxLangREPL)"
+            }
+        ],
         "views": {
             "boxlang": [
                 {
@@ -881,6 +891,11 @@
                 {
                     "id": "boxlang-server-homes",
                     "name": "Boxlang Homes",
+                    "type": "tree"
+                },
+                {
+                    "id": "boxlang-help",
+                    "name": "Help & Feedback",
                     "type": "tree"
                 }
             ]
