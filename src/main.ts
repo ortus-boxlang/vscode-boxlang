@@ -241,6 +241,7 @@ export function activate(context: ExtensionContext): void {
         }
     };
 
+    context.subscriptions.push(commands.registerCommand("boxlang.showStatusBarCommandPicker", applyContext(extensionCommands.showStatusBarCommandPicker)));
     context.subscriptions.push(commands.registerCommand("boxlang.runBoxLangREPL", applyContext(extensionCommands.runBoxLangREPL)));
     context.subscriptions.push(commands.registerCommand("boxlang.hardResetWorkspaceHome", applyContext(extensionCommands.hardResetWorkspaceHome)));
     context.subscriptions.push(commands.registerCommand("boxlang.restartLSP", applyContext(extensionCommands.restartLSP)));

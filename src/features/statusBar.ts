@@ -6,7 +6,7 @@ export async function registerStatusBar( context: ExtensionContext ){
     statusBarItem = window.createStatusBarItem("boxlangStatus", 1, 100);
     statusBarItem.text = "$(boxlang-logo) BoxLang Ready";
     statusBarItem.tooltip = "BoxLang Extension is active";
-    statusBarItem.command = "boxlang.outputVersionInfo";
+    statusBarItem.command = "boxlang.showStatusBarCommandPicker";
     statusBarItem.show();
 
     context.subscriptions.push(statusBarItem);
