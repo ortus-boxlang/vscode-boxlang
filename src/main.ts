@@ -44,6 +44,7 @@ import {
 } from 'vscode-languageclient/node';
 import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
+import { registerStatusBar } from "./features/statusBar";
 import { migrateSettings } from "./settingMigration";
 import { setupVSCodeBoxLangHome } from "./utils/BoxLang";
 import { setupConfiguration } from "./utils/Configuration";
@@ -239,6 +240,7 @@ export function activate(context: ExtensionContext): void {
             return fn(context, ...arguments);
         }
     };
+
     context.subscriptions.push(commands.registerCommand("boxlang.runBoxLangREPL", applyContext(extensionCommands.runBoxLangREPL)));
     context.subscriptions.push(commands.registerCommand("boxlang.hardResetWorkspaceHome", applyContext(extensionCommands.hardResetWorkspaceHome)));
     context.subscriptions.push(commands.registerCommand("boxlang.restartLSP", applyContext(extensionCommands.restartLSP)));
@@ -491,6 +493,9 @@ export function restartAllProcesses( refreshWorkspace = false) {
 }
 
 async function runSetup( context: ExtensionContext ){
+
+    registerStatusBar( context );
+
     if (!fs.existsSync(context.globalStorageUri.fsPath)) {
         fs.mkdirSync(context.globalStorageUri.fsPath);
     }
@@ -516,3 +521,4 @@ async function runSetup( context: ExtensionContext ){
         boxlangOutputChannel.appendLine(e.message);
     }
 }
+

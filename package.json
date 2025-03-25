@@ -38,6 +38,15 @@
     "main": "./out/main",
     "browser": "./dist/web/main.js",
     "contributes": {
+        "icons": {
+            "boxlang-logo": {
+                "description": "BoxLang logo icon",
+                "default": {
+                    "fontPath": "./icons/boxlang.woff",
+                    "fontCharacter": "\\E900"
+                }
+            }
+        },
         "breakpoints": [
             {
                 "language": "boxlang"
@@ -659,6 +668,10 @@
             }
         },
         "commands": [
+            {
+                "command": "boxlang.testInlineEdit",
+                "title": "BoxLang: Test Inline Edit"
+            },
             {
                 "command": "boxlang.runBoxLangREPL",
                 "title": "BoxLang: Run REPL"
