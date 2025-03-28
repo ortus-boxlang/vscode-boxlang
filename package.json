@@ -858,7 +858,7 @@
             },
             {
                 "command": "boxlang.restartLSP",
-                "title": "Restart Langauge Server",
+                "title": "Restart Language Server",
                 "category": "BoxLang"
             }
         ],
