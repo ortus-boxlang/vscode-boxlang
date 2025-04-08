@@ -4,7 +4,7 @@ let statusBarItem = null;
 
 export async function registerStatusBar( context: ExtensionContext ){
     statusBarItem = window.createStatusBarItem("boxlangStatus", 1, 100);
-    statusBarItem.text = "$(boxlang-logo) BoxLang Ready";
+    statusBarItem.text = "$(boxlang-logo) BoxLang";
     statusBarItem.tooltip = "BoxLang Extension is active";
     statusBarItem.command = "boxlang.showStatusBarCommandPicker";
     statusBarItem.show();
@@ -14,7 +14,7 @@ export async function registerStatusBar( context: ExtensionContext ){
 
 export function setDefaultStatusText(){
 
-    statusBarItem.text = "$(boxlang-logo) BoxLang Ready";
+    statusBarItem.text = "$(boxlang-logo) BoxLang";
 }
 
 export function setLoadingText( text: String ){
