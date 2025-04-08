@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.3.18] - 2025-04-08
+
 ## [1.3.17] - 2025-03-26
 
 -   BLIDE-83 Fix incorrect function return diagnostic
@@ -72,7 +74,9 @@
 -   Added experimental support for file formatting
 -   JSON schema for boxlang.json
 
-[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.17...HEAD
+[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.18...HEAD
+
+[1.3.18]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.17...v1.3.18
 
 [1.3.17]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.16...v1.3.17
 
