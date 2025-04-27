@@ -80,11 +80,12 @@ export async function installVersion(version: BoxLangVersion) {
 export async function getAvailableBoxLangVerions(): Promise<BoxLangVersion[]> {
     return new Promise((resolve, reject) => {
         const boxlangVersions = [];
-        const versionPattern = /^ortussolutions\/boxlang\/.+?.jar/i;
+        const versionPattern = /\.jar$/i;
+        const isJavaDoc = /javadoc/i;
 
         client.makeUnauthenticatedRequest(
             'listObjects',
-            { Bucket: BUCKET_NAME, Prefix: "ortussolutions/boxlang" },
+            { Bucket: BUCKET_NAME, Prefix: "ortussolutions/boxlang/" },
             function (err, data) {
 
                 if (err) {
@@ -94,6 +95,10 @@ export async function getAvailableBoxLangVerions(): Promise<BoxLangVersion[]> {
 
                 data.Contents.forEach(item => {
                     if (!versionPattern.test(item.Key)) {
+                        return;
+                    }
+
+                    if (isJavaDoc.test(item.Key)) {
                         return;
                     }
 
