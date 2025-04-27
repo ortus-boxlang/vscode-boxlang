@@ -221,6 +221,16 @@ export class BoxLangWithHome {
         })
     }
 
+    async getLSPVersionOutput(): Promise<string> {
+        const res = await runBoxLangWithHome(this.boxlangHome, "module:bx-lsp", "version");
+
+        if( res.code != 0 ){
+            return res.stderr
+        }
+
+        return res.stdout;
+    }
+
 }
 
 export class BoxLang {

@@ -5,6 +5,7 @@
 - Fixed BoxLang java version filter
 - BLIDE-94 Add BoxLang task provider
 - BLIDE-95 Add rewrites flag for miniserver
+- BLIDE-96 Add LSP version info
 
 ## [1.3.18] - 2025-04-08
 
