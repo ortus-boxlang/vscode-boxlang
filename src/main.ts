@@ -12,7 +12,8 @@ import {
     extensions,
     languages,
     window,
-    workspace
+    workspace,
+    tasks
 } from "vscode";
 import { BoxLangDebugAdapter } from "./debug/BoxlangDebugDescriptor";
 import { COMPONENT_FILE_GLOB } from "./entities/component";
@@ -56,6 +57,7 @@ import { setupVersionManagement } from "./utils/versionManager";
 import { setupWorkspace } from "./utils/workspaceSetup";
 import { boxlangServerHomeTreeDataProvider } from "./views/ServerHomesView";
 import { boxlangServerTreeDataProvider } from "./views/ServerView";
+import { BoxLangTaskProvider } from "./tasks/BoxLangTaskProvider";
 
 export const CFML_LANGUAGE_ID: string = "cfml";
 export const BL_LANGUAGE_ID: string = "boxlang";
@@ -240,6 +242,8 @@ export function activate(context: ExtensionContext): void {
             return fn(context, ...arguments);
         }
     };
+
+    tasks.registerTaskProvider("boxlang", BoxLangTaskProvider );
 
     context.subscriptions.push(commands.registerCommand("boxlang.showStatusBarCommandPicker", applyContext(extensionCommands.showStatusBarCommandPicker)));
     context.subscriptions.push(commands.registerCommand("boxlang.runBoxLangREPL", applyContext(extensionCommands.runBoxLangREPL)));

@@ -69,6 +69,18 @@ export class BoxLangWithHome {
         this.boxlangHome = boxlangHome || BOXLANG_HOME;
     }
 
+    shellExecution( args: string[] ): vscode.ShellExecution {
+        const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+        return new vscode.ShellExecution(javaExecutable, ["ortus.boxlang.runtime.BoxRunner", ...args ], {
+            env: {
+                ...process.env,
+                JAVA_HOME: ExtensionConfig.boxlangJavaHome,
+                BOXLANG_HOME: this.boxlangHome,
+                CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
+            }
+        });
+    }
+
     async openREPL(){
         let boxLangREPL = vscode.window.terminals.find( t => t.name == "BoxLang REPL" );
 

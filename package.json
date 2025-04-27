@@ -38,6 +38,27 @@
     "main": "./out/main",
     "browser": "./dist/web/main.js",
     "contributes": {
+        "taskDefinitions": [
+            {
+                "type": "boxlang",
+                "required": [
+                    "command"
+                ],
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "The command to run."
+                    },
+                    "args": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "The arguments to pass to the command."
+                    }
+                }
+            }
+        ],
         "icons": {
             "boxlang-logo": {
                 "description": "BoxLang logo icon",
