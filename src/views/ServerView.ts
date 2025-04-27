@@ -8,7 +8,8 @@ const editableProperties = {
     "status": false,
     "port": true,
     "debugMode": true,
-    "configFile": true
+    "configFile": true,
+    "rewrites": true
 };
 
 const _onDidChangeTreeData: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
@@ -30,7 +31,8 @@ export function boxlangServerTreeDataProvider(): vscode.TreeDataProvider<{ key: 
                     { key: element.key + ".status" },
                     { key: element.key + ".port" },
                     { key: element.key + ".debugMode" },
-                    { key: element.key + ".configFile" }
+                    { key: element.key + ".configFile" },
+                    { key: element.key + ".rewrites" }
                 ];
         },
         getTreeItem: (element: { key: string }): vscode.TreeItem => {

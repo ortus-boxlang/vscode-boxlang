@@ -412,5 +412,9 @@ async function getMiniServerCLIArgs(server: BoxServerConfig, debugPort: number):
         cliArgs.push("--configPath", `${server.configFile}`);
     }
 
+    if( server.rewrites != null ){
+        cliArgs.push("--rewrites", server.rewrites );
+    }
+
     return cliArgs;
 }
