@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Fixed BoxLang java version filter
+- BLIDE-94 Add BoxLang task provider
+
 ## [1.3.18] - 2025-04-08
 
 ## [1.3.17] - 2025-03-26
