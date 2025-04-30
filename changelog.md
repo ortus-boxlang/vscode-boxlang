@@ -2,12 +2,14 @@
 
 ## [Unreleased]
 
-- Fixed BoxLang java version filter
-- BLIDE-94 Add BoxLang task provider
-- BLIDE-95 Add rewrites flag for miniserver
-- BLIDE-96 Add LSP version info
-- BLIDE-97 Fix LSP host binding issues
-- 🎉 Bump BoxLang to 1.0.0! 🎉
+## [1.3.20] - 2025-04-30
+
+-   Fixed BoxLang java version filter
+-   BLIDE-94 Add BoxLang task provider
+-   BLIDE-95 Add rewrites flag for miniserver
+-   BLIDE-96 Add LSP version info
+-   BLIDE-97 Fix LSP host binding issues
+-   🎉 Bump BoxLang to 1.0.0! 🎉
 
 ## [1.3.18] - 2025-04-08
 
@@ -81,7 +83,9 @@
 -   Added experimental support for file formatting
 -   JSON schema for boxlang.json
 
-[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.18...HEAD
+[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.20...HEAD
+
+[1.3.20]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.18...v1.3.20
 
 [1.3.18]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.17...v1.3.18
 
