@@ -155,6 +155,7 @@ jobs:
         if: env.SNAPSHOT == 'false'
         with:
           name: ${{ needs.package.outputs.packageName }}
+          path: .tmp
 
       - name: Copy Changelog
         run: |
