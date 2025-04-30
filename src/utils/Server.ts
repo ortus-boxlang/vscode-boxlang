@@ -19,6 +19,7 @@ export type BoxServerConfig = {
     directoryAbsolute?: string,
     debugMode: boolean,
     configFile: string,
+    rewrites?: string,
     status?: "running" | "stopped",
     type: "miniserver" | "remote"
 }

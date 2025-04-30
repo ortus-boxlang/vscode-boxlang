@@ -69,6 +69,18 @@ export class BoxLangWithHome {
         this.boxlangHome = boxlangHome || BOXLANG_HOME;
     }
 
+    shellExecution( args: string[] ): vscode.ShellExecution {
+        const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+        return new vscode.ShellExecution(javaExecutable, ["ortus.boxlang.runtime.BoxRunner", ...args ], {
+            env: {
+                ...process.env,
+                JAVA_HOME: ExtensionConfig.boxlangJavaHome,
+                BOXLANG_HOME: this.boxlangHome,
+                CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
+            }
+        });
+    }
+
     async openREPL(){
         let boxLangREPL = vscode.window.terminals.find( t => t.name == "BoxLang REPL" );
 
@@ -207,6 +219,16 @@ export class BoxLangWithHome {
                 boxlangOutputChannel.appendLine(data + "");
             });
         })
+    }
+
+    async getLSPVersionOutput(): Promise<string> {
+        const res = await runBoxLangWithHome(this.boxlangHome, "module:bx-lsp", "version");
+
+        if( res.code != 0 ){
+            return res.stderr
+        }
+
+        return res.stdout;
     }
 
 }
@@ -398,6 +420,10 @@ async function getMiniServerCLIArgs(server: BoxServerConfig, debugPort: number):
 
     if (server.configFile) {
         cliArgs.push("--configPath", `${server.configFile}`);
+    }
+
+    if( server.rewrites != null ){
+        cliArgs.push("--rewrites", server.rewrites );
     }
 
     return cliArgs;

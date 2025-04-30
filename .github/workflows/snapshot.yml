@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - development
+  workflow_dispatch:
+
 
 #Cancel running builds if another push to branch is made while this build is running
 concurrency:
