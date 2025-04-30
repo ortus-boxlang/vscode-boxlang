@@ -45,7 +45,7 @@ export function startLSP() {
 export function getLSPServerConfig(): ServerOptions {
     if (process.env.BOXLANG_LSP_PORT) {
         return () => {
-            let socket = net.connect(Number.parseInt(process.env.BOXLANG_LSP_PORT), "0.0.0.0");
+            let socket = net.connect(Number.parseInt(process.env.BOXLANG_LSP_PORT), "127.0.0.1");
             let result = {
                 writer: socket,
                 reader: socket
@@ -58,7 +58,7 @@ export function getLSPServerConfig(): ServerOptions {
     return async () => {
         const [_process, port] = await boxLangLauncher.startLSP();
 
-        let socket = net.connect(port, "0.0.0.0");
+        let socket = net.connect(port, "127.0.0.1");
         return {
             writer: socket,
             reader: socket

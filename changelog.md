@@ -6,6 +6,8 @@
 - BLIDE-94 Add BoxLang task provider
 - BLIDE-95 Add rewrites flag for miniserver
 - BLIDE-96 Add LSP version info
+- BLIDE-97 Fix LSP host binding issues
+- 🎉 Bump BoxLang to 1.0.0! 🎉
 
 ## [1.3.18] - 2025-04-08
 
