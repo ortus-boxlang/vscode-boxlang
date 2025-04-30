@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Improve changelog
+- Update documentation links
+
 ## [1.3.20] - 2025-04-30
 
 -   Fixed BoxLang java version filter

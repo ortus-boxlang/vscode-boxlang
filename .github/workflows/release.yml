@@ -150,10 +150,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         if: env.SNAPSHOT == 'false'
+
       - uses: actions/download-artifact@v4
         if: env.SNAPSHOT == 'false'
         with:
           name: ${{ needs.package.outputs.packageName }}
+
+      - name: Copy Changelog
+        run: |
+          cp .tmp/changelog.md changelog.md
 
       - name: Publish to VS marketplace
         if: env.SNAPSHOT == 'false'
