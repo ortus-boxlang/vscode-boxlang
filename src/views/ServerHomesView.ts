@@ -150,7 +150,7 @@ export class ModulesDirectoryTreeItem extends BLServerHomeTreeItem {
             return fs.readdirSync(dir)
                 .map(file => {
                     try{
-                        new ModuleTreeItem(this, path.join(dir, file));
+                        return new ModuleTreeItem(this, path.join(dir, file));
                     }catch( e ){
                         boxlangOutputChannel.appendLine( "Error reading BoxLang module: " + file );
                         boxlangOutputChannel.appendLine( e );
@@ -158,7 +158,6 @@ export class ModulesDirectoryTreeItem extends BLServerHomeTreeItem {
                     }
                 }).filter( x => x != null );
         }).flatMap(dirs => dirs);
-
     }
 
     getChildren(): BLServerHomeTreeItem[] {
