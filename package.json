@@ -1154,6 +1154,7 @@
         ]
     },
     "scripts": {
+        "download-all": "node install-scripts/downloadDeps.js",
         "download-lsp": "node install-scripts/get-lsp.js",
         "clean": "rimraf out *.vsix",
         "build": "tsc -p ./",

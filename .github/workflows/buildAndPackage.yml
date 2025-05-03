@@ -1,0 +1,79 @@
+name: Build And Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "The git reference to build from"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      ref:
+        description: "The git reference to build from"
+        required: true
+        type: string
+    # Map the workflow outputs to job outputs
+    outputs:
+      packageName:
+        description: "The name of the package that was uploaded"
+        value: ${{ jobs.buildAndPackage.outputs.packageName }}
+
+jobs:
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    outputs:
+      packageName: ${{ steps.setup.outputs.packageName }}
+    permissions:
+      checks: write
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+
+      - name: Make resource lib folder
+        run: mkdir -p resources/lib
+
+      - name: Setup Node
+        uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 23
+          registry-url: https://registry.npmjs.org/
+
+      - name: Download Java Dependencies
+        run: |
+          npm i
+          npm run download-all
+
+      - name: Setup tag
+        id: setup
+        run: |
+          $version = (Get-Content ./package.json -Raw | ConvertFrom-Json).version
+          $name = (Get-Content ./package.json -Raw | ConvertFrom-Json).name
+          $packageName =  $name + '-' + $version + '.vsix'
+          Write-Host "tag: release/$version"
+          Write-Output "tag=release/$version" >> $Env:GITHUB_OUTPUT
+          Write-Output "version=$version" >> $Env:GITHUB_OUTPUT
+          Write-Output "packageName=$packageName" >> $Env:GITHUB_OUTPUT
+          Write-Output "TAG=release/$version" >> $Env:GITHUB_ENV
+          Write-Output "VERSION=$version" >> $Env:GITHUB_ENV
+          Write-Output "PACKAGENAME=$packageName" >> $Env:GITHUB_ENV
+        shell: pwsh
+
+      - name: Package VSIX
+        run: |
+          npx vsce package --out ${{ env.PACKAGENAME }}
+
+      - name: Upload Build Artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGENAME }}
+          path: |
+            ./${{ env.PACKAGENAME }}
+            changelog.md
+          if-no-files-found: error
