@@ -140,7 +140,7 @@ jobs:
           name: ${{ env.PACKAGENAME }}
           path: |
             ./${{ env.PACKAGENAME }}
-            changelog.md
+            ./changelog.md
           if-no-files-found: error
 
   publishMS:
