@@ -5,10 +5,20 @@ const extract = require("extract-zip");
 
 const forgeboxEndpoint = "https://forgebox.io/api/v1/entry/bx-lsp";
 
-async function getDownloadLink(moduleAPIEndpoint) {
+async function getDownloadLink(moduleAPIEndpoint, version) {
     const res = await axios.get(moduleAPIEndpoint, {});
 
-    return res.data.data.latestVersion.downloadURL;
+    if( !version ){
+        return res.data.data.latestVersion.downloadURL;
+    }
+
+    const versionData = res.data.data.versions.find( (v) => v.version === version );
+
+    if( !versionData ){
+        throw new Error(`Version ${version} not found in the response.`);
+    }
+
+    return versionData.downloadURL;
 }
 
 async function downloadFile(installDir, url) {
@@ -36,7 +46,10 @@ async function downloadFile(installDir, url) {
     });
 }
 
-(async () => {
+module.exports.downloadLSP = downloadLSP;
+async function downloadLSP( version ){
+    console.log( "downloading lsp" );
+    console.log( "version: " + ( version || "no version supplied") );
     try {
         fs.rmSync(path.join("resources/lsp"), { recursive: true });
     }
@@ -44,7 +57,7 @@ async function downloadFile(installDir, url) {
         // ignore if this errors
     }
 
-    const link = await getDownloadLink(forgeboxEndpoint);
+    const link = await getDownloadLink(forgeboxEndpoint, version );
 
     await downloadFile(path.join("resources/lsp"), link);
 
@@ -57,4 +70,4 @@ async function downloadFile(installDir, url) {
     fs.unlinkSync(path.join("resources/lsp", "bx-lsp.zip"));
 
     console.log(link);
-})();
+}

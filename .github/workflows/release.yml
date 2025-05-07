@@ -73,12 +73,12 @@ jobs:
       - name: Download BoxLang Runtime
         run: |
             cd resources/lib
-            curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang/1.0.0/boxlang-1.0.0.jar" -o boxlang.jar
+            curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang/1.0.1/boxlang-1.0.1.jar" -o boxlang.jar
 
       - name: Get Download MiniServer
         run: |
           cd resources/lib
-          curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/1.0.0/boxlang-miniserver-1.0.0.jar" -o boxlang-miniserver.jar
+          curl "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/1.0.1/boxlang-miniserver-1.0.1.jar" -o boxlang-miniserver.jar
 
       - name: Setup Node
         uses: actions/setup-node@v4.1.0
@@ -140,13 +140,13 @@ jobs:
           name: ${{ env.PACKAGENAME }}
           path: |
             ./${{ env.PACKAGENAME }}
-            changelog.md
+            ./changelog.md
           if-no-files-found: error
-
   publishMS:
     name: Publish to VS marketplace
     runs-on: ubuntu-latest
     needs: package
+    if: inputs.snapshot == 'false'
     steps:
       - uses: actions/checkout@v2
         if: env.SNAPSHOT == 'false'
@@ -158,7 +158,9 @@ jobs:
           path: .tmp
 
       - name: Copy Changelog
+        if: env.SNAPSHOT == 'false'
         run: |
+          unzip -o .tmp/${{ needs.package.outputs.packageName }} -d .tmp/
           cp .tmp/changelog.md changelog.md
 
       - name: Publish to VS marketplace
