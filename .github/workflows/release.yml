@@ -142,7 +142,6 @@ jobs:
             ./${{ env.PACKAGENAME }}
             ./changelog.md
           if-no-files-found: error
-
   publishMS:
     name: Publish to VS marketplace
     runs-on: ubuntu-latest
@@ -158,6 +157,7 @@ jobs:
 
       - name: Copy Changelog
         run: |
+          unzip -o ./tmp/${{ needs.package.outputs.packageName }} -d ./tmp
           cp .tmp/changelog.md changelog.md
 
       - name: Publish to VS marketplace
