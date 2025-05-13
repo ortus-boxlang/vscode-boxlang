@@ -13,6 +13,10 @@ on:
         type: string
   workflow_call:
     inputs:
+      pre-release:
+        description: "Whether the vsix should be packaged as a pre-release or not"
+        required: true
+        type: boolean
       ref:
         description: "The git reference to build from"
         required: true
