@@ -38,7 +38,7 @@ jobs:
 
   buildAndPackage:
     name: Build and Package
-    uses: ./.github/workflows/release.yml
+    uses: ./.github/workflows/buildAndPackage.yml
     secrets: inherit
     permissions:
       checks: write
