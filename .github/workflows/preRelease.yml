@@ -1,0 +1,85 @@
+name: Pre-Release Extension
+
+on:
+  push:
+    branches:
+      - development
+      - feature/new-release-flow
+  workflow_dispatch:
+
+
+#Cancel running builds if another push to branch is made while this build is running
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validatePreReleaseVersion:
+    name: Validate Version Number
+    runs-on: ubuntu-latest
+    steps:
+        - name: Setup tag
+          id: setup
+          shell: pwsh
+          run: |
+            $version = (Get-Content ./package.json -Raw | ConvertFrom-Json).version
+            $name = (Get-Content ./package.json -Raw | ConvertFrom-Json).name
+            $packageName =  $name + '-' + $version + '.vsix'
+
+            $minor = [int]($version -split '\.')[1]
+
+            if ($minor % 2 -ne 0) {
+                Write-Error "The minor version ($minor) must be even for a pre-release."
+                exit 1
+            }
+
+
+#   check if version number is correct for a prerelease
+#   if not fail
+
+  buildAndPackage:
+    name: Build and Package
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
+    permissions:
+      checks: write
+      contents: write
+    with:
+        pre-release: true
+        ref: development
+
+  publishMS:
+    name: Publish to VS marketplace
+    runs-on: ubuntu-latest
+    needs: buildAndPackage
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.buildAndPackage.outputs.packageName }}
+          path: .tmp
+
+      - name: Publish to VS marketplace
+        run: |
+          echo "Pretending to publish: ${{ needs.buildAndPackage.outputs.packageName }}"
+          # npx vsce publish --packagePath .tmp/${{ needs.buildAndPackage.outputs.packageName }} -p ${{ secrets.VSCE_PAT }} --pre-release
+
+  prepNext:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Development Repository
+        uses: actions/checkout@v4
+
+      - name: Bump Version
+        run: |
+          npm version patch --no-git-tag-version
+
+      - name: Commit Version Bump
+        uses: EndBug/add-and-commit@v9.1.4
+        with:
+          author_name: Github Actions
+          author_email: info@ortussolutions.com
+          message: "Version bump"
+          add: |
+            package.json

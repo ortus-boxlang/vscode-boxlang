@@ -3,6 +3,10 @@ name: Build And Package
 on:
   workflow_dispatch:
     inputs:
+      pre-release:
+        description: "Whether the vsix should be packaged as a pre-release or not"
+        required: true
+        type: boolean
       ref:
         description: "The git reference to build from"
         required: true
@@ -64,9 +68,15 @@ jobs:
           Write-Output "PACKAGENAME=$packageName" >> $Env:GITHUB_ENV
         shell: pwsh
 
-      - name: Package VSIX
+      - name: Package Pre-Release VSIX
+        if: inputs.pre-release == 'true'
         run: |
-          npx vsce package --out ${{ env.PACKAGENAME }}
+          npx vsce package --out ${{ env.PACKAGENAME }} --pre-release
+
+      - name: Package VSIX
+        if: inputs.pre-release == 'false'
+        run: |
+          npx vsce package --out ${{ env.PACKAGENAME }} --pre-release
 
       - name: Upload Build Artifacts
         if: success()
