@@ -25,7 +25,7 @@ on:
     outputs:
       packageName:
         description: "The name of the package that was uploaded"
-        value: ${{ jobs.buildAndPackage.outputs.packageName }}
+        value: ${{ jobs.package.outputs.packageName }}
 
 jobs:
   package:
