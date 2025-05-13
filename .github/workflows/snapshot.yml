@@ -2,8 +2,8 @@ name: BoxLang VSCode Extension Snapshots
 
 on:
   push:
-    branches:
-      - development
+    # branches:
+    #   - development
   workflow_dispatch:
 
 
