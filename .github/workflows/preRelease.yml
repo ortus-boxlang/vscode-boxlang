@@ -29,8 +29,8 @@ jobs:
 
             $minor = [int]($version -split '\.')[1]
 
-            if ($minor % 2 -ne 0) {
-                Write-Error "The minor version ($minor) must be even for a pre-release."
+            if ($minor % 2 -eq 0) {
+                Write-Error "The minor version ($minor) must be odd for a pre-release."
                 exit 1
             }
 
