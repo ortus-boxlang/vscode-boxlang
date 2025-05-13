@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - development
-      - feature/new-release-flow
   workflow_dispatch:
 
 
