@@ -47,7 +47,7 @@ function run(){
     downloadJar(boxlangJarURL, saveLocation);
 
     // download the miniserver
-    const miniserverJarURL = `ttps://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/${miniserverVersion}/boxlang-miniserver-${miniserverVersion}.jar`
+    const miniserverJarURL = `https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/${miniserverVersion}/boxlang-miniserver-${miniserverVersion}.jar`
     const miniserverSaeLocation = path.join(__dirname, "..", "resources", "lib", "boxlang-miniserver.jar" );
     downloadJar(miniserverJarURL, miniserverSaeLocation);
 
