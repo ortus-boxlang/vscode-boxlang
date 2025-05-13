@@ -73,14 +73,14 @@ jobs:
         shell: pwsh
 
       - name: Package Pre-Release VSIX
-        if: inputs.pre-release == 'true'
+        if: inputs.pre-release == true
         run: |
           npx vsce package --out ${{ env.PACKAGENAME }} --pre-release
 
       - name: Package VSIX
-        if: inputs.pre-release == 'false'
+        if: inputs.pre-release == false
         run: |
-          npx vsce package --out ${{ env.PACKAGENAME }} --pre-release
+          npx vsce package --out ${{ env.PACKAGENAME }}
 
       - name: Upload Build Artifacts
         if: success()
