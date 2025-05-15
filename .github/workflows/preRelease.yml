@@ -64,8 +64,7 @@ jobs:
 
       - name: Publish to VS marketplace
         run: |
-          echo "Pretending to publish: ${{ needs.buildAndPackage.outputs.packageName }}"
-          # npx vsce publish --packagePath .tmp/${{ needs.buildAndPackage.outputs.packageName }} -p ${{ secrets.VSCE_PAT }} --pre-release
+          npx vsce publish --packagePath .tmp/${{ needs.buildAndPackage.outputs.packageName }} -p ${{ secrets.VSCE_PAT }} --pre-release
 
   prepNext:
     runs-on: ubuntu-latest
