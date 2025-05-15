@@ -63,8 +63,11 @@ jobs:
           path: .tmp
 
       - name: Publish to VS marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
-          npx vsce publish --packagePath .tmp/${{ needs.buildAndPackage.outputs.packageName }} -p ${{ secrets.VSCE_PAT }} --pre-release
+          ls .tmp
+          npx vsce publish --packagePath .tmp/${{ needs.buildAndPackage.outputs.packageName }} --pre-release
 
   prepNext:
     runs-on: ubuntu-latest
