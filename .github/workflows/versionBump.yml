@@ -14,7 +14,7 @@ on:
     outputs:
       newVersion:
         description: "The new version number"
-        value: ${{ steps.setup.outputs.newVersion }}
+        value: ${{ jobs.createReleaseVersion.outputs.packageName }}
 
 jobs:
   createReleaseVersion:
