@@ -74,7 +74,7 @@ jobs:
 
             $newVersion = "$major.$nextMinor.$nextPatch"
             echo "newVersion=$newVersion" >> $env:GITHUB_OUTPUT
-            npm version $newVersion
+            npm version $newVersion --no-git-tag-version
 
             Write-Output "New version: $newVersion"
 

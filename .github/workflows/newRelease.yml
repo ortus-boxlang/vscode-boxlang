@@ -1,4 +1,4 @@
-name: Pre-Release Extension
+name: New Release Extension
 
 on:
   # push:
@@ -14,9 +14,6 @@ concurrency:
 
 jobs:
   createReleaseVersion:
-    name: Validate Version Number
-    runs-on: ubuntu-latest
-    validatePreReleaseVersion:
     name: Validate Version Number
     uses: ./.github/workflows/versionBump.yml
     secrets: inherit
