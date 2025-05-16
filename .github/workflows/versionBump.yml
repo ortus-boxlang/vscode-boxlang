@@ -53,7 +53,7 @@ jobs:
             $minorIsEven = $minor % 2 -eq 0
 
             $nextMinor = $minor
-            $nextPatch = 0
+            $nextPatch = $patch
 
             if( $env:PRE_RELEASE -and -not $minorIsEven ) {
                 $nextMinor = $minor
