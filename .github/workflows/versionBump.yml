@@ -43,12 +43,12 @@ jobs:
             $minor = [int]($version -split '\.')[1]
             $patch = [int]($version -split '\.')[2]
 
-            // if the minor version is even it is a pre-release
-            // we want to bump the minor version to the next odd number
-            // and set the patch version to 0
-            // if the minor version is odd it is a release
-            // we want to keep the minor version the same
-            // and bump the patch version to the next number
+            # if the minor version is even it is a pre-release
+            # we want to bump the minor version to the next odd number
+            # and set the patch version to 0
+            # if the minor version is odd it is a release
+            # we want to keep the minor version the same
+            # and bump the patch version to the next number
 
             $minorIsEven = $minor % 2 -eq 0
 
