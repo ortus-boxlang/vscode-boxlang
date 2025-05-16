@@ -55,21 +55,21 @@ jobs:
             $nextMinor = $minor
             $nextPatch = 0
 
-            if( $env:PRE_RELEASE -and $minorIsEven ) {
+            if( $env:PRE_RELEASE -and -not $minorIsEven ) {
                 $nextMinor = $minor
                 $nextPatch += 1
             }
-            elseif( $env:PRE_RELEASE -and -not $minorIsEven ) {
+            elseif( $env:PRE_RELEASE -and $minorIsEven ) {
                 $nextMinor = $minor + 1
                 $nextPatch = 0
             }
             elseif( -not $env:PRE_RELEASE -and -not $minorIsEven ) {
-                $nextMinor = $minor
-                $nextPatch += 1
+                $nextMinor = $minor + 1
+                $nextPatch = 0
             }
             elseif( -not $env:PRE_RELEASE -and $minorIsEven ) {
-                $nextMinor = $minor + 1
-                $nextPatch += 0
+                $nextMinor = $minor
+                $nextPatch += 1
             }
 
             $newVersion = "$major.$nextMinor.$nextPatch"
