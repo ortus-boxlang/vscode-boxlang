@@ -5,6 +5,7 @@ on:
     branches:
       - development
   workflow_dispatch:
+  workflow_call:
 
 
 #Cancel running builds if another push to branch is made while this build is running
@@ -15,24 +16,14 @@ concurrency:
 jobs:
   validatePreReleaseVersion:
     name: Validate Version Number
-    runs-on: ubuntu-latest
-    steps:
-        - name: Checkout Development Repository
-          uses: actions/checkout@v4
-        - name: Setup tag
-          id: setup
-          shell: pwsh
-          run: |
-            $version = (Get-Content ./package.json -Raw | ConvertFrom-Json).version
-            $name = (Get-Content ./package.json -Raw | ConvertFrom-Json).name
-            $packageName =  $name + '-' + $version + '.vsix'
-
-            $minor = [int]($version -split '\.')[1]
-
-            if ($minor % 2 -eq 0) {
-                Write-Error "The minor version ($minor) must be odd for a pre-release."
-                exit 1
-            }
+    uses: ./.github/workflows/versionBump.yml
+    secrets: inherit
+    permissions:
+      checks: write
+      contents: write
+    with:
+      pre-release: true
+      ref: development
 
 
 #   check if version number is correct for a prerelease
