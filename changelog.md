@@ -96,11 +96,7 @@
 
 [Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.24...HEAD
 
-[1.3.24]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.24...v1.3.24
-
 [1.3.24]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.21...v1.3.24
-
-[1.3.21]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.21...v1.3.21
 
 [1.3.21]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.20...v1.3.21
 

@@ -39,6 +39,8 @@ jobs:
             $name = (Get-Content ./package.json -Raw | ConvertFrom-Json).name
             $packageName =  $name + '-' + $version + '.vsix'
 
+            Write-Host "Current Version is $version"
+
             $major = [int]($version -split '\.')[0]
             $minor = [int]($version -split '\.')[1]
             $patch = [int]($version -split '\.')[2]
@@ -56,18 +58,22 @@ jobs:
             $nextPatch = $patch
 
             if( $env:PRE_RELEASE -and -not $minorIsEven ) {
+                Write-Host "Building a pre-release: bumping patch"
                 $nextMinor = $minor
                 $nextPatch += 1
             }
             elseif( $env:PRE_RELEASE -and $minorIsEven ) {
+                Write-Host "Building a pre-release: setting new minor"
                 $nextMinor = $minor + 1
                 $nextPatch = 0
             }
             elseif( (-not $env:PRE_RELEASE) -and -not $minorIsEven ) {
+                Write-Host "Building a full release: setting new minor"
                 $nextMinor = $minor + 1
                 $nextPatch = 0
             }
             elseif( (-not $env:PRE_RELEASE) -and $minorIsEven ) {
+                Write-Host "Building a full release: bumping patch"
                 $nextMinor = $minor
                 $nextPatch += 1
             }
