@@ -1,9 +1,9 @@
 name: Release
 on:
-  push:
-    branches:
-      - main
-      - feature/build-test
+#   push:
+#     branches:
+#       - main
+#       - feature/build-test
 
   # Reusable workflow : Usually called by a `snapshot` workflow
   workflow_call:

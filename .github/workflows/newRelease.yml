@@ -1,0 +1,90 @@
+name: New Release Extension
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+
+#Cancel running builds if another push to branch is made while this build is running
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  createReleaseVersion:
+    name: Validate Version Number
+    uses: ./.github/workflows/versionBump.yml
+    secrets: inherit
+    permissions:
+      checks: write
+      contents: write
+    with:
+      pre-release: false
+      ref: main
+
+  buildAndPackageRelease:
+    name: Build and Package
+    uses: ./.github/workflows/buildAndPackage.yml
+    secrets: inherit
+    needs: createReleaseVersion
+    permissions:
+      checks: write
+      contents: write
+    with:
+        pre-release: false
+        ref: ${{ needs.createReleaseVersion.outputs.newVersion }}
+
+  updateDevelopment:
+    name: Update Development Branch
+    runs-on: ubuntu-latest
+    needs: buildAndPackageRelease
+    steps:
+      - name: Checkout Development Branch
+        uses: actions/checkout@v4
+        with:
+          ref: development
+
+      - name: Set up Git user
+        run: |
+          git config user.name "Github Actions"
+          git config user.email "info@ortussolutions.com"
+
+      - name: Fetch all branches
+        run: git fetch origin master
+
+      - name: Merge master into development
+        run: |
+          git merge origin/master --no-edit
+
+      - name: Push changes
+        run: git push origin development
+
+  doPreRelease:
+    name: Do Pre-Release
+    needs: updateDevelopment
+    uses: ./.github/workflows/preRelease.yml
+    secrets: inherit
+    permissions:
+      checks: write
+      contents: write
+
+  publishMS:
+    name: Publish to VS marketplace
+    runs-on: ubuntu-latest
+    needs: doPreRelease
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.buildAndPackageRelease.outputs.packageName }}
+          path: .tmp
+
+      - name: Publish to VS marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          ls .tmp
+          npx vsce publish --packagePath .tmp/${{ needs.buildAndPackageRelease.outputs.packageName }}

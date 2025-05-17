@@ -1,0 +1,114 @@
+name: Version Bump
+
+on:
+  workflow_call:
+    inputs:
+      pre-release:
+        description: "Whether the vsix should be packaged as a pre-release or not"
+        required: true
+        type: boolean
+      ref:
+        description: "The git reference to build from"
+        required: true
+        type: string
+    outputs:
+      newVersion:
+        description: "The new version number"
+        value: ${{ jobs.createReleaseVersion.outputs.packageName }}
+
+jobs:
+  createReleaseVersion:
+    name: Validate Version Number
+    runs-on: ubuntu-latest
+    outputs:
+      newVersion: ${{ steps.setup.outputs.newVersion }}
+    steps:
+        - name: Checkout Development Repository
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+            ref: ${{ inputs.ref }}
+
+        - name: Setup tag
+          id: setup
+          shell: pwsh
+          env:
+            PRE_RELEASE: ${{ inputs.pre-release }}
+          run: |
+            $version = (Get-Content ./package.json -Raw | ConvertFrom-Json).version
+            $name = (Get-Content ./package.json -Raw | ConvertFrom-Json).name
+            $packageName =  $name + '-' + $version + '.vsix'
+
+            $major = [int]($version -split '\.')[0]
+            $minor = [int]($version -split '\.')[1]
+            $patch = [int]($version -split '\.')[2]
+
+            # if the minor version is even it is a pre-release
+            # we want to bump the minor version to the next odd number
+            # and set the patch version to 0
+            # if the minor version is odd it is a release
+            # we want to keep the minor version the same
+            # and bump the patch version to the next number
+
+            $minorIsEven = $minor % 2 -eq 0
+
+            $nextMinor = $minor
+            $nextPatch = $patch
+
+            if( $env:PRE_RELEASE -and -not $minorIsEven ) {
+                $nextMinor = $minor
+                $nextPatch += 1
+            }
+            elseif( $env:PRE_RELEASE -and $minorIsEven ) {
+                $nextMinor = $minor + 1
+                $nextPatch = 0
+            }
+            elseif( -not $env:PRE_RELEASE -and -not $minorIsEven ) {
+                $nextMinor = $minor + 1
+                $nextPatch = 0
+            }
+            elseif( -not $env:PRE_RELEASE -and $minorIsEven ) {
+                $nextMinor = $minor
+                $nextPatch += 1
+            }
+
+            $newVersion = "$major.$nextMinor.$nextPatch"
+            echo "newVersion=$newVersion" >> $env:GITHUB_OUTPUT
+            npm version $newVersion --no-git-tag-version
+
+            Write-Output "New version: $newVersion"
+
+        - name: Update changelog [unreleased] with latest version
+          uses: thomaseizinger/keep-a-changelog-new-release@2.0.0
+          if: inputs.pre-release == 'false'
+          with:
+            changelogPath: ./changelog.md
+            tag: v${{ env.VERSION }}
+
+        - name: Cleanup changelog
+          if: inputs.pre-release == 'false'
+          run: |
+            npm install -g markdownlint-cli
+            # disabling this until I'm able to figure out why we only get the error below when running actions
+            # changelog.md:41 MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 2]
+            markdownlint changelog.md --fix
+
+        - name: Commit Changelog [unreleased] with latest version
+          uses: EndBug/add-and-commit@v9.1.4
+          if: inputs.pre-release == 'false'
+          with:
+            author_name: Github Actions
+            author_email: info@ortussolutions.com
+            push: false
+            message: "Finalized changelog for v${{ env.VERSION }}"
+            add: changelog.md
+
+        - name: Commit Version Bump
+          uses: EndBug/add-and-commit@v9.1.4
+          with:
+            author_name: Github Actions
+            author_email: info@ortussolutions.com
+            message: "Version bump"
+            tag: v${{ steps.setup.outputs.newVersion }}
+            add: |
+              package.json

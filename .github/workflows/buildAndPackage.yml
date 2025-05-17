@@ -3,12 +3,20 @@ name: Build And Package
 on:
   workflow_dispatch:
     inputs:
+      pre-release:
+        description: "Whether the vsix should be packaged as a pre-release or not"
+        required: true
+        type: boolean
       ref:
         description: "The git reference to build from"
         required: true
         type: string
   workflow_call:
     inputs:
+      pre-release:
+        description: "Whether the vsix should be packaged as a pre-release or not"
+        required: true
+        type: boolean
       ref:
         description: "The git reference to build from"
         required: true
@@ -17,7 +25,7 @@ on:
     outputs:
       packageName:
         description: "The name of the package that was uploaded"
-        value: ${{ jobs.buildAndPackage.outputs.packageName }}
+        value: ${{ jobs.package.outputs.packageName }}
 
 jobs:
   package:
@@ -64,7 +72,13 @@ jobs:
           Write-Output "PACKAGENAME=$packageName" >> $Env:GITHUB_ENV
         shell: pwsh
 
+      - name: Package Pre-Release VSIX
+        if: inputs.pre-release == true
+        run: |
+          npx vsce package --out ${{ env.PACKAGENAME }} --pre-release
+
       - name: Package VSIX
+        if: inputs.pre-release == false
         run: |
           npx vsce package --out ${{ env.PACKAGENAME }}
 

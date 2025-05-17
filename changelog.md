@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- BLIDE-112 Stop syncing certain settings
+- Bump BoxLang to 1.1.0
+- Add pre-release to VSCode Marketplace
+
 ## [1.3.24] - 2025-05-15
 
 ## [1.3.24] - 2025-05-07
