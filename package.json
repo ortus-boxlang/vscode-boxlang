@@ -234,23 +234,23 @@
                 },
                 "boxlang.java.javaHome": {
                     "type": "string",
-                    "description": "The path to the JVM you want to use. Must be Java 21 or higher. If not set it will use java. Use multiple backslashes on Windows i.e. C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-21.0.2.13-hotspot\\\\bin",
-                    "scope": "window"
+                    "description": "The path to the JVM you want to use. Must be Java 21 or higher. If not set it will use java. Use multiple backslashes on Windows i.e. C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-21.0.2.13-hotspot",
+                    "scope": "machine"
                 },
                 "boxlang.jarpath": {
                     "type": "string",
                     "description": "The path to the boxlang jar you want to use for execution",
-                    "scope": "window"
+                    "scope": "machine"
                 },
                 "boxlang.miniserverjarpath": {
                     "type": "string",
                     "description": "The path to the miniserver jar you want to use for execution",
-                    "scope": "window"
+                    "scope": "machine"
                 },
                 "boxlang.lspjarpath": {
                     "type": "string",
                     "description": "The path to the lsp jar you want to use for execution",
-                    "scope": "window"
+                    "scope": "machine"
                 },
                 "boxlang.webPort": {
                     "type": "number",
@@ -265,7 +265,7 @@
                 "boxlang.lsp.jvmArgs": {
                     "type": "string",
                     "description": "Set additional JVM args for the LSP process",
-                    "scope": "window"
+                    "scope": "machine"
                 },
                 "boxlang.lsp.enableExperimentalDiagnostics": {
                     "type": "boolean",
@@ -281,12 +281,12 @@
                 "boxlang.lexerPath": {
                     "type": "string",
                     "description": "The path to the ANTLR lexer file to use when generating AST visualizations",
-                    "scope": "window"
+                    "scope": "machine"
                 },
                 "boxlang.parserPath": {
                     "type": "string",
                     "description": "The path to the ANTLR parser file to use when generating AST visualizations",
-                    "scope": "window"
+                    "scope": "machine"
                 },
                 "boxlang.customAntlrToolsCommand": {
                     "type": "string",
