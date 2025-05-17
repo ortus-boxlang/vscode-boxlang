@@ -78,6 +78,31 @@ jobs:
 
             Write-Output "New version: $newVersion"
 
+        - name: Update changelog [unreleased] with latest version
+          uses: thomaseizinger/keep-a-changelog-new-release@2.0.0
+          if: inputs.pre-release == 'false'
+          with:
+            changelogPath: ./changelog.md
+            tag: v${{ env.VERSION }}
+
+        - name: Cleanup changelog
+          if: inputs.pre-release == 'false'
+          run: |
+            npm install -g markdownlint-cli
+            # disabling this until I'm able to figure out why we only get the error below when running actions
+            # changelog.md:41 MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 2]
+            markdownlint changelog.md --fix
+
+        - name: Commit Changelog [unreleased] with latest version
+          uses: EndBug/add-and-commit@v9.1.4
+          if: inputs.pre-release == 'false'
+          with:
+            author_name: Github Actions
+            author_email: info@ortussolutions.com
+            push: false
+            message: "Finalized changelog for v${{ env.VERSION }}"
+            add: changelog.md
+
         - name: Commit Version Bump
           uses: EndBug/add-and-commit@v9.1.4
           with:
