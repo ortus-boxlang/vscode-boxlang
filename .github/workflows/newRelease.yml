@@ -22,7 +22,7 @@ jobs:
       contents: write
     with:
       pre-release: false
-      ref: main
+      ref: ${{github.ref}}
 
   buildAndPackageRelease:
     name: Build and Package
