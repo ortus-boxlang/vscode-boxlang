@@ -1,9 +1,9 @@
 name: New Release Extension
 
 on:
-  # push:
-  #   branches:
-  #     - development
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 
@@ -23,10 +23,6 @@ jobs:
     with:
       pre-release: false
       ref: main
-
-
-#   check if version number is correct for a prerelease
-#   if not fail
 
   buildAndPackageRelease:
     name: Build and Package
@@ -48,7 +44,7 @@ jobs:
       - name: Checkout Development Branch
         uses: actions/checkout@v4
         with:
-          ref: develop
+          ref: development
 
       - name: Set up Git user
         run: |
@@ -58,12 +54,12 @@ jobs:
       - name: Fetch all branches
         run: git fetch origin master
 
-      - name: Merge master into develop
+      - name: Merge master into development
         run: |
           git merge origin/master --no-edit
 
       - name: Push changes
-        run: git push origin develop
+        run: git push origin development
 
   doPreRelease:
     name: Do Pre-Release
