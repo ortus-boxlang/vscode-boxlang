@@ -3,7 +3,7 @@ name: New Release Extension
 on:
   push:
     branches:
-      - main
+      - feature/newrelease
   workflow_dispatch:
 
 
@@ -82,9 +82,9 @@ jobs:
           name: ${{ needs.buildAndPackageRelease.outputs.packageName }}
           path: .tmp
 
-      - name: Publish to VS marketplace
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: |
-          ls .tmp
-          npx vsce publish --packagePath .tmp/${{ needs.buildAndPackageRelease.outputs.packageName }}
+    #   - name: Publish to VS marketplace
+    #     env:
+    #       VSCE_PAT: ${{ secrets.VSCE_PAT }}
+    #     run: |
+    #       ls .tmp
+    #       npx vsce publish --packagePath .tmp/${{ needs.buildAndPackageRelease.outputs.packageName }}

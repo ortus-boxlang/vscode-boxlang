@@ -86,7 +86,7 @@ jobs:
             tag: v${{ env.VERSION }}
 
         - name: Cleanup changelog
-          if: inputs.pre-release == 'false'
+          if: inputs.pre-release == false
           run: |
             npm install -g markdownlint-cli
             # disabling this until I'm able to figure out why we only get the error below when running actions
@@ -95,7 +95,7 @@ jobs:
 
         - name: Commit Changelog [unreleased] with latest version
           uses: EndBug/add-and-commit@v9.1.4
-          if: inputs.pre-release == 'false'
+          if: inputs.pre-release == false
           with:
             author_name: Github Actions
             author_email: info@ortussolutions.com
