@@ -1241,7 +1241,7 @@
         "@types/request": "~2.48.7",
         "@types/semver": "~7.3.9",
         "@types/trie-prefix-tree": "~1.5.0",
-        "@types/vscode": "^1.100.0",
+        "@types/vscode": "^1.85.0",
         "@typescript-eslint/eslint-plugin": "^5.62.0",
         "@vscode/test-electron": "^1.6.2",
         "@vscode/test-web": "^0.0.22",
