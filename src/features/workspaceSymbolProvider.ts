@@ -1,8 +1,8 @@
 import * as path from "path";
 import { CancellationToken, Location, Position, SymbolInformation, SymbolKind, TextDocument, TextEditor, Uri, window, workspace, WorkspaceSymbolProvider } from "vscode";
-import { BL_LANGUAGE_ID, CFML_LANGUAGE_ID } from "../main";
 import { Component, COMPONENT_EXT } from "../entities/component";
 import { UserFunction } from "../entities/userFunction";
+import { BL_LANGUAGE_ID, CFML_LANGUAGE_ID } from "../main";
 import { equalsIgnoreCase } from "../utils/textUtil";
 import * as cachedEntity from "./cachedEntities";
 
@@ -13,6 +13,7 @@ export default class CFMLWorkspaceSymbolProvider implements WorkspaceSymbolProvi
      * @param query A non-empty query string.
      * @param _token A cancellation token.
      */
+    // @ts-ignore
     public async provideWorkspaceSymbols(query: string, _token: CancellationToken): Promise<SymbolInformation[]> {
         let workspaceSymbols: SymbolInformation[] = [];
         if (query === "") {

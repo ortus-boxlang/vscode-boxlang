@@ -3,9 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
 import { BoxLangWithHome } from '../utils/BoxLang';
+import { ExtensionConfig, getUserProfileBoxLangHome } from '../utils/Configuration';
 import { boxlangOutputChannel } from '../utils/OutputChannels';
 import { getWorkspaceBoxLangHome } from "../utils/workspaceSetup";
-import { ExtensionConfig, getUserProfileBoxLangHome } from '../utils/Configuration';
 
 let extensionContext: vscode.ExtensionContext = null;
 let serverHomes = [];
@@ -243,7 +243,7 @@ export function boxlangServerHomeTreeDataProvider(context: vscode.ExtensionConte
     loadBoxLangHomeData(context);
 
     return {
-        onDidChangeTreeData: onDidChangeTreeData,
+        onDidChangeTreeData: onDidChangeTreeData as any,
         getChildren: (element: BLServerHomeTreeItem): BLServerHomeTreeItem[] => {
 
             if (!element) {

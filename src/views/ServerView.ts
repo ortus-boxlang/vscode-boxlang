@@ -22,7 +22,7 @@ onDidChangeServerConfiguration((data) => {
 
 export function boxlangServerTreeDataProvider(): vscode.TreeDataProvider<{ key: string }> {
     return {
-        onDidChangeTreeData: onDidChangeTreeData,
+        onDidChangeTreeData: onDidChangeTreeData as  any,
         getChildren: (element: { key: string }): { key: string }[] => {
             return !element ? Object.keys(servers).map(s => ({ key: s }))
                 : [

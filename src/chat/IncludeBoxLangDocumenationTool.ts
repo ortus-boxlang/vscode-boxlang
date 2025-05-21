@@ -9,10 +9,6 @@ export class IncludeBoxLangDocumentationTool implements vscode.LanguageModelTool
     async invoke(options: vscode.LanguageModelToolInvocationOptions<{ text: string; }>, token: vscode.CancellationToken): Promise<vscode.LanguageModelToolResult> {
         return getRelaventDocumentation(options.input.text);
     }
-    prepareInvocation?(options: vscode.LanguageModelToolInvocationPrepareOptions<{ text: string; }>, token: vscode.CancellationToken): vscode.ProviderResult<vscode.PreparedToolInvocation> {
-        return;
-    }
-
 }
 
 async function getRelaventDocumentationPrompt(query: string) {
@@ -76,10 +72,6 @@ async function getRelaventDocumentation(message: string) {
             ]);
         }
 
-        const urls = relevant.map(page => {
-            return new vscode.LanguageModelTextPart(page.url);
-        });
-
         return new vscode.LanguageModelToolResult([
             new vscode.LanguageModelTextPart("These pages of documentation are most relevant for the user's question. Fetch each page and include it in the context."),
             new vscode.LanguageModelTextPart(JSON.stringify(relevant))
@@ -105,4 +97,6 @@ async function getRelaventDocumentation(message: string) {
             throw err;
         }
     }
+
+     return new vscode.LanguageModelToolResult([])
 }

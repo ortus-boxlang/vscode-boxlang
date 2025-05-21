@@ -35,7 +35,7 @@ export const BoxLangTaskProvider: vscode.TaskProvider = {
                     "--reportFile", `${workspaceFolderPath}/bx-feature-audit.csv`
                 ])
             )
-        ];
+        ] as any;
     },
     resolveTask: (task: vscode.Task) => {
         return undefined;
