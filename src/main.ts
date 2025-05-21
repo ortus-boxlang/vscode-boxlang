@@ -11,10 +11,11 @@ import {
     debug,
     extensions,
     languages,
+    tasks,
     window,
-    workspace,
-    tasks
+    workspace
 } from "vscode";
+import { setExtensionContext } from "./context";
 import { BoxLangDebugAdapter } from "./debug/BoxlangDebugDescriptor";
 import { COMPONENT_FILE_GLOB } from "./entities/component";
 import { Scope } from "./entities/scope";
@@ -43,10 +44,12 @@ import { DocumentStateContext, getDocumentStateContext } from "./utils/documentU
 import {
     LanguageClient
 } from 'vscode-languageclient/node';
+import { setupChatIntegration } from "./chat/tools";
 import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
 import { registerStatusBar } from "./features/statusBar";
 import { migrateSettings } from "./settingMigration";
+import { BoxLangTaskProvider } from "./tasks/BoxLangTaskProvider";
 import { setupVSCodeBoxLangHome } from "./utils/BoxLang";
 import { setupConfiguration } from "./utils/Configuration";
 import { setupLocalJavaInstall } from "./utils/Java";
@@ -57,7 +60,6 @@ import { setupVersionManagement } from "./utils/versionManager";
 import { setupWorkspace } from "./utils/workspaceSetup";
 import { boxlangServerHomeTreeDataProvider } from "./views/ServerHomesView";
 import { boxlangServerTreeDataProvider } from "./views/ServerView";
-import { BoxLangTaskProvider } from "./tasks/BoxLangTaskProvider";
 
 export const CFML_LANGUAGE_ID: string = "cfml";
 export const BL_LANGUAGE_ID: string = "boxlang";
@@ -153,6 +155,8 @@ function shouldExcludeDocument(documentUri: Uri): boolean {
     return micromatch.some(relativePath, fileExcludeGlobs);
 }
 
+
+
 /**
  * This method is called when the extension is activated.
  * @param context The context object for this extension.
@@ -160,7 +164,9 @@ function shouldExcludeDocument(documentUri: Uri): boolean {
 export function activate(context: ExtensionContext): void {
     extensionContext = context;
 
+    setExtensionContext( context );
     runSetup( context );
+    setupChatIntegration( context );
 
     languages.setLanguageConfiguration(CFML_LANGUAGE_ID, {
         indentationRules: {
