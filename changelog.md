@@ -5,6 +5,7 @@
 - BLIDE-112 Stop syncing certain settings
 - Bump BoxLang to 1.1.0
 - Add pre-release to VSCode Marketplace
+- BLIDE-119 add BoxLang chat participant
 
 ## [1.3.24] - 2025-05-15
 

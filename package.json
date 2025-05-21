@@ -1195,8 +1195,8 @@
     "scripts": {
         "download-all": "node install-scripts/downloadDeps.js",
         "download-lsp": "node install-scripts/get-lsp.js",
-        "clean": "rimraf out *.vsix",
-        "build": "tsc -p ./",
+        "clean": "rimraf --glob out *.vsix",
+        "build": "tsc -p ./tsconfig.json",
         "compile-web": "webpack",
         "watch-web": "webpack --watch",
         "package-web": "webpack --mode production --devtool hidden-source-map",
