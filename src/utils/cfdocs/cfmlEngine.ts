@@ -1,6 +1,6 @@
 import * as semver from "semver";
-import { DataType } from "../../entities/dataType";
 import { Uri } from "vscode";
+import { DataType } from "../../entities/dataType";
 import { extensionContext } from "../../main";
 
 export enum CFMLEngineName {
@@ -174,6 +174,7 @@ export class CFMLEngine {
    * Gets the CFML engine icon URI
    */
   public static getIconUri(name: CFMLEngineName): Uri {
+    // @ts-ignore
     return Uri.joinPath(extensionContext.extensionUri, `images/${name}.png`);
   }
 }

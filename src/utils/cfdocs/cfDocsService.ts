@@ -1,12 +1,13 @@
 import * as fs from "fs";
 import fetch from 'isomorphic-fetch';
 import * as path from "path";
-import vscode, { commands, Position, Range, TextDocument, TextEditor, TextLine, Uri, window, workspace, WorkspaceConfiguration } from "vscode";
-import { extensionContext } from "../../main";
+import * as vscode from "vscode";
+import { commands, Position, Range, TextDocument, TextEditor, TextLine, Uri, window, workspace, WorkspaceConfiguration } from "vscode";
 import { getFunctionSuffixPattern } from "../../entities/function";
 import { GlobalEntity } from "../../entities/globals";
 import { getTagPrefixPattern } from "../../entities/tag";
 import * as cachedEntity from "../../features/cachedEntities";
+import { extensionContext } from "../../main";
 import { DocumentPositionStateContext, getDocumentPositionStateContext } from "../documentUtil";
 import { CFMLEngine, CFMLEngineName } from "./cfmlEngine";
 import { CFDocsDefinitionInfo, EngineCompatibilityDetail } from "./definitionInfo";

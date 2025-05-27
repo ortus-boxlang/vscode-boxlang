@@ -23,6 +23,7 @@ export default class CFMLDocumentLinkProvider implements DocumentLinkProvider {
    * @param document The document in which the links are located.
    * @param _token A cancellation token.
    */
+  // @ts-ignore
   public async provideDocumentLinks(document: TextDocument, _token: CancellationToken): Promise<DocumentLink[]> {
     const results: DocumentLink[] = [];
     const documentText: string = document.getText();

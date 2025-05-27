@@ -9,7 +9,8 @@ export async function removeBoxLangHome(item: InvalidServerHomeRootTreeItem | Se
         return;
     }
 
-    const name = typeof item.label == "string" ? item.label : item.label.label;
+    // @ts-ignore
+    const name = typeof item.label == "string" ? item.label : item.label.label ;
 
     if (name == "VSCode BoxLang Home" || name == "Default") {
         vscode.window.showErrorMessage("You cannot remove the BoxLang Home named: " + name);

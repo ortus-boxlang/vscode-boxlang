@@ -2,13 +2,13 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "1.5.6",
+    "version": "1.6.5",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
     "license": "MIT",
     "engines": {
-        "vscode": "^1.85.0"
+        "vscode": "^1.100.0"
     },
     "repository": {
         "type": "git",
@@ -38,6 +38,45 @@
     "main": "./out/main",
     "browser": "./dist/web/main.js",
     "contributes": {
+        "languageModelTools": [
+            {
+                "name": "boxlang-tools_lookupBoxLangDocumenation",
+                "tags": [
+                    "editors",
+                    "boxlang"
+                ],
+                "toolReferenceName": "lookupBoxLangDocumentation",
+                "displayName": "Include BoxLang Documentation",
+                "modelDescription": "Retrieve BoxLang documentation from the web to help answer user questions. This tool can be used multiple times if needed. Try to use the previous context before calling this tool to get more information.",
+                "userDescription": "Lookup BoxLang/Ortus documentation and include it in the chat context",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(server)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "text": {
+                            "type": "string",
+                            "description": "Summary of the problem the user is trying to solve which may require looking up documentation"
+                        }
+                    }
+                }
+            }
+        ],
+        "chatParticipants": [
+            {
+                "id": "boxlang.chat",
+                "name": "boxlang",
+                "fullName": "BoxLang",
+                "description": "BoxLang Code Assitant",
+                "isSticky": true,
+                "commands": [
+                    {
+                        "name": "docs",
+                        "description": "Provides a link to the docs"
+                    }
+                ]
+            }
+        ],
         "taskDefinitions": [
             {
                 "type": "boxlang",
@@ -1156,8 +1195,8 @@
     "scripts": {
         "download-all": "node install-scripts/downloadDeps.js",
         "download-lsp": "node install-scripts/get-lsp.js",
-        "clean": "rimraf out *.vsix",
-        "build": "tsc -p ./",
+        "clean": "rimraf --glob out *.vsix",
+        "build": "tsc -p ./tsconfig.json",
         "compile-web": "webpack",
         "watch-web": "webpack --watch",
         "package-web": "webpack --mode production --devtool hidden-source-map",
@@ -1169,6 +1208,7 @@
         "vscode:prepublish": "webpack --mode production --devtool hidden-source-map &&  npm run build"
     },
     "dependencies": {
+        "@vscode/chat-extension-utils": "^0.0.0-alpha.5",
         "async_hooks": "^1.0.0",
         "aws-sdk": "^2.1692.0",
         "axios": "^1.7.9",
@@ -1201,7 +1241,7 @@
         "@types/request": "~2.48.7",
         "@types/semver": "~7.3.9",
         "@types/trie-prefix-tree": "~1.5.0",
-        "@types/vscode": "^1.85.0",
+        "@types/vscode": "^1.100.0",
         "@typescript-eslint/eslint-plugin": "^5.62.0",
         "@vscode/test-electron": "^1.6.2",
         "@vscode/test-web": "^0.0.22",
@@ -1214,6 +1254,7 @@
         "rimraf": "^4.4.1",
         "ts-loader": "^9.2.2",
         "typescript": "^5.3.3",
+        "vscode": "^1.1.37",
         "webpack": "^5.38.1",
         "webpack-cli": "^5.1.4"
     }
