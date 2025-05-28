@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.7.1] - 2025-05-28
+
 ## [1.7.0] - 2025-05-27
 
 - BLIDE-112 Stop syncing certain settings
@@ -101,15 +103,15 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.1...HEAD
+
+[1.7.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.0...v1.7.1
 
 [1.7.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.24...v1.7.0
 
 [1.3.24]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.24...v1.3.24
 
-
 [1.3.21]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.21...v1.3.21
-
 
 [1.3.20]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.18...v1.3.20
 
@@ -136,7 +138,6 @@
 [1.3.7]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.5...v1.3.7
 
 [1.3.5]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.5...v1.3.5
-
 
 [1.3.4]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.3...v1.3.4
 
