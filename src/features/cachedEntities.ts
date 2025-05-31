@@ -1,6 +1,6 @@
 import * as path from "path";
 import trie from "trie-prefix-tree";
-import { ConfigurationTarget, extensions, ProgressLocation, TextDocument, Uri, window, workspace, WorkspaceConfiguration } from "vscode";
+import { ConfigurationTarget, extensions, TextDocument, Uri, workspace, WorkspaceConfiguration } from "vscode";
 import { Component, COMPONENT_EXT, COMPONENT_FILE_GLOB, ComponentsByName, ComponentsByUri, parseComponent } from "../entities/component";
 import { GlobalFunction, GlobalFunctions, GlobalMemberFunction, GlobalMemberFunctions, GlobalTag, GlobalTags } from "../entities/globals";
 import { Scope } from "../entities/scope";
@@ -12,6 +12,7 @@ import { MyMap, SearchMode } from "../utils/collections";
 import { APPLICATION_CFM_GLOB } from "../utils/contextUtil";
 import { DocumentStateContext, getDocumentStateContext } from "../utils/documentUtil";
 import { resolveCustomMappingPaths, resolveRelativePath, resolveRootPath } from "../utils/fileUtil";
+import { setDefaultStatusText, setLoadingText } from "./statusBar";
 
 let allGlobalEntityDefinitions = new MyMap<string, CFDocsDefinitionInfo>();
 
@@ -390,36 +391,29 @@ export async function cacheAllComponents(): Promise<void> {
  * @param componentUris List of URIs to read, parse, and cache
  */
 async function cacheGivenComponents(componentUris: Uri[]): Promise<void> {
-    await window.withProgress(
-        {
-            location: ProgressLocation.Notification,
-            title: "Caching components",
-            cancellable: true
-        },
-        async (progress, token) => {
-            const componentCount = componentUris.length;
-            let i = 0;
+    const componentCount = componentUris.length;
+    let i = 0;
 
-            for (const componentUri of componentUris) {
-                if (token.isCancellationRequested) { break; }
+    // Set initial loading text
+    setLoadingText("Caching components");
 
-                try {
-                    const document: TextDocument = await workspace.openTextDocument(componentUri);
-                    const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.suggest", document.uri);
-                    const replaceComments = cfmlCompletionSettings.get<boolean>("replaceComments", true);
-                    cacheComponentFromDocument(document, false, replaceComments);
-                } catch (ex) {
-                    console.error(`Cannot parse document at ${componentUri}`);
-                } finally {
-                    i++;
-                    progress.report({
-                        message: `${i} / ${componentCount}`,
-                        increment: (100 / componentCount)
-                    });
-                }
-            }
+    for (const componentUri of componentUris) {
+        try {
+            const document: TextDocument = await workspace.openTextDocument(componentUri);
+            const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.suggest", document.uri);
+            const replaceComments = cfmlCompletionSettings.get<boolean>("replaceComments", true);
+            cacheComponentFromDocument(document, false, replaceComments);
+        } catch (ex) {
+            console.error(`Cannot parse document at ${componentUri}`);
+        } finally {
+            i++;
+            // Update status bar with progress
+            setLoadingText(`Caching components (${i}/${componentCount})`);
         }
-    );
+    }
+
+    // Reset status bar to default when complete
+    setDefaultStatusText();
 }
 
 /**

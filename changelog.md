@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-125 refactor caching progress message
+
 ## [1.7.0] - 2025-05-27
 
 - BLIDE-112 Stop syncing certain settings
