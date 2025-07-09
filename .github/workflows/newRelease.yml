@@ -107,7 +107,7 @@ jobs:
   publishOpenVSX:
     name: Publish to Open VSX
     runs-on: ubuntu-latest
-    needs: doPreRelease
+    needs: [ doPreRelease, buildAndPackageRelease ]
     # Run if triggered by push OR if manually triggered with publishToOpenVSX enabled
     if: ${{ always() && (github.event_name == 'push' || inputs.publishToOpenVSX == true) }}
     steps:
