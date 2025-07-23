@@ -215,7 +215,7 @@
                     "type": "string",
                     "description": "This choose the compiler to use for the runtime",
                     "default": "asm",
-                    "enum": [ "java", "asm" ]
+                    "enum": [ "java", "asm", "noop" ]
                 },
                 "ASTCapture": {
                     "type": "boolean",
