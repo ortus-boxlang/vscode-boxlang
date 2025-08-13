@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - BLIDE-125 refactor caching progress message
+- BLIDE-86 Remove duplicate entries in the outline view
 
 ## [1.7.0] - 2025-05-27
 
