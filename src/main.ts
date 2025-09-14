@@ -454,7 +454,8 @@ export function activate(context: ExtensionContext): void {
 
     context.subscriptions.push(workspace.onDidChangeConfiguration((e: ConfigurationChangeEvent) => {
         if (e.affectsConfiguration("boxlang.lsp")) {
-            client.sendRequest("boxlang/changesettings", workspace.getConfiguration("boxlang.lsp"));
+            const settings = workspace.getConfiguration("boxlang.lsp");
+            client.sendNotification("workspace/didChangeConfiguration", { settings });
         }
     }));
 
@@ -520,7 +521,7 @@ async function runSetup( context: ExtensionContext ){
     setupVersionManagement(context);
     migrateSettings(false);
 
-    LSP.startLSP()
+    client = LSP.startLSP()
 
     try {
         setupServers(context);

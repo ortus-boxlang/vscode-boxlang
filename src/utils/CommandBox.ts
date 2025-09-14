@@ -66,6 +66,10 @@ async function runCommandBox(env: Record<string, any>, ...args: string[]): Promi
     });
 }
 
+export async function installBoxLangModuleToDir( moduleName: string, directory: string ): Promise<CommandBoxResult> {
+    return runCommandBox({}, "install", `id=${moduleName}`, `directory=${directory}`);
+}
+
 export async function installBoxLangModule(boxlangHome: string, moduleName: string): Promise<CommandBoxResult> {
     return runCommandBox({ BOXLANG_HOME: boxlangHome }, "install", moduleName, "--verbose");
 }

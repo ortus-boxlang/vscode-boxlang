@@ -5,11 +5,13 @@ import { getJavaInstallDir } from "./Java";
 let INCLUDED_BOXLANG_JAR_PATH = "";
 let INCLUDED_BOXLANG_MINISERVER_JAR_PATH = "";
 let INCLUDED_BOXLANG_LSP_PATH = "";
+let DEFAULT_LSP_BOXLANG_HOME = "";
 
 export function setupConfiguration(context: ExtensionContext) {
     INCLUDED_BOXLANG_JAR_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang.jar");
     INCLUDED_BOXLANG_MINISERVER_JAR_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang-miniserver.jar");
     INCLUDED_BOXLANG_LSP_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang-lsp.jar");
+    DEFAULT_LSP_BOXLANG_HOME = path.join(context.storageUri.fsPath, "default_lsp_boxlang_home");
 }
 
 export function getUserProfileBoxLangHome() {
@@ -84,6 +86,28 @@ export const ExtensionConfig = {
         const jarPath = workspace.getConfiguration("boxlang").get<string>('lspjarpath');
 
         return jarPath || INCLUDED_BOXLANG_LSP_PATH;
+    },
+
+    get boxLangLSPBoxLangVersion() {
+        return workspace.getConfiguration("boxlang.lsp").get<string>('boxLangVersion');
+    },
+
+    get boxlangLSPVersion() {
+        return workspace.getConfiguration("boxlang.lsp").get<string>('lspVersion');
+    },
+
+    get boxlangLSPBoxLangHome() {
+        const lspBoxLangHome = workspace.getConfiguration("boxlang.lsp").get<string>('boxLangHome');
+
+        if( !lspBoxLangHome ){
+            return DEFAULT_LSP_BOXLANG_HOME;
+        }
+
+        if( path.isAbsolute(lspBoxLangHome) ){
+            return lspBoxLangHome;
+        }
+
+        return path.join( workspace.workspaceFolders[0].uri.fsPath, lspBoxLangHome);
     },
 
     get boxlangMaxHeapSize() {

@@ -59,6 +59,32 @@ export async function getDownloadedBoxLangVersions(): Promise<BoxLangVersion[]> 
     return versions;
 }
 
+export async function ensureBoxLangVersion(version: String): Promise<string> {
+    boxlangOutputChannel.appendLine("Ensuring BoxLang version is installed: " + version);
+    const boxlangVersionSring = version.startsWith("boxlang-") ? version : `boxlang-${version}`;
+    const downloadedVersions = await getDownloadedBoxLangVersions();
+
+    const versionObj = downloadedVersions.find(v => v.name === boxlangVersionSring);
+
+    try {
+        await fs.access(versionObj.jarPath);
+        boxlangOutputChannel.appendLine("BoxLang version found: " + boxlangVersionSring);
+        return versionObj.jarPath;
+    }
+    catch (e) {
+        const availableVersions = await getAvailableBoxLangVerions();
+        const versionToDownload = availableVersions.find(v => v.name === boxlangVersionSring);
+        boxlangOutputChannel.appendLine("BoxLang version not found, installing: " + versionToDownload.name);
+        try{
+            const jarPath = await installVersion(versionToDownload);
+            return jarPath;
+        }
+        catch(e){
+            boxlangOutputChannel.appendLine("Error installing BoxLang version: " + versionToDownload.name);
+        }
+    }
+}
+
 export async function installVersion(version: BoxLangVersion) {
     const versionPath = path.join(BOXLANG_INSTALLATIONS, version.name);
 
@@ -72,8 +98,10 @@ export async function installVersion(version: BoxLangVersion) {
 
     await fs.mkdir(versionPath);
 
-    await fileUtil.downloadFile(version.url, path.join(versionPath, version.url.split("/").pop()));
+    const jarPath = await fileUtil.downloadFile(version.url, path.join(versionPath, version.url.split("/").pop()));
     await fs.writeFile(path.join(versionPath, "version.json"), JSON.stringify(version));
+
+    return jarPath;
 }
 
 

@@ -296,6 +296,22 @@
                     "description": "The port to use for local development",
                     "scope": "window"
                 },
+                "boxlang.lsp.lspVersion": {
+                    "type": "string",
+                    "description": "Set the version of the language server to use",
+                    "scope": "resource",
+                    "default": "bx-lsp@1.1.0+2"
+                },
+                "boxlang.lsp.boxLangHome": {
+                    "type": "string",
+                    "description": "Set the home directory for the BoxLang Language Server",
+                    "scope": "resource"
+                },
+                "boxlang.lsp.boxLangVersion": {
+                    "type": "string",
+                    "description": "Set the BoxLang runtime version of the BoxLang Language Server - set this at your own risk. It could error if the LSP module doesn't match this version.",
+                    "scope": "resource"
+                },
                 "boxlang.lsp.maxHeapSize": {
                     "type": "integer",
                     "description": "Set the heap size of the JVM, default is 512 megabytes",
@@ -310,6 +326,18 @@
                     "type": "boolean",
                     "description": "Enable expermiental support for boxlang diagnostic reporting",
                     "scope": "window"
+                },
+                "boxlang.lsp.enableBackgroundParsing": {
+                    "type": "boolean",
+                    "description": "Enable background parsing for boxlang files",
+                    "scope": "work",
+                    "default": false
+                },
+                "boxlang.lsp.processDiagnosticsInParallel": {
+                    "type": "boolean",
+                    "description": "Run diagnostic processing in parallel",
+                    "scope": "window",
+                    "default": true
                 },
                 "boxlang.showLexerTokens": {
                     "type": "boolean",
