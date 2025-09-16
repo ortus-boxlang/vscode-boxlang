@@ -50,10 +50,6 @@ function run(){
     const miniserverJarURL = `https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-miniserver/${miniserverVersion}/boxlang-miniserver-${miniserverVersion}.jar`
     const miniserverSaeLocation = path.join(__dirname, "..", "resources", "lib", "boxlang-miniserver.jar" );
     downloadJar(miniserverJarURL, miniserverSaeLocation);
-
-    // download the lsp
-    downloadLSP( lspVersion );
-
 }
 
 run();

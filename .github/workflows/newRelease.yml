@@ -54,7 +54,7 @@ jobs:
     if: needs.createReleaseVersion.outputs.isPatch == false
     steps:
       - name: Checkout Development Branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: development
@@ -90,9 +90,9 @@ jobs:
     # Run if triggered by push OR if manually triggered with publishToVSMarketplace enabled
     if: ${{ always() && (github.event_name == 'push' || inputs.publishToVSMarketplace == true) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: ${{ needs.buildAndPackageRelease.outputs.packageName }}
           path: .tmp

@@ -1,5 +1,4 @@
 {
-    "boxlang": "1.1.0-snapshot",
-    "miniserver": "1.1.0-snapshot",
-    "bx-lsp": "1.0.0-snapshot"
+    "boxlang": "1.5.0-snapshot",
+    "miniserver": "1.5.0-snapshot"
 }

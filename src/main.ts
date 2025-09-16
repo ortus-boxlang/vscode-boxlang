@@ -30,7 +30,6 @@ import CFMLCompletionItemProvider from "./features/completionItemProvider";
 import CFMLDefinitionProvider from "./features/definitionProvider";
 import DocBlockCompletions from "./features/docBlocker/docCompletionProvider";
 import CFMLDocumentLinkProvider from "./features/documentLinkProvider";
-import CFMLDocumentSymbolProvider from "./features/documentSymbolProvider";
 import CFMLHoverProvider from "./features/hoverProvider";
 import CFMLSignatureHelpProvider from "./features/signatureHelpProvider";
 import CFMLTypeDefinitionProvider from "./features/typeDefinitionProvider";
@@ -298,7 +297,6 @@ export function activate(context: ExtensionContext): void {
 
 
     context.subscriptions.push(languages.registerHoverProvider(DOCUMENT_SELECTOR, new CFMLHoverProvider()));
-    context.subscriptions.push(languages.registerDocumentSymbolProvider(DOCUMENT_SELECTOR, new CFMLDocumentSymbolProvider()));
     context.subscriptions.push(languages.registerSignatureHelpProvider(DOCUMENT_SELECTOR, new CFMLSignatureHelpProvider(), "(", ","));
     context.subscriptions.push(languages.registerDocumentLinkProvider(DOCUMENT_SELECTOR, new CFMLDocumentLinkProvider() as any));
     context.subscriptions.push(languages.registerWorkspaceSymbolProvider(new CFMLWorkspaceSymbolProvider() as any));
@@ -456,7 +454,8 @@ export function activate(context: ExtensionContext): void {
 
     context.subscriptions.push(workspace.onDidChangeConfiguration((e: ConfigurationChangeEvent) => {
         if (e.affectsConfiguration("boxlang.lsp")) {
-            client.sendRequest("boxlang/changesettings", workspace.getConfiguration("boxlang.lsp"));
+            const settings = workspace.getConfiguration("boxlang.lsp");
+            client.sendNotification("workspace/didChangeConfiguration", { settings });
         }
     }));
 
@@ -522,7 +521,7 @@ async function runSetup( context: ExtensionContext ){
     setupVersionManagement(context);
     migrateSettings(false);
 
-    LSP.startLSP()
+    client = LSP.startLSP()
 
     try {
         setupServers(context);

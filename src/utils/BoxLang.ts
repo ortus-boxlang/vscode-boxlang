@@ -1,9 +1,8 @@
 import { ChildProcessWithoutNullStreams } from "child_process";
 import fs from "fs";
 import path from "path";
-import vscode from "vscode";
 import * as portFinder from "portfinder";
-import { ExtensionContext, window } from "vscode";
+import vscode, { ExtensionContext, window } from "vscode";
 import { ExtensionConfig } from "../utils/Configuration";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
 import { trackedSpawn } from "./ProcessTracker";
@@ -31,6 +30,50 @@ export async function setupVSCodeBoxLangHome(context: ExtensionContext): Promise
     // use this to generate a home folder
     BoxLang.getVersionOutput();
 }
+
+export async function startLSPProcess(
+    boxlangHome: string,
+    lspModulePath: string,
+    boxlangVersionPath: string
+): Promise<Array<any>> {
+    return new Promise((resolve, reject) => {
+        const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+        const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
+        const jvmArgs = ExtensionConfig.boxlangLSPJVMArgs.length ? ExtensionConfig.boxlangLSPJVMArgs.split( " " ) : [];
+        const lsp = trackedSpawn(javaExecutable, [ maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
+            env: {
+                BOXLANG_HOME: boxlangHome,
+                BOXLANG_MODULESDIRECTORY: lspModulePath,
+                BOXLANG_DEBUGMODE: "true",
+                CLASSPATH: boxlangVersionPath
+            }
+        });
+        let stdout = '';
+        let found = false;
+
+        lsp.stdout.on("data", data => {
+            stdout += data;
+
+            if (found) {
+                return;
+            }
+
+            const matches = /Listening on port: (\d+)/mi.exec(stdout);
+
+            if (!matches) {
+                return;
+            }
+
+            found = true;
+            resolve([lsp, matches[1]]);
+        });
+
+        lsp.stderr.on("data", data => {
+            boxlangOutputChannel.appendLine(data + "");
+        });
+    });
+}
+
 
 async function runBoxLangWithHome(boxlangHome, ...args: string[]): Promise<BoxLangResult> {
     return new Promise((resolve, reject) => {
