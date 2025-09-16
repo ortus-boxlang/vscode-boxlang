@@ -8,6 +8,7 @@
 - Add var scoping check
 - BLIDE-125 refactor caching progress message
 - BLIDE-86 Remove duplicate entries in the outline view
+- BLIDE-147 Rewrite handling of lsp configuration
 
 ## [1.7.0] - 2025-05-27
 

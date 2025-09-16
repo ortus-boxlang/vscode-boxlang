@@ -41,8 +41,6 @@ export function startLSP() {
         true
     );
 
-
-
     client.traceOutputChannel.show(true);
     client.setTrace(Trace.Verbose);
     client.start().then(() => {
