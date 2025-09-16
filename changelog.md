@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.10.0] - 2025-09-16
+
 - Bump BoxLang version to 1.5.0
 - Bump LSP version to 1.1.0
 - Add unused variable check
@@ -115,50 +117,28 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[Unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.3...HEAD
-
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.3...v1.10.0
 [1.7.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.2...v1.7.3
-
 [1.7.2]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.1...v1.7.2
-
 [1.7.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.0...v1.7.1
-
 [1.7.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.24...v1.7.0
-
 [1.3.24]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.24...v1.3.24
-
 [1.3.21]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.21...v1.3.21
-
 [1.3.20]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.18...v1.3.20
-
 [1.3.18]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.17...v1.3.18
-
 [1.3.17]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.16...v1.3.17
-
 [1.3.16]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.15...v1.3.16
-
 [1.3.15]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.13...v1.3.15
-
 [1.3.13]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.12...v1.3.13
-
 [1.3.12]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.11...v1.3.12
-
 [1.3.11]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.10...v1.3.11
-
 [1.3.10]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.9...v1.3.10
-
 [1.3.9]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.8...v1.3.9
-
 [1.3.8]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.7...v1.3.8
-
 [1.3.7]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.5...v1.3.7
-
 [1.3.5]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.5...v1.3.5
-
 [1.3.4]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.3...v1.3.4
-
 [1.3.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.2...v1.3.3
-
 [1.3.2]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.3.1...v1.3.2
-
 [1.3.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/df91d9ff46061157e7b5fd1a55a6af9db645c681...v1.3.1
