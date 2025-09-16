@@ -81,6 +81,7 @@ export async function ensureBoxLangVersion(version: String): Promise<string> {
         }
         catch(e){
             boxlangOutputChannel.appendLine("Error installing BoxLang version: " + versionToDownload.name);
+            throw e;
         }
     }
 }
