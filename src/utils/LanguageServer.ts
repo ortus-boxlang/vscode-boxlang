@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import net from "net";
 import path from "path";
 import * as vscode from "vscode";
-import { LanguageClient, ServerOptions, Trace } from "vscode-languageclient/node";
+import { LanguageClient, ServerOptions } from "vscode-languageclient/node";
 import { getExtensionContext } from "../context";
 import { startLSPProcess } from "./BoxLang";
 import { installBoxLangModuleToDir } from "./CommandBox";
@@ -41,8 +41,6 @@ export function startLSP() {
         true
     );
 
-    client.traceOutputChannel.show(true);
-    client.setTrace(Trace.Verbose);
     client.start().then(() => {
         boxlangOutputChannel.appendLine("The language server was succesfully started");
         client.sendNotification("workspace/didChangeConfiguration", { settings: vscode.workspace.getConfiguration("boxlang.lsp") });

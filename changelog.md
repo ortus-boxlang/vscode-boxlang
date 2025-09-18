@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-155 disable showing the output channel on startup
+
 ## [1.10.0] - 2025-09-16
 
 - Bump BoxLang version to 1.5.0
