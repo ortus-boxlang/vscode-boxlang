@@ -2,19 +2,55 @@
 import vscode, { ExtensionContext } from "vscode";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
 import { getBvmrcVersion } from "../utils/Configuration";
+import { getDownloadedBoxLangVersions } from "../utils/versionManager";
+import * as path from "path";
 
-function getVersionDisplay(): string {
+async function getConfiguredVersionName(): Promise<string> {
+    try {
+        // Get the current jar path from settings (without .bvmrc override)
+        const jarPath = vscode.workspace.getConfiguration("boxlang").get<string>('jarpath');
+        
+        if (!jarPath) {
+            return "Built-in";
+        }
+
+        // Try to find the version name from downloaded versions
+        const downloadedVersions = await getDownloadedBoxLangVersions();
+        const matchingVersion = downloadedVersions.find(v => v.jarPath === jarPath);
+        
+        if (matchingVersion) {
+            // Remove "boxlang-" prefix if present for cleaner display
+            return matchingVersion.name.replace(/^boxlang-/, "");
+        }
+
+        // If it's a custom path, try to extract version from filename
+        const filename = path.basename(jarPath, '.jar');
+        if (filename.includes('boxlang')) {
+            return filename.replace(/^boxlang-?/, "") || "Custom";
+        }
+
+        return "Custom";
+    } catch (error) {
+        return "Default";
+    }
+}
+
+async function getVersionDisplay(): Promise<string> {
     const bvmrcVersion = getBvmrcVersion();
     if (bvmrcVersion) {
         return `Current Version: ${bvmrcVersion} (from .bvmrc)`;
     }
-    return "Current Version: Default (from settings)";
+    
+    const configuredVersion = await getConfiguredVersionName();
+    return `Current Version: ${configuredVersion} (from settings)`;
 }
 
 export async function showStatusBarCommandPicker(context: ExtensionContext) {
+    const versionDisplay = await getVersionDisplay();
+    
     const items = [
         {
-            label: getVersionDisplay(),
+            label: versionDisplay,
             command: () => {
                 // Do nothing, this is just for display
             }
