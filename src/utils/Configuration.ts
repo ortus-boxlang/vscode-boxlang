@@ -6,6 +6,8 @@ let INCLUDED_BOXLANG_JAR_PATH = "";
 let INCLUDED_BOXLANG_MINISERVER_JAR_PATH = "";
 let INCLUDED_BOXLANG_LSP_PATH = "";
 let DEFAULT_LSP_BOXLANG_HOME = "";
+let BVMRC_VERSION: string | null = null;
+let BVMRC_JAR_PATH: string | null = null;
 
 export function setupConfiguration(context: ExtensionContext) {
     INCLUDED_BOXLANG_JAR_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang.jar");
@@ -18,6 +20,24 @@ export function getUserProfileBoxLangHome() {
     const userProfile = process.env.USERPROFILE || process.env.HOME;
 
     return path.join(userProfile, ".boxlang");
+}
+
+/**
+ * Sets the .bvmrc version to be used for the current workspace
+ * @param version The version string from .bvmrc
+ * @param jarPath The path to the JAR file for this version
+ */
+export function setBvmrcVersion(version: string | null, jarPath: string | null = null) {
+    BVMRC_VERSION = version;
+    BVMRC_JAR_PATH = jarPath;
+}
+
+/**
+ * Gets the current .bvmrc version if set
+ * @returns The version string or null if not set
+ */
+export function getBvmrcVersion(): string | null {
+    return BVMRC_VERSION;
 }
 
 export const ExtensionConfig = {
@@ -77,6 +97,11 @@ export const ExtensionConfig = {
     },
 
     get boxlangJarPath() {
+        // If .bvmrc version is set and jar path is available, use it
+        if (BVMRC_VERSION && BVMRC_JAR_PATH) {
+            return BVMRC_JAR_PATH;
+        }
+
         const jarPath = workspace.getConfiguration("boxlang").get<string>('jarpath');
 
         return jarPath || INCLUDED_BOXLANG_JAR_PATH;
