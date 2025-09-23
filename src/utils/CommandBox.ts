@@ -129,7 +129,7 @@ async function getLocalCommandBoxPath(): Promise<string | null> {
     const isWindows = os.platform() === "win32";
     const boxExecutableName = isWindows ? "box.exe" : "box";
 
-    return path.join(commandBoxDir, "bin", boxExecutableName);
+    return path.join(commandBoxDir, boxExecutableName);
 }
 
 /**

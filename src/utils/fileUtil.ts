@@ -160,30 +160,78 @@ export async function downloadFile(url: string, path: string): Promise<string> {
     });
 }
 
-export async function extractArchive(archiveFilePath: string, parentDir: string) {
-    const existingFiles = fs.readdirSync(parentDir);
-
+export async function extractArchive(archiveFilePath: string, parentDir: string): Promise<string> {
     if (/\.zip$/.test(archiveFilePath)) {
-        await extractZip(archiveFilePath, parentDir);
+        return await extractZip(archiveFilePath, parentDir);
     }
     else {
-        await extractTarGz(archiveFilePath, parentDir);
+        return await extractTarGz(archiveFilePath, parentDir);
+    }
+}
+
+async function extractTarGz(archiveFilePath: string, destPath: string): Promise<string> {
+    // Use tar.list() to get the first entry which is usually the root directory
+    const entries: string[] = [];
+    await tar.list({
+        file: archiveFilePath,
+        onentry: (entry) => {
+            entries.push(entry.path);
+        }
+    });
+
+    // Extract the archive
+    await tar.x({
+        f: archiveFilePath,
+        C: destPath
+    });
+
+    if (entries.length === 0) {
+        throw new Error("Archive appears to be empty");
     }
 
-    const newFiles = fs.readdirSync(parentDir);
+    // Get the first entry which is typically the root directory or file
+    const firstEntry = entries[0];
+    const extractedPath = path.join(destPath, firstEntry);
 
-    return path.join(parentDir, newFiles.find(file => !existingFiles.includes(file)));
+    return extractedPath;
 }
 
-async function extractTarGz(archiveFilePath: string, destPath: string) {
-    return tar.x({
-        f: archiveFilePath,
-        C: destPath // alias for cwd:'some-dir', also ok
-    });
-}
+async function extractZip(archiveFilePath: string, destPath: string): Promise<string> {
+    // Extract and get the list of extracted entries
+    const extractedEntries: string[] = [];
 
-async function extractZip(archiveFilePath: string, destPath: string) {
     await extract(archiveFilePath, {
-        dir: destPath
+        dir: destPath,
+        onEntry: (entry) => {
+            extractedEntries.push(entry.fileName);
+        }
     });
+
+    if (extractedEntries.length === 0) {
+        throw new Error("Archive appears to be empty");
+    }
+
+    // Find the root directory/file - typically the first entry or the shortest path
+    const rootEntry = extractedEntries
+        .filter(entry => !entry.includes('/') || entry.split('/').length === 2)
+        .sort((a, b) => a.length - b.length)[0];
+
+    if (!rootEntry) {
+        // Fallback: use the common prefix of all entries
+        const commonPrefix = extractedEntries.reduce((prefix, entry) => {
+            const entryPath = entry.split('/')[0];
+            return prefix === null ? entryPath : (prefix === entryPath ? prefix : '');
+        }, null as string | null);
+
+        if (commonPrefix) {
+            return path.join(destPath, commonPrefix);
+        }
+
+        // Last resort: return the destination path
+        return destPath;
+    }
+
+    // Remove trailing slash if present and get the first part of the path
+    const cleanEntry = rootEntry.replace(/\/$/, '').split('/')[0];
+    return path.join(destPath, cleanEntry);
 }

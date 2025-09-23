@@ -181,32 +181,80 @@ async function getSpecificDownloadLink(){
     return getDownloadLink(osMap[process.platform], archMap[process.arch]);
 }
 
-async function extractArchive(javaInstallDir: string, archiveFilePath: string) {
-    const existingFiles = fs.readdirSync(javaInstallDir);
-
+async function extractArchive(javaInstallDir: string, archiveFilePath: string): Promise<string> {
     if (/\.zip$/.test(archiveFilePath)) {
-        await extractZip(javaInstallDir, archiveFilePath);
+        return await extractZip(javaInstallDir, archiveFilePath);
     }
     else {
-        await extractTarGz(javaInstallDir, archiveFilePath);
+        return await extractTarGz(javaInstallDir, archiveFilePath);
+    }
+}
+
+async function extractTarGz(javaInstallDir: string, archiveFilePath: string): Promise<string> {
+    // Use tar.list() to get the first entry which is usually the root directory
+    const entries: string[] = [];
+    await tar.list({
+        file: archiveFilePath,
+        onentry: (entry) => {
+            entries.push(entry.path);
+        }
+    });
+
+    // Extract the archive
+    await tar.x({
+        f: archiveFilePath,
+        C: javaInstallDir
+    });
+
+    if (entries.length === 0) {
+        throw new Error("Archive appears to be empty");
     }
 
-    const newFiles = fs.readdirSync(javaInstallDir);
+    // Get the first entry which is typically the root directory or file
+    const firstEntry = entries[0];
+    const extractedPath = path.join(javaInstallDir, firstEntry);
 
-    return path.join(javaInstallDir, newFiles.find(file => !existingFiles.includes(file)));
+    return extractedPath;
 }
 
-async function extractTarGz(javaInstallDir: string, archiveFilePath: string) {
-    return tar.x({
-        f: archiveFilePath,
-        C: javaInstallDir // alias for cwd:'some-dir', also ok
-    });
-}
+async function extractZip(javaInstallDir: string, archiveFilePath: string): Promise<string> {
+    // Extract and get the list of extracted entries
+    const extractedEntries: string[] = [];
 
-async function extractZip(javaInstallDir: string, archiveFilePath: string) {
     await extract(archiveFilePath, {
-        dir: javaInstallDir
+        dir: javaInstallDir,
+        onEntry: (entry) => {
+            extractedEntries.push(entry.fileName);
+        }
     });
+
+    if (extractedEntries.length === 0) {
+        throw new Error("Archive appears to be empty");
+    }
+
+    // Find the root directory/file - typically the first entry or the shortest path
+    const rootEntry = extractedEntries
+        .filter(entry => !entry.includes('/') || entry.split('/').length === 2)
+        .sort((a, b) => a.length - b.length)[0];
+
+    if (!rootEntry) {
+        // Fallback: use the common prefix of all entries
+        const commonPrefix = extractedEntries.reduce((prefix, entry) => {
+            const entryPath = entry.split('/')[0];
+            return prefix === null ? entryPath : (prefix === entryPath ? prefix : '');
+        }, null as string | null);
+
+        if (commonPrefix) {
+            return path.join(javaInstallDir, commonPrefix);
+        }
+
+        // Last resort: return the destination path
+        return javaInstallDir;
+    }
+
+    // Remove trailing slash if present and get the first part of the path
+    const cleanEntry = rootEntry.replace(/\/$/, '').split('/')[0];
+    return path.join(javaInstallDir, cleanEntry);
 }
 
 
