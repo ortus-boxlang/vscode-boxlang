@@ -5,7 +5,7 @@ import * as vscode from "vscode";
 import { LanguageClient, ServerOptions } from "vscode-languageclient/node";
 import { getExtensionContext } from "../context";
 import { startLSPProcess } from "./BoxLang";
-import { installBoxLangModuleToDir } from "./CommandBox";
+import { installBoxLangModuleToDir, installBoxLangModule } from "./CommandBox";
 import { ExtensionConfig } from "./Configuration";
 import { boxlangOutputChannel } from "./OutputChannels";
 import { ensureBoxLangVersion } from "./versionManager";
@@ -82,7 +82,7 @@ async function startLanguageServerProcess() {
     const lspModulePath = await ensureLSPModule();
     const boxlangVersionPath = await ensureBoxLangVersion( await getRequiredBoxLangVersion( lspModulePath) );
     const lspBoxLangHome =await ensureLSPBoxLangHome();
-    ensureBoxLangModules();
+    await ensureBoxLangModules(lspBoxLangHome);
 
     return startLSPProcess(
         lspBoxLangHome,
@@ -145,11 +145,41 @@ async function ensureLSPBoxLangHome() {
 
 
 
-function ensureBoxLangModules(){
-    // TODO install boxmodules
-    // get the configured boxlang.lsp.boxlangHome
-        // check for bx_modules in boxlang.lsp.bxModules
-            // download any that are missing
+async function ensureBoxLangModules(lspBoxLangHome: string) {
+    const configuredModules = ExtensionConfig.boxlangLSPModules;
+    
+    if (!configuredModules) {
+        boxlangOutputChannel.appendLine("No BoxLang modules configured for LSP");
+        return;
+    }
+
+    // Parse comma-delimited list and filter out empty strings
+    const moduleNames = configuredModules
+        .split(',')
+        .map(name => name.trim())
+        .filter(name => name.length > 0);
+
+    if (moduleNames.length === 0) {
+        boxlangOutputChannel.appendLine("No valid BoxLang modules configured for LSP");
+        return;
+    }
+
+    boxlangOutputChannel.appendLine(`Installing BoxLang modules for LSP: ${moduleNames.join(', ')}`);
+    
+    for (const moduleName of moduleNames) {
+        try {
+            boxlangOutputChannel.appendLine(`Installing module: ${moduleName}`);
+            const result = await installBoxLangModule(lspBoxLangHome, moduleName);
+            
+            if (result.code === 0) {
+                boxlangOutputChannel.appendLine(`Successfully installed module: ${moduleName}`);
+            } else {
+                boxlangOutputChannel.appendLine(`Failed to install module ${moduleName}: ${result.stderr}`);
+            }
+        } catch (error) {
+            boxlangOutputChannel.appendLine(`Error installing module ${moduleName}: ${error}`);
+        }
+    }
 }
 
 /**

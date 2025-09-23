@@ -146,6 +146,10 @@ export const ExtensionConfig = {
         return workspace.getConfiguration("boxlang.lsp").get<string>('jvmArgs');
     },
 
+    get boxlangLSPModules() {
+        return workspace.getConfiguration("boxlang.lsp").get<string>('modules') || '';
+    },
+
     get boxlangServerPort() {
         return Number.parseInt(workspace.getConfiguration("boxlang").get<string>('webPort')) || 8080;
     },
