@@ -50,6 +50,7 @@ import { registerStatusBar } from "./features/statusBar";
 import { migrateSettings } from "./settingMigration";
 import { BoxLangTaskProvider } from "./tasks/BoxLangTaskProvider";
 import { setupVSCodeBoxLangHome } from "./utils/BoxLang";
+import { setupCommandBox } from "./utils/CommandBox";
 import { setupConfiguration } from "./utils/Configuration";
 import { setupLocalJavaInstall } from "./utils/Java";
 import * as LSP from "./utils/LanguageServer";
@@ -524,8 +525,9 @@ async function runSetup( context: ExtensionContext ){
         fs.mkdirSync(context.globalStorageUri.fsPath);
     }
 
-    if (!fs.existsSync(context.globalStorageUri.fsPath)) {
-        fs.mkdirSync(path.join( context.globalStorageUri.fsPath, "globalModules" ));
+    const globalModulesPath = path.join(context.globalStorageUri.fsPath, "globalModules");
+    if (!fs.existsSync(globalModulesPath)) {
+        fs.mkdirSync(globalModulesPath);
     }
 
     await setupLocalJavaInstall( context );
@@ -533,6 +535,8 @@ async function runSetup( context: ExtensionContext ){
     setupConfiguration(context);
     setupVSCodeBoxLangHome(context);
     setupVersionManagement(context);
+
+    await setupCommandBox(context);
     
     // Setup .bvmrc support after version management is ready
     await setupBvmrcSupport(context);
