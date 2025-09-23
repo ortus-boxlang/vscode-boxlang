@@ -45,6 +45,20 @@ npm run build
 npm run pack
 ```
 
+## Testing
+
+The extension includes automated tests for core functionality. To run the tests:
+
+```bash
+npm test
+```
+
+Tests are located in the `src/test/suite/` directory and use Mocha as the test framework. The current test suite includes:
+
+- **statusBar.test.ts**: Tests for status bar functionality including registration, text setting, and loading states
+
+To add new tests, create `.test.ts` files in the `src/test/suite/` directory following the existing patterns.
+
 Once the `npm run pack` command completes you should see a file in the root fo the project like `boxlang-#.#.#.vsix`. This VSIX package is the bundeled extension and should be ready to install.
 
 You can install it via command line like so

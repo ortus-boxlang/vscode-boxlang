@@ -58,6 +58,7 @@ import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
 import { setupServers } from "./utils/Server";
 import { setupVersionManagement } from "./utils/versionManager";
 import { setupWorkspace } from "./utils/workspaceSetup";
+import { setupBvmrcSupport } from "./utils/bvmrcSupport";
 import { boxlangServerHomeTreeDataProvider } from "./views/ServerHomesView";
 import { boxlangServerTreeDataProvider } from "./views/ServerView";
 
@@ -384,6 +385,19 @@ export function activate(context: ExtensionContext): void {
         }
     }));
 
+    // Watch for .bvmrc file changes
+    const bvmrcWatcher: FileSystemWatcher = workspace.createFileSystemWatcher("**/.bvmrc", false, false, false);
+    context.subscriptions.push(bvmrcWatcher);
+    bvmrcWatcher.onDidCreate(async () => {
+        await setupBvmrcSupport(context);
+    });
+    bvmrcWatcher.onDidChange(async () => {
+        await setupBvmrcSupport(context);
+    });
+    bvmrcWatcher.onDidDelete(async () => {
+        await setupBvmrcSupport(context);
+    });
+
     const cfmlSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang");
     const autoCloseTagExtId = "formulahendry.auto-close-tag";
     const autoCloseTagExt = extensions.getExtension(autoCloseTagExtId);
@@ -521,7 +535,12 @@ async function runSetup( context: ExtensionContext ){
     setupConfiguration(context);
     setupVSCodeBoxLangHome(context);
     setupVersionManagement(context);
+
     await setupCommandBox(context);
+    
+    // Setup .bvmrc support after version management is ready
+    await setupBvmrcSupport(context);
+    
     migrateSettings(false);
 
     client = LSP.startLSP()
