@@ -244,7 +244,6 @@ async function runCommandBox(env: Record<string, any>, ...args: string[]): Promi
         });
 
         boxLang.stderr.on("data", data => {
-            boxlangOutputChannel.appendLine(data + "");
             stderr += data;
         });
 
@@ -263,7 +262,7 @@ async function runCommandBox(env: Record<string, any>, ...args: string[]): Promi
 }
 
 export async function installBoxLangModuleToDir( moduleName: string, directory: string ): Promise<CommandBoxResult> {
-    return runCommandBox({}, "install", `id=${moduleName}`, `directory=${directory}`);
+    return runCommandBox({}, "install", `id=${moduleName}`, `directory="${directory}"`);
 }
 
 export async function installBoxLangModule(boxlangHome: string, moduleName: string): Promise<CommandBoxResult> {
