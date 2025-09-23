@@ -54,6 +54,16 @@
         "problemMatcher": [
             "$ts-webpack-watch"
         ]
+    },
+    {
+        "type": "npm",
+        "script": "test",
+        "group": "test",
+        "problemMatcher": [],
+        "presentation": {
+            "reveal": "always",
+            "panel": "new"
+        }
     }
   ]
 }
