@@ -30,6 +30,7 @@ export async function stop() {
 
 export function startLSP() {
     client = new LanguageClient(
+        "boxlang",
         "BoxLang Language Support",
         getLSPServerConfig(),
         {
