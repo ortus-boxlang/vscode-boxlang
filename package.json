@@ -339,6 +339,12 @@
                     "scope": "window",
                     "default": true
                 },
+                "boxlang.lsp.modules": {
+                    "type": "string",
+                    "description": "Comma-delimited list of BoxLang modules to install in the LSP home before booting up",
+                    "scope": "resource",
+                    "default": ""
+                },
                 "boxlang.showLexerTokens": {
                     "type": "boolean",
                     "description": "Controls whether to show the lexer processing output",
