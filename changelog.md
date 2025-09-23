@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - BLIDE-155 disable showing the output channel on startup
+- BLIDE-157 Fix LSP install on Mac
 
 ## [1.10.0] - 2025-09-16
 
