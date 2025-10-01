@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import * as fs from "fs";
-import * as path from "path";
 import * as os from "os";
+import * as path from "path";
 import { ExtensionContext } from "vscode";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
 import { downloadFile, extractArchive } from "./fileUtil";
@@ -235,7 +235,7 @@ async function refresBoxLangModuleCache() {
 //     return path.join(process.env.USERPROFILE, ".CommandBox")
 // }
 
-async function runCommandBox(env: Record<string, any>, ...args: string[]): Promise<CommandBoxResult> {
+export async function runCommandBox(env: Record<string, any>, ...args: string[]): Promise<CommandBoxResult> {
     if (!boxExecutable) {
         throw new Error("CommandBox is not available. Please ensure CommandBox is installed or restart the extension.");
     }
@@ -277,7 +277,7 @@ async function runCommandBox(env: Record<string, any>, ...args: string[]): Promi
 }
 
 export async function installBoxLangModuleToDir( moduleName: string, directory: string ): Promise<CommandBoxResult> {
-    return runCommandBox({}, "install", `id=${moduleName}`, `directory="${directory}"`);
+    return runCommandBox({}, "install", `id=${moduleName}`, `directory="${directory}"` );
 }
 
 export async function installBoxLangModule(boxlangHome: string, moduleName: string): Promise<CommandBoxResult> {

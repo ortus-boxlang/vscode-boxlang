@@ -39,19 +39,22 @@ export async function removeVersion(versionToRemove: BoxLangVersion): Promise<vo
 }
 
 export async function getDownloadedBoxLangVersions(): Promise<BoxLangVersion[]> {
-    const entries = await fs.readdir(BOXLANG_INSTALLATIONS);
+    const entries = await fs.readdir(BOXLANG_INSTALLATIONS, { withFileTypes: true });
     const versions = [];
 
     for (const entry of entries) {
+        if( !entry.isDirectory() ){
+            continue;
+        }
         try {
-            const version = JSON.parse((await fs.readFile(path.join(BOXLANG_INSTALLATIONS, entry, "version.json"))) + "");
+            const version = JSON.parse((await fs.readFile(path.join(BOXLANG_INSTALLATIONS, entry.name, "version.json"))) + "");
             version.lastModified = new Date(version.lastModified);
-            version.jarPath = path.join(BOXLANG_INSTALLATIONS, entry, version.name + ".jar");
+            version.jarPath = path.join(BOXLANG_INSTALLATIONS, entry.name, version.name + ".jar");
 
             versions.push(version);
         }
         catch (e) {
-            boxlangOutputChannel.appendLine( "Error reading BoxLang version: " + entry );
+            boxlangOutputChannel.appendLine( "Error reading BoxLang version: " + entry.name );
             boxlangOutputChannel.appendLine( e );
         }
     }

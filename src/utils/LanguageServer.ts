@@ -5,7 +5,7 @@ import * as vscode from "vscode";
 import { LanguageClient, ServerOptions } from "vscode-languageclient/node";
 import { getExtensionContext } from "../context";
 import { startLSPProcess } from "./BoxLang";
-import { installBoxLangModuleToDir, installBoxLangModule } from "./CommandBox";
+import { installBoxLangModule, installBoxLangModuleToDir, runCommandBox } from "./CommandBox";
 import { ExtensionConfig } from "./Configuration";
 import { boxlangOutputChannel } from "./OutputChannels";
 import { ensureBoxLangVersion } from "./versionManager";
@@ -75,14 +75,50 @@ export function getLSPServerConfig(): ServerOptions {
     };
 }
 
+class InvalidLSPInstallationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "InvalidLSPInstallationError";
+    }
+}
+
 /**
  * Initiates the BoxLang Language Server process, ensuring that the necessary LSP module and BoxLang version are installed.
  * @returns A promise that resolves when the language server process has started. The promise returns an array where the first item is the child process and the second item is the port number.
  */
 async function startLanguageServerProcess() {
-    const lspModulePath = await ensureLSPModule();
+    let lspModulePath = null;
+
+    try{
+        lspModulePath = await ensureLSPModule();
+    }
+    catch (e) {
+        if( e instanceof InvalidLSPInstallationError ){
+            const choice = await vscode.window.showInformationMessage("BoxLang: The BoxLang Language Server installation is invalid. This may related to outdated dependcies.",
+                "Update",
+                "Cancel"
+            );
+
+            if (choice != "Update") {
+                throw e;
+            }
+
+            boxlangOutputChannel.appendLine("Updating commandbox-boxlang module");
+            await runCommandBox( {}, "install", "commandbox-boxlang", "--force" );
+            boxlangOutputChannel.appendLine("Attempting to reinstall LSP modules");
+            lspModulePath = await ensureLSPModule();
+        }
+
+    }
+
+    if( !lspModulePath ){
+        throw new Error("Unable to ensure BoxLang Language Server module is installed");
+    }
+
     const boxlangVersionPath = await ensureBoxLangVersion( await getRequiredBoxLangVersion( lspModulePath) );
-    const lspBoxLangHome =await ensureLSPBoxLangHome();
+    let lspBoxLangHome = await ensureLSPBoxLangHome();
+
+
     await ensureBoxLangModules( lspBoxLangHome);
 
     return startLSPProcess(
@@ -118,6 +154,16 @@ async function ensureLSPModule() {
     }
     catch (e) {
         await installBoxLangModuleToDir( lspVersion, lspVersionDir );
+
+        try {
+            await fs.access(path.join(lspVersionDir, "bx-lsp", "box.json"));
+        }
+        catch (e) {
+            boxlangOutputChannel.appendLine(`Tried to install LSP module but it appears to be invalid: ${lspVersion}`);
+            await fs.rm(lspVersionDir, { recursive: true, force: true });
+            throw new InvalidLSPInstallationError( "The BoxLang Language Server installation is invalid." )
+        }
+
         boxlangOutputChannel.appendLine(`Installed LSP module to: ${lspVersionDir}`);
     }
 
@@ -210,7 +256,7 @@ async function getRequiredBoxLangVersion( lspModulePath: string ): Promise<strin
     return "";
 }
 
-export async function findFirstBoxJson(dir: string): Promise<string | null> {
+async function findFirstBoxJson(dir: string): Promise<string | null> {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
