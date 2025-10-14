@@ -151,6 +151,13 @@ async function ensureLSPModule() {
     try {
         await fs.access(lspVersionDir);
         boxlangOutputChannel.appendLine(`LSP version directory exists: ${lspVersionDir}`);
+
+        const contents = await fs.readdir(lspVersionDir); // Just to check if we can read it
+
+        if( contents.length === 0 ){
+            await fs.rm(lspVersionDir, { recursive: true, force: true })
+            throw new Error("LSP version directory is empty");
+        }
     }
     catch (e) {
         await installBoxLangModuleToDir( lspVersion, lspVersionDir );
