@@ -4,6 +4,10 @@
 
 - BLIDE-155 disable showing the output channel on startup
 - BLIDE-157 Fix LSP install on Mac
+- BLIDE-165 More mac LSP issues
+- BLIDE-144 Demphasize unused variables
+- BLIDE-145 Detect unscoped variables in CFML
+- BLIDE-164 Add diagnostic rule configuration
 
 ## [1.10.0] - 2025-09-16
 
