@@ -300,7 +300,7 @@
                     "type": "string",
                     "description": "Set the version of the language server to use",
                     "scope": "resource",
-                    "default": "bx-lsp@1.5.0+6"
+                    "default": "bx-lsp@1.6.0+7"
                 },
                 "boxlang.lsp.boxLangHome": {
                     "type": "string",
