@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.12.1] - 2025-10-16
+
 ## [1.12.0] - 2025-10-16
 
 - BLIDE-155 disable showing the output channel on startup
@@ -126,7 +128,8 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.0...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.1...HEAD
+[1.12.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.10.0...v1.12.0
 [1.10.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.3...v1.10.0
 [1.7.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.2...v1.7.3
