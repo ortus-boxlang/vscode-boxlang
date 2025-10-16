@@ -235,12 +235,15 @@ async function refresBoxLangModuleCache() {
 //     return path.join(process.env.USERPROFILE, ".CommandBox")
 // }
 
-export async function runCommandBox(env: Record<string, any>, ...args: string[]): Promise<CommandBoxResult> {
+export async function runCommandBox(opts: Record<string, any>, ...args: string[]): Promise<CommandBoxResult> {
     if (!boxExecutable) {
         throw new Error("CommandBox is not available. Please ensure CommandBox is installed or restart the extension.");
     }
 
-    const environment = { ...process.env, ...env };
+    const environment: any = { ...process.env, ...(opts.env || {}),
+        HOME: process.env.HOME,        // ensure HOME is set
+        TMPDIR: process.env.TEMPDIR,       // ensure TMPDIR is set
+    };
 
     // If using local CommandBox, set the COMMANDBOX_HOME environment variable
     if (!boxExecutable.isSystemBox && boxExecutable.commandBoxHome) {
@@ -249,7 +252,9 @@ export async function runCommandBox(env: Record<string, any>, ...args: string[])
 
     return new Promise((resolve, reject) => {
         const boxLang = spawn(boxExecutable.path, args, {
-            env: environment
+            env: environment,
+            cwd: opts.cwd || process.cwd(),
+            shell: true
         });
         let stdout = '';
         let stderr = '';
@@ -277,15 +282,15 @@ export async function runCommandBox(env: Record<string, any>, ...args: string[])
 }
 
 export async function installBoxLangModuleToDir( moduleName: string, directory: string ): Promise<CommandBoxResult> {
-    return runCommandBox({}, "install", `id=${moduleName}`, `directory="${directory}"` );
+    return runCommandBox({ cwd: process.env.HOME}, "install", `id=${moduleName}`, `directory="${directory}"` );
 }
 
 export async function installBoxLangModule(boxlangHome: string, moduleName: string): Promise<CommandBoxResult> {
-    return runCommandBox({ BOXLANG_HOME: boxlangHome }, "install", moduleName, "--verbose");
+    return runCommandBox({ env: { BOXLANG_HOME: boxlangHome } }, "install", moduleName, "--verbose");
 }
 
 export async function uninstallBoxLangModule(boxlangHome, moduleName: string): Promise<CommandBoxResult> {
-    return runCommandBox({ BOXLANG_HOME: boxlangHome }, "uninstall", moduleName, "--verbose");
+    return runCommandBox({ env: { BOXLANG_HOME: boxlangHome } }, "uninstall", moduleName, "--verbose");
 }
 
 export async function getBoxlangModuleList(): Promise<CommandBoxResult> {
