@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ## [1.12.1] - 2025-10-16
+- BLIDE-253 Fix REPL not opening when the default shell is PowerShell
+- BLIDE-254 add workspace setting to control boxlang version
 
 ## [1.12.0] - 2025-10-16
 
