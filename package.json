@@ -281,6 +281,12 @@
                     "description": "The path to the boxlang jar you want to use for execution",
                     "scope": "machine"
                 },
+                "boxlang.boxlangVersion": {
+                    "type": "string",
+                    "description": "The version of BoxLang you want to use for execution",
+                    "scope": "resource",
+                    "default": "1.6.0"
+                },
                 "boxlang.miniserverjarpath": {
                     "type": "string",
                     "description": "The path to the miniserver jar you want to use for execution",
