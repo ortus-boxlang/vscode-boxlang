@@ -1,7 +1,7 @@
 // import fs from "fs";
 import fs from "fs/promises";
 import path from "path";
-import { ExtensionContext } from "vscode";
+import vscode, { ExtensionContext } from "vscode";
 import { ExtensionConfig } from "./Configuration";
 import * as fileUtil from "./fileUtil";
 import { boxlangOutputChannel } from "./OutputChannels";
@@ -28,7 +28,7 @@ export async function setupVersionManagement(_context: ExtensionContext): Promis
     BOXLANG_INSTALLATIONS = path.join(context.globalStorageUri.fsPath, "boxlang_versions");
     BOXLANG_LOCAL_VERSIONS_CACHE = path.join(context.globalStorageUri.fsPath, "boxlang_version_cache.json");
 
-    getAvailableBoxLangVerions();
+    getAvailableBoxLangVerions( true );
 
     try {
         await fs.access(BOXLANG_INSTALLATIONS);
@@ -141,15 +141,39 @@ export async function installVersion(version: BoxLangVersion) {
 }
 
 
-export async function getAvailableBoxLangVerions(): Promise<BoxLangVersion[]> {
-    if (!(await isLocalVersionFileUsable() )) {
-        const versionsFromAWS = await getBoxLangVersionsFromAWS();
-        await writeVersionsToLocalCache( versionsFromAWS );
+export async function getAvailableBoxLangVerions( force: boolean = false ): Promise<BoxLangVersion[]> {
 
-        return versionsFromAWS;
+    if( await isLocalVersionFileUsable() && !force ) {
+        return readVersionsFromLocalCache();
     }
 
-    return readVersionsFromLocalCache();
+    const versionsFromAWS = await getBoxLangVersionsFromAWS();
+
+    if( await doesLocalVersionFileExist() ) {
+        const cachedVersions = await readVersionsFromLocalCache();
+
+        const versionPattern = /boxlang-\d.\d.\d$/;
+        const newestRelease = versionsFromAWS.find( v => versionPattern.test(v.name) );
+
+        const inCache = cachedVersions.some( v => v.name === newestRelease.name );
+        const releaseVersion = newestRelease.name.replace( "boxlang-", "" );
+
+        if( !inCache ){
+            new Promise(async (resolve, reject) => {
+                const choice = await vscode.window.showInformationMessage(`BoxLang version: ${releaseVersion} is now available for download!`, "See the Release" );
+
+                if( choice !== "See the Release" ){
+                    return;
+                }
+
+                vscode.env.openExternal(vscode.Uri.parse(`https://github.com/ortus-boxlang/BoxLang/releases/tag/v${releaseVersion}`));
+            });
+        }
+    }
+
+    writeVersionsToLocalCache( versionsFromAWS );
+
+    return versionsFromAWS;
 }
 
 async function getBoxLangVersionsFromAWS(): Promise<BoxLangVersion[]> {
@@ -190,6 +214,16 @@ async function getBoxLangVersionsFromAWS(): Promise<BoxLangVersion[]> {
             }
         );
     });
+}
+
+async function doesLocalVersionFileExist(): Promise<boolean>{
+    try {
+        await fs.access(BOXLANG_LOCAL_VERSIONS_CACHE);
+       return true;
+    }
+    catch (e) {
+        return false;
+    }
 }
 
 async function isLocalVersionFileUsable(): Promise<boolean>{
