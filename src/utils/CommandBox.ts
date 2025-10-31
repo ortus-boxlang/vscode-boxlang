@@ -253,7 +253,7 @@ export async function runCommandBox(opts: Record<string, any>, ...args: string[]
     return new Promise((resolve, reject) => {
         const boxLang = spawn(boxExecutable.path, args, {
             env: environment,
-            cwd: opts.cwd || process.cwd(),
+            cwd: opts.cwd || process.env.HOME,
             shell: true
         });
         let stdout = '';

@@ -41,6 +41,9 @@ export function getBvmrcVersion(): string | null {
 }
 
 export const ExtensionConfig = {
+    get includedBoxLangJarPath() {
+        return INCLUDED_BOXLANG_JAR_PATH;
+    },
     set ignoreOldSettings(value) {
         workspace.getConfiguration("boxlang.settings").update("ignoreOldSettings", value, ConfigurationTarget.Global);
     },
@@ -73,7 +76,13 @@ export const ExtensionConfig = {
     },
 
     get boxlangJavaExecutable() {
-        return path.join(this.boxlangJavaHome, "bin", "java");
+        const javaPath = path.join(this.boxlangJavaHome, "bin", "java");
+
+        if( process.platform != "win32" ){
+            return javaPath;
+        }
+
+        return javaPath + '.exe';
     },
 
     get boxlangJavaHome() {
@@ -96,6 +105,17 @@ export const ExtensionConfig = {
         workspace.getConfiguration("boxlang").update("jarpath", path, ConfigurationTarget.Global);
     },
 
+    get boxlangVersion() {
+        // If .bvmrc version is set and jar path is available, use it
+        if (BVMRC_VERSION ) {
+            return BVMRC_VERSION;
+        }
+
+        const configVersion = workspace.getConfiguration("boxlang").get<string>('boxlangVersion');
+
+        return configVersion;
+    },
+
     get boxlangJarPath() {
         // If .bvmrc version is set and jar path is available, use it
         if (BVMRC_VERSION && BVMRC_JAR_PATH) {
@@ -104,7 +124,7 @@ export const ExtensionConfig = {
 
         const jarPath = workspace.getConfiguration("boxlang").get<string>('jarpath');
 
-        return jarPath || INCLUDED_BOXLANG_JAR_PATH;
+        return jarPath;
     },
 
     get boxlangLSPPath() {

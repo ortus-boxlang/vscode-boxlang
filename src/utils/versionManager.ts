@@ -2,6 +2,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { ExtensionContext } from "vscode";
+import { ExtensionConfig } from "./Configuration";
 import * as fileUtil from "./fileUtil";
 import { boxlangOutputChannel } from "./OutputChannels";
 
@@ -19,12 +20,15 @@ export type BoxLangVersion = {
 }
 
 let BOXLANG_INSTALLATIONS = "";
+let BOXLANG_LOCAL_VERSIONS_CACHE = "";
 let context = null;
-
 
 export async function setupVersionManagement(_context: ExtensionContext): Promise<void> {
     context = _context;
     BOXLANG_INSTALLATIONS = path.join(context.globalStorageUri.fsPath, "boxlang_versions");
+    BOXLANG_LOCAL_VERSIONS_CACHE = path.join(context.globalStorageUri.fsPath, "boxlang_version_cache.json");
+
+    getAvailableBoxLangVerions();
 
     try {
         await fs.access(BOXLANG_INSTALLATIONS);
@@ -61,6 +65,34 @@ export async function getDownloadedBoxLangVersions(): Promise<BoxLangVersion[]> 
 
     return versions;
 }
+
+export async function getConfiguredBoxLangJarPath(): Promise<string> {
+    const configuredJarPath = ExtensionConfig.boxlangJarPath;
+
+    if( configuredJarPath ){
+        boxlangOutputChannel.appendLine("Using configured BoxLang JAR path: " + configuredJarPath);
+        return configuredJarPath;
+    }
+
+    const configuredVersion = ExtensionConfig.boxlangVersion;
+
+    if( !validateConfiguredVersion( configuredVersion ) ){
+        boxlangOutputChannel.appendLine("Configured BoxLang version is not valid: " + configuredVersion);
+        boxlangOutputChannel.appendLine("Falling back to included BoxLang JAR path: " + ExtensionConfig.includedBoxLangJarPath);
+        return ExtensionConfig.includedBoxLangJarPath;
+    }
+
+    try{
+        return ensureBoxLangVersion( configuredVersion );
+    }
+    catch( e ){
+        boxlangOutputChannel.appendLine("Error ensuring BoxLang version: " + configuredVersion);
+        boxlangOutputChannel.appendLine( e );
+        boxlangOutputChannel.appendLine("Falling back to included BoxLang JAR path: " + ExtensionConfig.includedBoxLangJarPath);
+        return ExtensionConfig.includedBoxLangJarPath;
+    }
+}
+
 
 export async function ensureBoxLangVersion(version: String): Promise<string> {
     boxlangOutputChannel.appendLine("Ensuring BoxLang version is installed: " + version);
@@ -110,6 +142,17 @@ export async function installVersion(version: BoxLangVersion) {
 
 
 export async function getAvailableBoxLangVerions(): Promise<BoxLangVersion[]> {
+    if (!(await isLocalVersionFileUsable() )) {
+        const versionsFromAWS = await getBoxLangVersionsFromAWS();
+        await writeVersionsToLocalCache( versionsFromAWS );
+
+        return versionsFromAWS;
+    }
+
+    return readVersionsFromLocalCache();
+}
+
+async function getBoxLangVersionsFromAWS(): Promise<BoxLangVersion[]> {
     return new Promise((resolve, reject) => {
         const boxlangVersions = [];
         const versionPattern = /\.jar$/i;
@@ -147,4 +190,33 @@ export async function getAvailableBoxLangVerions(): Promise<BoxLangVersion[]> {
             }
         );
     });
+}
+
+async function isLocalVersionFileUsable(): Promise<boolean>{
+    try {
+        const stats = await fs.stat(BOXLANG_LOCAL_VERSIONS_CACHE);
+
+        const now = new Date();
+        const modifiedTime = new Date(stats.mtime);
+        const diffInMinutes = (now.getTime() - modifiedTime.getTime()) / (1000 * 60);
+       return diffInMinutes < 30;
+    }
+    catch (e) {
+        return false;
+    }
+}
+
+async function readVersionsFromLocalCache(): Promise<BoxLangVersion[]> {
+    const data = await fs.readFile(BOXLANG_LOCAL_VERSIONS_CACHE);
+    return JSON.parse(data + "");
+}
+
+async function writeVersionsToLocalCache( versions: BoxLangVersion[] ): Promise<void> {
+    await fs.writeFile( BOXLANG_LOCAL_VERSIONS_CACHE, JSON.stringify( versions ) );
+}
+
+async function validateConfiguredVersion( version: string ): Promise<boolean> {
+    const availableVersions = await getAvailableBoxLangVerions();
+    const boxlangVersionString = version.startsWith("boxlang-") ? version : `boxlang-${version}`;
+    return availableVersions.some(v => v.name === boxlangVersionString);
 }

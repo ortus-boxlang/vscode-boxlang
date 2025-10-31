@@ -7,6 +7,7 @@ import { ExtensionConfig } from "../utils/Configuration";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
 import { trackedSpawn } from "./ProcessTracker";
 import { BoxServerConfig, trackServerStart, trackServerStop } from "./Server";
+import { getConfiguredBoxLangJarPath } from "./versionManager";
 
 type BoxLangResult = {
     code: number,
@@ -130,24 +131,18 @@ export class BoxLangWithHome {
         if( !boxLangREPL ){
             boxLangREPL = vscode.window.createTerminal({
                 name: "BoxLang REPL",
+                shellPath: ExtensionConfig.boxlangJavaExecutable,
+                shellArgs: [ "ortus.boxlang.runtime.BoxRunner" ],
                 env: {
+                    ...process.env,
+                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
                     BOXLANG_HOME: this.boxlangHome,
-                    CLASSPATH: ExtensionConfig.boxlangJarPath
+                    CLASSPATH: await getConfiguredBoxLangJarPath()
                 }
             });
-            boxLangREPL.sendText( this.getExecutableString(), true );
         }
 
         boxLangREPL.show();
-    }
-
-    getExecutableString() {
-        const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
-
-        return [
-            `'${javaExecutable}'`,
-            "ortus.boxlang.runtime.BoxRunner"
-        ].join( " " );
     }
 
     async getVersionOutput(): Promise<string> {
