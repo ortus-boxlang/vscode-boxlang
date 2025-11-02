@@ -9,7 +9,7 @@ import { trackedSpawn } from "./ProcessTracker";
 import { BoxServerConfig, trackServerStart, trackServerStop } from "./Server";
 import { getConfiguredBoxLangJarPath } from "./versionManager";
 
-type BoxLangResult = {
+export type BoxLangResult = {
     code: number,
     stdout: string,
     stderr: string
@@ -75,6 +75,32 @@ export async function startLSPProcess(
     });
 }
 
+async function runBoxLangProcess(boxlangVersion, boxlangHome, ...args: string[]): Promise<BoxLangResult> {
+    return new Promise((resolve, reject) => {
+        const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+        const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner"].concat(args), {
+            env: {
+                BOXLANG_HOME: boxlangHome,
+                CLASSPATH: ExtensionConfig.boxlangJarPath
+            }
+        });
+        let stdout = '';
+        let stderr = '';
+
+        boxLang.stdout.on("data", data => stdout += data);
+        // TODO: throw error
+        boxLang.stderr.on("data", data => stderr += data);
+
+        boxLang.on("exit", code => {
+            resolve({
+                code,
+                stdout,
+                stderr
+            });
+        });
+    });
+}
+
 
 async function runBoxLangWithHome(boxlangHome, ...args: string[]): Promise<BoxLangResult> {
     return new Promise((resolve, reject) => {
@@ -109,19 +135,47 @@ async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
 export class BoxLangWithHome {
     boxlangHome: string;
 
-    constructor(boxlangHome: string | null) {
+    constructor(boxlangHome: string | null ) {
         this.boxlangHome = boxlangHome || BOXLANG_HOME;
     }
 
-    shellExecution( args: string[] ): vscode.ShellExecution {
+    async shellExecution( args: string[] ): Promise<vscode.ShellExecution> {
         const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
         return new vscode.ShellExecution(javaExecutable, ["ortus.boxlang.runtime.BoxRunner", ...args ], {
             env: {
                 ...process.env,
                 JAVA_HOME: ExtensionConfig.boxlangJavaHome,
                 BOXLANG_HOME: this.boxlangHome,
-                CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
+                CLASSPATH: (await getConfiguredBoxLangJarPath()) + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
             }
+        });
+    }
+
+    async featureAudit( args: string[] ): Promise<BoxLangResult> {
+        return new Promise(async (resolve, reject) => {
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+            const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner", ...args ], {
+                env: {
+                    ...process.env,
+                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
+                    BOXLANG_HOME: this.boxlangHome,
+                    CLASSPATH: (await getConfiguredBoxLangJarPath()) + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
+                }
+            });
+             let stdout = '';
+            let stderr = '';
+
+            boxLang.stdout.on("data", data => stdout += data);
+            // TODO: throw error
+            boxLang.stderr.on("data", data => stderr += data);
+
+            boxLang.on("exit", code => {
+                resolve({
+                    code,
+                    stdout,
+                    stderr
+                });
+            });
         });
     }
 

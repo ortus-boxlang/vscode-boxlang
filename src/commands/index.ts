@@ -30,6 +30,8 @@ export * from "./server/runServerFromLocation"
 export * from "./server/stopServer"
 export * from "./showANTLRGraph"
 export * from "./showBoxLangASTGraph"
+
+export * from "./openFeatureAuditTool"
 export * from "./showStatusBarCommandPicker"
 export * from "./transpileToJava"
 

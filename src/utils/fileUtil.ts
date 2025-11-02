@@ -13,6 +13,22 @@ export interface CFMLMapping {
     isPhysicalDirectoryPath?: boolean;
 }
 
+/**
+ * Will return the directory of a file path or the path if already a directory
+ * @param inputPath
+ * @returns
+ */
+export async function ensureDirectory( inputPath: string ) {
+    let stat = await fs.promises.stat(inputPath);
+    if (stat.isDirectory()) {
+        return inputPath;
+    } else if (stat.isFile()) {
+        return path.dirname(inputPath);
+    } else {
+        throw new Error('Path is neither file nor directory');
+    }
+}
+
 export function getDirectories(srcPath: string): string[] {
     const files: string[] = fs.readdirSync(srcPath);
 
