@@ -12,3 +12,4 @@ resources/lib/boxlang*.jar
 dist/
 workbench
 resources/lsp
+resources/webviews/alpinejs.js

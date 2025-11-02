@@ -1,0 +1,43 @@
+body {
+    font-family: sans-serif;
+    padding: 2rem;
+    background: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+}
+
+.spacer {
+    flex-grow: 1;
+}
+
+input {
+    background: var( --vscode-input-background );
+    color: var(--vscode-input-foreground);
+    border: var(--vscode-input-border);
+    padding: 4px;
+}
+
+button {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: var(--vscode-button-border);
+    cursor: pointer;
+}
+
+button:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+
+select {
+    background: var( --vscode-dropdown-background );
+    border: var(--vscode-dropdown-border);
+    color: var(--vscode-button-foreground);
+    padding: 4px;
+}
+
+code {
+    background: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+    padding: 1rem;
+    border: 1px solid var(--vscode-editorWidget-border);
+    overflow-x: auto;
+}
