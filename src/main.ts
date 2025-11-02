@@ -56,9 +56,9 @@ import { setupLocalJavaInstall } from "./utils/Java";
 import * as LSP from "./utils/LanguageServer";
 import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
 import { setupServers } from "./utils/Server";
+import { setupBvmrcSupport } from "./utils/bvmrcSupport";
 import { setupVersionManagement } from "./utils/versionManager";
 import { setupWorkspace } from "./utils/workspaceSetup";
-import { setupBvmrcSupport } from "./utils/bvmrcSupport";
 import { boxlangServerHomeTreeDataProvider } from "./views/ServerHomesView";
 import { boxlangServerTreeDataProvider } from "./views/ServerView";
 
@@ -281,6 +281,7 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(commands.registerCommand("boxlang.editServerProperty", extensionCommands.editServerProperty));
     context.subscriptions.push(commands.registerCommand("boxlang.runFile", applyContext(extensionCommands.runBoxLangFile)));
     context.subscriptions.push(commands.registerCommand("boxlang.runWebServer", extensionCommands.runBoxLangWebServer));
+    context.subscriptions.push(commands.registerCommand("boxlang.openFeatureAuditTool", applyContext(extensionCommands.openFeatureAuditTool)));
     // commenting these out as they broke sometime over the past few months
     // these should be moved into a bx-language-tools repo instead
     // context.subscriptions.push(commands.registerCommand("boxlang.transpileToJava", extensionCommands.transpileToJava));
@@ -537,10 +538,10 @@ async function runSetup( context: ExtensionContext ){
     setupVersionManagement(context);
 
     await setupCommandBox(context);
-    
+
     // Setup .bvmrc support after version management is ready
     await setupBvmrcSupport(context);
-    
+
     migrateSettings(false);
 
     client = LSP.startLSP()

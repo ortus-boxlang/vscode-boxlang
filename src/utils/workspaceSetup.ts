@@ -19,6 +19,10 @@ export function getWorkspaceBoxLangHome(){
     return workspaceBoxLangHome;
 }
 
+export function getBoxLangLauncher(){
+    return boxLangLauncher;
+}
+
 export async function setupWorkspace( context: ExtensionContext ){
     boxLangLauncher = new BoxLangWithHome( ExtensionConfig.boxLangHome );
 }

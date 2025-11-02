@@ -57,6 +57,7 @@ jobs:
         run: |
           npm i
           npm run download-all
+          npm run download:alpine
 
       - name: Setup tag
         id: setup

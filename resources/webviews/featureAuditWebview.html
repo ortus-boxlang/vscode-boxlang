@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alpine Counter Example</title>
+
+  <script defer src="ALPINE_JS_URI"></script>
+  <link rel="stylesheet" href="GLOBAL_STYLES_URI">
+
+  <!-- <script defer src="C:\Users\jacob\Dev\vscode-boxlang\resources\webviews\alpinejs.js"></script>
+  <link rel="stylesheet" href="C:\Users\jacob\Dev\vscode-boxlang\resources\webviews\global.css"> -->
+  <style>
+    button { font-size: 1.2rem; padding: 0.5rem 1rem; }
+    #count { font-weight: bold; margin-left: 1rem; }
+
+    .app-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .app__main {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .app__controls {
+        flex: 1 0 auto;
+        padding: 4px;
+        display: flex;
+        flex-direction: column;
+        max-width: 300px;
+    }
+
+    .report-status {
+        margin-bottom: 4px;
+    }
+
+    .app__info {
+        flex: 2;
+        border: 1px solid black;
+        padding: 4px;
+    }
+
+    .control-item {
+        margin-bottom: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .control-item--row {
+        flex-direction: row;
+    }
+
+    .app__title {
+        margin: 0px;
+        margin-bottom: 20px;
+    }
+
+    .code__output {
+        margin-top: 2rem;
+        padding: 1rem;
+        background: var( --vscode-editor-background);
+        border: 1px solid #ccc;
+        font-family: monospace;
+        position: relative;
+    }
+
+    .code__output button {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .code__output-code {
+        border: none;
+    }
+
+    .browse-button {
+        font-size: 0.75rem;
+        padding: 4px;
+        margin: 0px;
+    }
+
+    .row {
+        display: flex;
+        align-items: stretch;
+        gap: 4px;
+    }
+
+    .flex-1 {
+        flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container" x-data="featureAudit()">
+    <div class="app__main">
+        <div class="app__controls">
+            <h1 class="app__title">Feature Audit Tool</h1>
+            <div class="control-item">
+                <label>Source</label>
+                <div class="row">
+                    <input class="flex-1" type="text" placeholder="File or Directory Path" x-model="sourcePath"/>
+                    <button class="browse-button" @click="requestFolderPath('sourcePath')">Browse</button>
+                </div>
+            </div>
+            <div class="control-item control-item--row">
+                <label>Missing Only</label>
+                <input type="checkbox" placeholder="File or Directory Path" x-model="missing" />
+            </div>
+            <div class="control-item">
+                <label>Presentation</label>
+                <select x-model="presentation">
+                    <option value="regular">Regular</option>
+                    <option value="aggregate">Aggregate</option>
+                    <option value="summary">Summary</option>
+                </select>
+            </div>
+            <div class="control-item">
+                <label>Report File</label>
+                <div class="row">
+                    <input class="flex-1" type="text" placeholder="File or Directory Path" x-model="reportPath"/>
+                    <button class="browse-button" @click="requestFilePath('reportPath')">Browse</button>
+                </div>
+            </div>
+            <div class="spacer"></div>
+            <span class="report-status">Report: <span x-text="reportStatus"></span></span>
+            <button @click="runAudit">Run Audit</button>
+        </div>
+        <div class="app__info">
+            <p>
+                The FeatureAudit CLI scans BoxLang / CFML source files (cfm, cfc, cfs, cfml, bxs, bx, bxm) to identify built-in functions (BIFs) and tags used in the codebase, highlighting which are missing from the current runtime. It initializes a BoxRuntime, stubs runtime features for detection, parses each file, and records usage with line/column metadata. Results can be listed per file or aggregated (optionally summarized) to show frequency and implementation status, including suggested modules to install when features belong to external packages.
+            </p>
+            <p>
+                Key flags include --source (file or directory), --missing (filter only unsupported features), --aggregate (group counts per feature, with optional summary mode), --reportFile (CSV export), and --quiet (suppress console output). The tool outputs either detailed per‑occurrence records or aggregated rollups, and in summary mode it reports totals by extension plus recommended modules (excluding core and special web support notes). Errors during parsing are surfaced with issue details, but processing continues for other files.
+            </p>
+            <p>
+                CSV output headers differ based on mode (per occurrence vs aggregate), enabling downstream analysis of adoption gaps. This makes the tool useful for migration audits, module planning, and prioritizing feature implementation based on actual usage frequency in a legacy or mixed codebase.
+            </p>
+        </div>
+
+    </div>
+    <div class="code__output">
+        <code class="code__output-code" x-ref="auditCmd" x-text="auditCmd"></code>
+        <button title="Copy to clipboard" style="margin-left:8px; border:none; background:transparent; cursor:pointer; vertical-align:middle;"
+            @click="navigator.clipboard.writeText($refs.auditCmd.textContent); copied = true; setTimeout(() => copied = false, 1200)">
+            <span x-show="!copied">copy</span>
+            <span x-show="copied">copied!</span>
+        </button>
+    </div>
+  </div>
+  <script>
+    const initialState = INITIAL_STATE_JSON;
+    document.addEventListener('alpine:init', () => {
+        const vscode = acquireVsCodeApi();
+        const state = vscode.getState() || {};
+
+        Alpine.data("featureAudit", () => ({
+            initialized: false,
+            copied: false,
+            sourcePath: "",
+            missing: false,
+            presentation: "regular",
+            reportPath: "feature-audit-report.csv",
+            reportStatus: "Not generated",
+            ...initialState,
+            ...state,
+            get auditCmd() {
+                const presentation = this.presentation;
+                const cmd = [
+                    "boxlang",
+                    "featureaudit"
+                ];
+
+                if( this.sourcePath ) {
+                    cmd.push( "--source", this.sourcePath );
+                }
+
+                if( this.missing ) {
+                    cmd.push( "--missing" );
+                }
+
+                if( this.presentation === "aggregate" ) {
+                    cmd.push( "--aggregate" );
+                } else if( this.presentation === "summary" ) {
+                    cmd.push( "--aggregate", "summary" );
+                }
+
+                if( this.reportPath ) {
+                    cmd.push( "--reportFile", this.reportPath );
+                }
+
+                return cmd.join(" ");
+            },
+
+            init(){
+                window.addEventListener('message', event => {
+                    const message = event.data;
+                    if( message.command.startsWith( "fileSelected" ) ){
+                        if( message.prop == "sourcePath" ){
+                            this.sourcePath = message.path;
+                        } else if( message.prop == "outputPath" ){
+                            this.outputPath = message.path;
+                        } else if( message.prop == "reportPath" ){
+                            this.reportPath = message.path;
+                        }
+                    }
+                    if( message.command.startsWith( "featureAuditComplete" ) ){
+                        this.reportStatus = "Complete";
+                    }
+                });
+
+                this.$watch( "sourcePath", () => this.save() );
+                this.$watch( "missing", () => this.save() );
+                this.$watch( "presentation", () => this.save() );
+                this.$watch( "reportPath", () => this.save() );
+                this.$watch( "reportStatus", () => this.save() );
+
+                this.save();
+            },
+
+            save(){
+                vscode.setState({
+                    sourcePath: this.sourcePath,
+                    missing: this.missing,
+                    presentation: this.presentation,
+                    reportPath: this.reportPath,
+                    reportStatus: this.reportStatus
+                });
+            },
+
+            requestFolderPath( prop ) {
+                vscode.postMessage({ command: 'selectFolderPath', prop: prop });
+            },
+
+            requestFilePath( prop ) {
+                vscode.postMessage({ command: 'selectFilePath', prop: prop });
+            },
+
+            runAudit(){
+                this.reportStatus = "Generating...";
+                vscode.postMessage({ command: 'runFeatureAudit',
+                    options: {
+                        sourcePath: this.sourcePath,
+                        missing: this.missing,
+                        presentation: this.presentation,
+                        reportPath: this.reportPath
+                    }
+                });
+            }
+        }));
+    });
+  </script>
+</body>
+</html>
