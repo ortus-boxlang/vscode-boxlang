@@ -75,33 +75,6 @@ export async function startLSPProcess(
     });
 }
 
-async function runBoxLangProcess(boxlangVersion, boxlangHome, ...args: string[]): Promise<BoxLangResult> {
-    return new Promise((resolve, reject) => {
-        const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
-        const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner"].concat(args), {
-            env: {
-                BOXLANG_HOME: boxlangHome,
-                CLASSPATH: ExtensionConfig.boxlangJarPath
-            }
-        });
-        let stdout = '';
-        let stderr = '';
-
-        boxLang.stdout.on("data", data => stdout += data);
-        // TODO: throw error
-        boxLang.stderr.on("data", data => stderr += data);
-
-        boxLang.on("exit", code => {
-            resolve({
-                code,
-                stdout,
-                stderr
-            });
-        });
-    });
-}
-
-
 async function runBoxLangWithHome(boxlangHome, ...args: string[]): Promise<BoxLangResult> {
     return new Promise((resolve, reject) => {
         const javaExecutable = ExtensionConfig.boxlangJavaExecutable;

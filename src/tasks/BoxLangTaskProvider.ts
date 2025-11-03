@@ -14,7 +14,7 @@ export const BoxLangTaskProvider: vscode.TaskProvider = {
                 vscode.TaskScope.Workspace,
                 "compile",
                 "boxlang",
-                boxLangLauncher.shellExecution([
+                await boxLangLauncher.shellExecution([
                     "compile",
                     "--basePath", workspaceFolderPath,
                     "--source", workspaceFolderPath,
@@ -29,7 +29,7 @@ export const BoxLangTaskProvider: vscode.TaskProvider = {
                 vscode.TaskScope.Workspace,
                 "featureAudit",
                 "boxlang",
-                boxLangLauncher.shellExecution([
+                await boxLangLauncher.shellExecution([
                     "featureAudit",
                     "--source", workspaceFolderPath,
                     "--reportFile", `${workspaceFolderPath}/bx-feature-audit.csv`

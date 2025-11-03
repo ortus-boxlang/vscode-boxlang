@@ -60,6 +60,8 @@ function getFirstWorkspaceFolder(): string | null {
         const workspaceFolder = folders[0].uri.fsPath;
         return workspaceFolder;
     }
+
+    return null;
 }
 
 function processArgs(opt: FeatureAuditOptions): string[] {
