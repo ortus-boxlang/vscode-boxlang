@@ -48,7 +48,7 @@ export async function openFeatureAuditTool(context: ExtensionContext, file: Uri)
         }
 
         if( message.command === 'runFeatureAudit') {
-            const output = await runFeatureAudit( "1.5.0", message.options );
+            await runFeatureAudit( "1.5.0", message.options );
             panel.webview.postMessage({ command: 'featureAuditComplete', path: message.options.reportPath  });
         }
     });
