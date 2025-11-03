@@ -18,6 +18,8 @@ const webExtensionConfig = {
         mainFields: ['browser', 'module', 'main'], // look for `browser` entry point in imported node modules
         extensions: ['.ts', '.js'], // support ts-files and js-files
         alias: {
+            // Explicitly map the ESM fully specified import 'process/browser' used by some packages (async)
+            'process/browser': require.resolve('process/browser.js'),
         },
         fallback: {
             child_process: false,
@@ -62,7 +64,7 @@ const webExtensionConfig = {
     plugins: [
         new webpack.ProvidePlugin({
             Buffer: ['buffer', 'Buffer'],
-            process: 'process/browser'
+            process: 'process/browser.js'
         }),
         new webpack.NormalModuleReplacementPlugin(
             /^node:/,
