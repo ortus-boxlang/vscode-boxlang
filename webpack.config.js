@@ -42,6 +42,7 @@ const webExtensionConfig = {
             "buffer": false,
             "async_hooks": false,
             "findup-sync": false,
+            process: require.resolve('process/browser'),
         },
     },
 
