@@ -159,19 +159,20 @@ export default class CFMLRenameProvider implements RenameProvider {
                     // Skip if this is the same location as the function definition (already renamed)
                     const isSameDoc = docUri.toString() === userFunc.location.uri.toString();
                     const isSameRange = range.isEqual(userFunc.nameRange);
-                    if (!isSameDoc || !isSameRange) {
+                    if (!(isSameDoc && isSameRange)) {
                         workspaceEdit.replace(docUri, range, newName);
                     }
                 }
 
                 // Also find method invocations: object.functionName(
                 const methodCallPattern = new RegExp(
-                    `\\.(\\s*)${this.escapeRegExp(oldName)}\\s*\\(`,
+                    `\\.(\\s*)(${this.escapeRegExp(oldName)})\\s*\\(`,
                     "gi"
                 );
 
                 while ((match = methodCallPattern.exec(text)) !== null) {
-                    const matchStart = match.index + match[0].indexOf(oldName);
+                    // match[2] contains the function name (second capture group)
+                    const matchStart = match.index + 1 + match[1].length; // +1 for the dot, then skip whitespace
                     const matchEnd = matchStart + oldName.length;
                     const startPos = doc.positionAt(matchStart);
                     const endPos = doc.positionAt(matchEnd);
