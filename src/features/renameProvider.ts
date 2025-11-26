@@ -15,7 +15,7 @@ import { DocumentPositionStateContext, getDocumentPositionStateContext } from ".
 /**
  * Provides rename functionality for BoxLang/CFML symbols
  */
-export default class CFMLRenameProvider implements RenameProvider {
+export default class BoxRenameProvider implements RenameProvider {
     /**
      * Prepares the rename operation by validating the symbol at the given position
      * @param document The document in which the command was invoked

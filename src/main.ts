@@ -34,7 +34,7 @@ import CFMLHoverProvider from "./features/hoverProvider";
 import CFMLSignatureHelpProvider from "./features/signatureHelpProvider";
 import CFMLTypeDefinitionProvider from "./features/typeDefinitionProvider";
 import CFMLWorkspaceSymbolProvider from "./features/workspaceSymbolProvider";
-import CFMLRenameProvider from "./features/renameProvider";
+import BoxRenameProvider from "./features/renameProvider";
 import { boxlangOutputChannel } from "./utils/OutputChannels";
 import CFDocsService from "./utils/cfdocs/cfDocsService";
 import { APPLICATION_CFM_GLOB, isCfcFile } from "./utils/contextUtil";
@@ -309,7 +309,7 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(languages.registerDefinitionProvider(DOCUMENT_SELECTOR, new CFMLDefinitionProvider()));
     context.subscriptions.push(languages.registerTypeDefinitionProvider(DOCUMENT_SELECTOR, new CFMLTypeDefinitionProvider()));
     context.subscriptions.push(languages.registerColorProvider(DOCUMENT_SELECTOR, new CFMLDocumentColorProvider()));
-    context.subscriptions.push(languages.registerRenameProvider(DOCUMENT_SELECTOR, new CFMLRenameProvider()));
+    context.subscriptions.push(languages.registerRenameProvider(DOCUMENT_SELECTOR, new BoxRenameProvider()));
 
     context.subscriptions.push(workspace.onDidSaveTextDocument((document: TextDocument) => {
         const documentUri = document.uri;
