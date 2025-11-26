@@ -27,6 +27,11 @@ export default class CFMLRenameProvider implements RenameProvider {
         position: Position,
         _token: CancellationToken
     ): ProviderResult<Range | { range: Range; placeholder: string }> {
+        const cfmlRenameSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.rename", document.uri);
+        if (!cfmlRenameSettings.get<boolean>("enable", true)) {
+            return null;
+        }
+
         const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.suggest", document.uri);
         const replaceComments = cfmlCompletionSettings.get<boolean>("replaceComments", true);
 
@@ -67,6 +72,11 @@ export default class CFMLRenameProvider implements RenameProvider {
         newName: string,
         _token: CancellationToken
     ): Promise<WorkspaceEdit> {
+        const cfmlRenameSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.rename", document.uri);
+        if (!cfmlRenameSettings.get<boolean>("enable", true)) {
+            return null;
+        }
+
         const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.suggest", document.uri);
         const replaceComments = cfmlCompletionSettings.get<boolean>("replaceComments", true);
 
