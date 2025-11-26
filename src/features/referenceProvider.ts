@@ -93,45 +93,73 @@ export default class CFMLReferenceProvider implements ReferenceProvider {
             try {
                 // Open the document to search for function calls
                 const doc = await workspace.openTextDocument(component.uri);
-                const text = doc.getText();
-                
-                // Create regex patterns to find function calls
-                // Pattern 1: object.functionName( or this.functionName(
-                const methodCallPattern = new RegExp(`\\b(\\w+)\\.${this.escapeRegex(functionName)}\\s*\\(`, 'gi');
-                // Pattern 2: functionName( (direct function call)
-                const functionCallPattern = new RegExp(`\\b${this.escapeRegex(functionName)}\\s*\\(`, 'gi');
-                
-                let match: RegExpExecArray;
-                
-                // Find method calls (object.method())
-                while ((match = methodCallPattern.exec(text)) !== null) {
-                    const startPos = doc.positionAt(match.index + match[1].length + 1); // +1 for the dot
-                    const endPos = doc.positionAt(match.index + match[1].length + 1 + functionName.length);
-                    results.push(new Location(component.uri, new Range(startPos, endPos)));
-                }
-                
-                // Reset lastIndex for the second pattern
-                functionCallPattern.lastIndex = 0;
-                
-                // Find direct function calls
-                while ((match = functionCallPattern.exec(text)) !== null) {
-                    const startPos = doc.positionAt(match.index);
-                    const endPos = doc.positionAt(match.index + functionName.length);
-                    const range = new Range(startPos, endPos);
-                    
-                    // Avoid duplicates by checking if we already added this location
-                    const isDuplicate = results.some(loc => 
-                        loc.uri.toString() === component.uri.toString() && 
-                        loc.range.isEqual(range)
-                    );
-                    
-                    if (!isDuplicate) {
-                        results.push(new Location(component.uri, range));
-                    }
-                }
+                this.searchDocumentForReferences(doc, functionName, results);
             } catch (error) {
                 // Skip files that can't be opened
                 continue;
+            }
+        }
+        
+        // Also search through all open text documents that might not be in cache
+        workspace.textDocuments.forEach(doc => {
+            // Check if it's a CFML or BoxLang file
+            if (doc.languageId === "cfml" || doc.languageId === "boxlang") {
+                this.searchDocumentForReferences(doc, functionName, results);
+            }
+        });
+    }
+
+    /**
+     * Search a document for references to a function
+     * @param doc The document to search
+     * @param functionName The function name to search for
+     * @param results The array to add found locations to
+     */
+    private searchDocumentForReferences(doc: TextDocument, functionName: string, results: Location[]): void {
+        const text = doc.getText();
+        
+        // Create regex patterns to find function calls
+        // Pattern 1: object.functionName( or this.functionName(
+        const methodCallPattern = new RegExp(`\\b(\\w+)\\.${this.escapeRegex(functionName)}\\s*\\(`, 'gi');
+        // Pattern 2: functionName( (direct function call)
+        const functionCallPattern = new RegExp(`\\b${this.escapeRegex(functionName)}\\s*\\(`, 'gi');
+        
+        let match: RegExpExecArray;
+        
+        // Find method calls (object.method())
+        while ((match = methodCallPattern.exec(text)) !== null) {
+            const startPos = doc.positionAt(match.index + match[1].length + 1); // +1 for the dot
+            const endPos = doc.positionAt(match.index + match[1].length + 1 + functionName.length);
+            const range = new Range(startPos, endPos);
+            
+            // Avoid duplicates
+            const isDuplicate = results.some(loc => 
+                loc.uri.toString() === doc.uri.toString() && 
+                loc.range.isEqual(range)
+            );
+            
+            if (!isDuplicate) {
+                results.push(new Location(doc.uri, range));
+            }
+        }
+        
+        // Reset lastIndex for the second pattern
+        functionCallPattern.lastIndex = 0;
+        
+        // Find direct function calls
+        while ((match = functionCallPattern.exec(text)) !== null) {
+            const startPos = doc.positionAt(match.index);
+            const endPos = doc.positionAt(match.index + functionName.length);
+            const range = new Range(startPos, endPos);
+            
+            // Avoid duplicates by checking if we already added this location
+            const isDuplicate = results.some(loc => 
+                loc.uri.toString() === doc.uri.toString() && 
+                loc.range.isEqual(range)
+            );
+            
+            if (!isDuplicate) {
+                results.push(new Location(doc.uri, range));
             }
         }
     }
