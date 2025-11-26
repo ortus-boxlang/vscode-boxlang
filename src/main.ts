@@ -31,6 +31,7 @@ import CFMLDefinitionProvider from "./features/definitionProvider";
 import DocBlockCompletions from "./features/docBlocker/docCompletionProvider";
 import CFMLDocumentLinkProvider from "./features/documentLinkProvider";
 import CFMLHoverProvider from "./features/hoverProvider";
+import CFMLReferenceProvider from "./features/referenceProvider";
 import CFMLSignatureHelpProvider from "./features/signatureHelpProvider";
 import CFMLTypeDefinitionProvider from "./features/typeDefinitionProvider";
 import CFMLWorkspaceSymbolProvider from "./features/workspaceSymbolProvider";
@@ -307,6 +308,7 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(languages.registerCompletionItemProvider(DOCUMENT_SELECTOR, new DocBlockCompletions(), "*", "@", "."));
     context.subscriptions.push(languages.registerDefinitionProvider(DOCUMENT_SELECTOR, new CFMLDefinitionProvider()));
     context.subscriptions.push(languages.registerTypeDefinitionProvider(DOCUMENT_SELECTOR, new CFMLTypeDefinitionProvider()));
+    context.subscriptions.push(languages.registerReferenceProvider(DOCUMENT_SELECTOR, new CFMLReferenceProvider()));
     context.subscriptions.push(languages.registerColorProvider(DOCUMENT_SELECTOR, new CFMLDocumentColorProvider()));
 
     context.subscriptions.push(workspace.onDidSaveTextDocument((document: TextDocument) => {
