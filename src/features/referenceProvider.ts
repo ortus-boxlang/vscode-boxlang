@@ -16,7 +16,7 @@ export default class CFMLReferenceProvider implements ReferenceProvider {
     public async provideReferences(document: TextDocument, position: Position, context: ReferenceContext, _token: CancellationToken): Promise<Location[]> {
         const cfmlDefinitionSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.definition", document.uri);
         if (!cfmlDefinitionSettings.get<boolean>("enable", true)) {
-            return null;
+            return [];
         }
 
         const cfmlCompletionSettings: WorkspaceConfiguration = workspace.getConfiguration("boxlang.cfml.suggest", document.uri);
@@ -25,7 +25,7 @@ export default class CFMLReferenceProvider implements ReferenceProvider {
         const documentPositionStateContext: DocumentPositionStateContext = getDocumentPositionStateContext(document, position, false, replaceComments);
 
         if (documentPositionStateContext.positionInComment) {
-            return null;
+            return [];
         }
 
         const results: Location[] = [];
@@ -38,7 +38,7 @@ export default class CFMLReferenceProvider implements ReferenceProvider {
         }
 
         if (!currentWord) {
-            return null;
+            return [];
         }
 
         const docIsCfcFile: boolean = documentPositionStateContext.isCfcFile;
@@ -83,17 +83,26 @@ export default class CFMLReferenceProvider implements ReferenceProvider {
      * @param results The array to add found locations to
      */
     private async findFunctionReferences(functionName: string, results: Location[]): Promise<void> {
+        // Track which documents we've already searched to avoid duplicates
+        const searchedUris = new Set<string>();
+        
         // Get all components from cache
         const allComponents = getAllComponentsByUri();
         
         // Search through all cached components for function calls
         for (const componentUri in allComponents) {
             const component: Component = allComponents[componentUri];
+            const uriString = component.uri.toString();
+            
+            if (searchedUris.has(uriString)) {
+                continue;
+            }
             
             try {
                 // Open the document to search for function calls
                 const doc = await workspace.openTextDocument(component.uri);
                 this.searchDocumentForReferences(doc, functionName, results);
+                searchedUris.add(uriString);
             } catch (error) {
                 // Skip files that can't be opened
                 continue;
@@ -102,10 +111,15 @@ export default class CFMLReferenceProvider implements ReferenceProvider {
         
         // Also search through all open text documents that might not be in cache
         workspace.textDocuments.forEach(doc => {
-            // Check if it's a CFML or BoxLang file
-            if (doc.languageId === "cfml" || doc.languageId === "boxlang") {
-                this.searchDocumentForReferences(doc, functionName, results);
+            const uriString = doc.uri.toString();
+            
+            // Skip if already searched or not a CFML/BoxLang file
+            if (searchedUris.has(uriString) || (doc.languageId !== "cfml" && doc.languageId !== "boxlang")) {
+                return;
             }
+            
+            this.searchDocumentForReferences(doc, functionName, results);
+            searchedUris.add(uriString);
         });
     }
 
