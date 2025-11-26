@@ -156,8 +156,10 @@ export default class CFMLRenameProvider implements RenameProvider {
                     const endPos = doc.positionAt(matchEnd);
                     const range = new Range(startPos, endPos);
 
-                    // Only add if it's not already the definition we renamed
-                    if (!range.isEqual(userFunc.nameRange) || docUri.toString() !== userFunc.location.uri.toString()) {
+                    // Skip if this is the same location as the function definition (already renamed)
+                    const isSameDoc = docUri.toString() === userFunc.location.uri.toString();
+                    const isSameRange = range.isEqual(userFunc.nameRange);
+                    if (!isSameDoc || !isSameRange) {
                         workspaceEdit.replace(docUri, range, newName);
                     }
                 }
