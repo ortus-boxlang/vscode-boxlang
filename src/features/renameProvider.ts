@@ -171,14 +171,19 @@ export default class CFMLRenameProvider implements RenameProvider {
                 );
 
                 while ((match = methodCallPattern.exec(text)) !== null) {
-                    // match[1] is whitespace after dot, match[2] is the function name
+                    // match[0] is full match, match[1] is whitespace, match[2] is the function name
                     const matchStart = match.index + 1 + match[1].length; // +1 for the dot, then skip whitespace
                     const matchEnd = matchStart + match[2].length; // Use actual captured function name length
                     const startPos = doc.positionAt(matchStart);
                     const endPos = doc.positionAt(matchEnd);
                     const range = new Range(startPos, endPos);
 
-                    workspaceEdit.replace(docUri, range, newName);
+                    // Skip if this is the same location as the function definition (already renamed)
+                    const isSameDoc = docUri.toString() === userFunc.location.uri.toString();
+                    const isSameRange = range.isEqual(userFunc.nameRange);
+                    if (!(isSameDoc && isSameRange)) {
+                        workspaceEdit.replace(docUri, range, newName);
+                    }
                 }
             } catch (error) {
                 // Skip files that can't be opened
