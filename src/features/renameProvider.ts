@@ -171,9 +171,9 @@ export default class CFMLRenameProvider implements RenameProvider {
                 );
 
                 while ((match = methodCallPattern.exec(text)) !== null) {
-                    // match[2] contains the function name (second capture group)
+                    // match[1] is whitespace after dot, match[2] is the function name
                     const matchStart = match.index + 1 + match[1].length; // +1 for the dot, then skip whitespace
-                    const matchEnd = matchStart + oldName.length;
+                    const matchEnd = matchStart + match[2].length; // Use actual captured function name length
                     const startPos = doc.positionAt(matchStart);
                     const endPos = doc.positionAt(matchEnd);
                     const range = new Range(startPos, endPos);
