@@ -4,7 +4,7 @@ import { UserFunction } from "../entities/userFunction";
 import { DocumentPositionStateContext, getDocumentPositionStateContext } from "../utils/documentUtil";
 import { getAllComponentsByUri } from "./cachedEntities";
 
-export default class CFMLReferenceProvider implements ReferenceProvider {
+export default class BoxReferenceProvider implements ReferenceProvider {
 
     /**
      * Provide references to the symbol at the given position in the given document.
