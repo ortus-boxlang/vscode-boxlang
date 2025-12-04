@@ -37,7 +37,15 @@ export function startLSP() {
             documentSelector: [
                 { scheme: "file", language: "boxlang" },
                 { scheme: "file", language: "cfml" }
-            ]
+            ],
+            middleware: {
+                // Delegate definition requests to VS Code's built-in provider resolution
+                // This allows the custom CFMLDefinitionProvider to handle definition requests
+                provideDefinition: async (document, position, token, next) => {
+                    // Return undefined to let VS Code use the custom definition provider
+                    return undefined;
+                }
+            }
         },
         true
     );
