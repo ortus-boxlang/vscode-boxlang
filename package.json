@@ -285,7 +285,7 @@
                     "type": "string",
                     "description": "The version of BoxLang you want to use for execution",
                     "scope": "resource",
-                    "default": "1.6.0"
+                    "default": "1.9.0"
                 },
                 "boxlang.miniserverjarpath": {
                     "type": "string",
