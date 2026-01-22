@@ -36,6 +36,7 @@ export function startLSP() {
         {
             documentSelector: [
                 { scheme: "file", language: "boxlang" },
+                { scheme: "file", language: "boxlang-template" },
                 { scheme: "file", language: "cfml" }
             ]
         },
