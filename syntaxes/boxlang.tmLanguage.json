@@ -192,7 +192,7 @@
         },
         {
           "name": "variable.language.scope.boxlang",
-          "match": "(?i)\\b(variables|request|server|application|session|client|form|url|cgi|cookie)\\b"
+          "match": "(?i)\\b(variables|request|server|application|session|client|form|url|cgi|cookie|this)\\b"
         }
       ]
     },
