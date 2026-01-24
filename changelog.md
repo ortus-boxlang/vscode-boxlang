@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add Feature Audit tool UI
+- Bump internal BoxLang version to 1.9
 
 ## [1.12.1] - 2025-10-16
 - BLIDE-253 Fix REPL not opening when the default shell is PowerShell
