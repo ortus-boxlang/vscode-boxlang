@@ -2,10 +2,13 @@
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-01-24
+
 - Add Feature Audit tool UI
 - Bump internal BoxLang version to 1.9
 
 ## [1.12.1] - 2025-10-16
+
 - BLIDE-253 Fix REPL not opening when the default shell is PowerShell
 - BLIDE-254 add workspace setting to control boxlang version
 
@@ -133,7 +136,8 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.1...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.14.0...HEAD
+[1.14.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.1...v1.14.0
 [1.12.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.10.0...v1.12.0
 [1.10.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.3...v1.10.0
