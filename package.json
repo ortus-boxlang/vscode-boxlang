@@ -117,12 +117,12 @@
         ],
         "jsonValidation": [
             {
-                "fileMatch": "boxlang.json",
-                "url": "./resources/boxlang_schema.json"
+                "fileMatch": ["*boxlang.json", "**/*boxlang.json"],
+                "url": "./resources/schemas/boxlang_schema.json"
             },
             {
-                "fileMatch": "*.boxlang.json",
-                "url": "./resources/boxlang_schema.json"
+                "fileMatch": ["*bxformat.json", "**/*bxformat.json"],
+                "url": "./resources/schemas/bxformat.schema.json"
             }
         ],
         "debuggers": [
