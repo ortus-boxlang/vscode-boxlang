@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add schema for .bxformat.json
+
 ## [1.14.0] - 2026-01-24
 
 - Add Feature Audit tool UI
