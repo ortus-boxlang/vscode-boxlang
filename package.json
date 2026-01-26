@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "1.13.9",
+    "version": "1.13.10",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -117,11 +117,17 @@
         ],
         "jsonValidation": [
             {
-                "fileMatch": ["*boxlang.json", "**/*boxlang.json"],
+                "fileMatch": [
+                    "*boxlang.json",
+                    "**/*boxlang.json"
+                ],
                 "url": "./resources/schemas/boxlang_schema.json"
             },
             {
-                "fileMatch": ["*bxformat.json", "**/*bxformat.json"],
+                "fileMatch": [
+                    "*bxformat.json",
+                    "**/*bxformat.json"
+                ],
                 "url": "./resources/schemas/bxformat.schema.json"
             }
         ],
