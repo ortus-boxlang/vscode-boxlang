@@ -219,6 +219,13 @@ export function hasComponent(uri: Uri): boolean {
 }
 
 /**
+ * Retrieves all cached components
+ */
+export function getAllComponentsByUri(): ComponentsByUri {
+    return allComponentsByUri;
+}
+
+/**
  * Retrieves all cached components matched by the given query
  * @param query Some query text used to search for cached components
  */
