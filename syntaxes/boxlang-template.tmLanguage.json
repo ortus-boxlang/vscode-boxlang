@@ -1,0 +1,1127 @@
+{
+  "name": "BoxLang Template",
+  "scopeName": "source.boxlang.template",
+  "fileTypes": [
+    "bxm"
+  ],
+  "uuid": "1A6EB03E-FD9E-4BFC-8C85-ED8D2399DB2F",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#bx-script"
+    },
+    {
+      "include": "#bx-components"
+    },
+    {
+      "include": "#interpolation"
+    },
+    {
+      "include": "#html-content"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.boxlang.template",
+          "begin": "<!---",
+          "end": "--->",
+          "patterns": [
+            {
+              "name": "comment.block.boxlang.template",
+              "begin": "<!---",
+              "end": "--->"
+            }
+          ]
+        },
+        {
+          "name": "comment.block.html",
+          "begin": "<!--(?!-)",
+          "end": "-->",
+          "patterns": [
+            {
+              "name": "invalid.illegal.bad-comments-or-CDATA.html",
+              "match": "--"
+            }
+          ]
+        }
+      ]
+    },
+    "bx-script": {
+      "name": "meta.embedded.block.boxlang.script",
+      "begin": "(<)(bx:script)(\\s[^>]*)?+(>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.script.boxlang"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#tag-attributes"
+            }
+          ]
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "end": "(</)\\s*(bx:script)\\s*(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.script.boxlang"
+        },
+        "3": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.boxlang"
+        }
+      ]
+    },
+    "bx-components": {
+      "patterns": [
+        {
+          "include": "#bx-output"
+        },
+        {
+          "include": "#bx-if"
+        },
+        {
+          "include": "#bx-switch"
+        },
+        {
+          "include": "#bx-try"
+        },
+        {
+          "include": "#bx-while"
+        },
+        {
+          "include": "#bx-function"
+        },
+        {
+          "include": "#bx-self-closing"
+        },
+        {
+          "include": "#bx-generic"
+        }
+      ]
+    },
+    "bx-output": {
+      "name": "meta.tag.output.boxlang",
+      "begin": "(<)(bx:output)(\\s[^>]*)?+(>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.output.boxlang"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#tag-attributes"
+            }
+          ]
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "end": "(</)\\s*(bx:output)\\s*(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.output.boxlang"
+        },
+        "3": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#interpolation"
+        },
+        {
+          "include": "#bx-components"
+        },
+        {
+          "include": "#html-content"
+        }
+      ]
+    },
+    "bx-if": {
+      "name": "meta.tag.conditional.boxlang",
+      "begin": "(<)(bx:if)(\\s[^>]*)?+(>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.conditional.boxlang"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#tag-attributes"
+            }
+          ]
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "end": "(</)\\s*(bx:if)\\s*(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.conditional.boxlang"
+        },
+        "3": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#bx-elseif"
+        },
+        {
+          "include": "#bx-else"
+        },
+        {
+          "include": "#interpolation"
+        },
+        {
+          "include": "#bx-components"
+        },
+        {
+          "include": "#html-content"
+        }
+      ]
+    },
+    "bx-elseif": {
+      "name": "meta.tag.conditional.boxlang",
+      "match": "(<)(bx:elseif)(\\s[^>]*)?+(>)",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.conditional.boxlang"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#tag-attributes"
+            }
+          ]
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      }
+    },
+    "bx-else": {
+      "name": "meta.tag.conditional.boxlang",
+      "match": "(<)(bx:else)(\\s[^>]*)?+(/?>|>)",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.conditional.boxlang"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#tag-attributes"
+            }
+          ]
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      }
+    },
+    "bx-switch": {
+      "name": "meta.tag.switch.boxlang",
+      "begin": "(<)(bx:switch)(\\s[^>]*)?+(>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.switch.boxlang"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#tag-attributes"
+            }
+          ]
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "end": "(</)\\s*(bx:switch)\\s*(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.switch.boxlang"
+        },
+        "3": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#bx-case"
+        },
+        {
+          "include": "#bx-defaultcase"
+        },
+        {
+          "include": "#interpolation"
+        },
+        {
+          "include": "#bx-components"
+        },
+        {
+          "include": "#html-content"
+        }
+      ]
+    },
+    "bx-case": {
+      "name": "meta.tag.case.boxlang",
+      "begin": "(<)(bx:case)(\\s[^>]*)?+(>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.case.boxlang"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#tag-attributes"
+            }
+          ]
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "end": "(</)\\s*(bx:case)\\s*(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.case.boxlang"
+        },
+        "3": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "$base"
+        }
+      ]
+    },
+    "bx-defaultcase": {
+      "name": "meta.tag.defaultcase.boxlang",
+      "begin": "(<)(bx:defaultcase)(\\s*)?(>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.defaultcase.boxlang"
+        },
+        "3": {
+          "name": "text"
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "end": "(</)\\s*(bx:defaultcase)\\s*(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.defaultcase.boxlang"
+        },
+        "3": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "$base"
+        }
+      ]
+    },
+    "bx-try": {
+      "name": "meta.tag.try.boxlang",
+      "begin": "(<)(bx:try)(\\s*)?(>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.try.boxlang"
+        },
+        "3": {
+          "name": "text"
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "end": "(</)\\s*(bx:try)\\s*(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.try.boxlang"
+        },
+        "3": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#bx-catch"
+        },
+        {
+          "include": "#bx-finally"
+        },
+        {
+          "include": "$base"
+        }
+      ]
+    },
+    "bx-catch": {
+      "name": "meta.tag.catch.boxlang",
+      "begin": "(<)(bx:catch)(\\s[^>]*)?+(>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.catch.boxlang"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#tag-attributes"
+            }
+          ]
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "end": "(</)\\s*(bx:catch)\\s*(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.catch.boxlang"
+        },
+        "3": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "$base"
+        }
+      ]
+    },
+    "bx-finally": {
+      "name": "meta.tag.finally.boxlang",
+      "begin": "(<)(bx:finally)(\\s*)?(>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.finally.boxlang"
+        },
+        "3": {
+          "name": "text"
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "end": "(</)\\s*(bx:finally)\\s*(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.finally.boxlang"
+        },
+        "3": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "$base"
+        }
+      ]
+    },
+    "bx-while": {
+      "name": "meta.tag.while.boxlang",
+      "begin": "(<)(bx:while)(\\s[^>]*)?+(>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.while.boxlang"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#tag-attributes"
+            }
+          ]
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "end": "(</)\\s*(bx:while)\\s*(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.while.boxlang"
+        },
+        "3": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "$base"
+        }
+      ]
+    },
+    "bx-function": {
+      "name": "meta.tag.function.boxlang",
+      "begin": "(<)(bx:function)(\\s[^>]*)?+(>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.function.boxlang"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#tag-attributes"
+            }
+          ]
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "end": "(</)\\s*(bx:function)\\s*(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.function.boxlang"
+        },
+        "3": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#bx-argument"
+        },
+        {
+          "include": "$base"
+        }
+      ]
+    },
+    "bx-argument": {
+      "name": "meta.tag.argument.boxlang",
+      "match": "(<)(bx:argument)(\\s[^>]*)?+(/?>|>)",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.boxlang"
+        },
+        "2": {
+          "name": "entity.name.tag.argument.boxlang"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#tag-attributes"
+            }
+          ]
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.boxlang"
+        }
+      }
+    },
+    "bx-self-closing": {
+      "patterns": [
+        {
+          "name": "meta.tag.self-closing.boxlang",
+          "match": "(<)(bx:(set|return|break|continue|include|rethrow|throw))(\\s[^>]*)?+(/?>)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.boxlang"
+            },
+            "2": {
+              "name": "entity.name.tag.boxlang"
+            },
+            "3": {
+              "name": "entity.name.tag.boxlang"
+            },
+            "4": {
+              "patterns": [
+                {
+                  "include": "#tag-attributes"
+                }
+              ]
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.boxlang"
+            }
+          }
+        },
+        {
+          "name": "meta.tag.self-closing.boxlang",
+          "match": "(<)(bx:(set|return|break|continue|include|rethrow|throw))(\\s[^>]*)?+(>)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.boxlang"
+            },
+            "2": {
+              "name": "entity.name.tag.boxlang"
+            },
+            "3": {
+              "name": "entity.name.tag.boxlang"
+            },
+            "4": {
+              "patterns": [
+                {
+                  "include": "#tag-attributes"
+                }
+              ]
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.boxlang"
+            }
+          }
+        },
+        {
+          "name": "meta.tag.self-closing.generic.boxlang",
+          "match": "(<)(bx:([a-zA-Z_][a-zA-Z0-9_\\-]*))(\\s[^>]*)?+(/?>)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.boxlang"
+            },
+            "2": {
+              "name": "entity.name.tag.boxlang"
+            },
+            "3": {
+              "name": "entity.name.tag.boxlang"
+            },
+            "4": {
+              "patterns": [
+                {
+                  "include": "#tag-attributes"
+                }
+              ]
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.boxlang"
+            }
+          }
+        }
+      ]
+    },
+    "bx-generic": {
+      "patterns": [
+        {
+          "name": "meta.tag.generic.boxlang",
+          "begin": "(<)(bx:([a-zA-Z_][a-zA-Z0-9_\\-]*))(\\s[^>]*)?+(>)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.boxlang"
+            },
+            "2": {
+              "name": "entity.name.tag.boxlang"
+            },
+            "3": {
+              "name": "entity.name.tag.boxlang"
+            },
+            "4": {
+              "patterns": [
+                {
+                  "include": "#tag-attributes"
+                }
+              ]
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.boxlang"
+            }
+          },
+          "end": "(</)\\s*(bx:[a-zA-Z_][a-zA-Z0-9_\\-]*)\\s*(>)",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.boxlang"
+            },
+            "2": {
+              "name": "entity.name.tag.boxlang"
+            },
+            "3": {
+              "name": "punctuation.definition.tag.end.boxlang"
+            }
+          },
+          "patterns": [
+            {
+              "include": "$base"
+            }
+          ]
+        },
+        {
+          "name": "meta.tag.self-closing.generic.boxlang",
+          "match": "(<)(bx:([a-zA-Z_][a-zA-Z0-9_\\-]*))(\\s[^>]*)?+(/?>)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.boxlang"
+            },
+            "2": {
+              "name": "entity.name.tag.boxlang"
+            },
+            "3": {
+              "name": "entity.name.tag.boxlang"
+            },
+            "4": {
+              "patterns": [
+                {
+                  "include": "#tag-attributes"
+                }
+              ]
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.boxlang"
+            }
+          }
+        }
+      ]
+    },
+    "tag-attributes": {
+      "patterns": [
+        {
+          "name": "meta.attribute.boxlang",
+          "begin": "([a-zA-Z_][a-zA-Z0-9_\\-]*)\\s*(=)\\s*",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.other.attribute-name.boxlang"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value.boxlang"
+            }
+          },
+          "end": "(?=\\s|>|/?>)",
+          "patterns": [
+            {
+              "include": "#attribute-values"
+            }
+          ]
+        },
+        {
+          "name": "entity.other.attribute-name.boxlang",
+          "match": "[a-zA-Z_][a-zA-Z0-9_\\-]*"
+        }
+      ]
+    },
+    "attribute-values": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.boxlang",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "include": "#interpolation"
+            },
+            {
+              "name": "constant.character.escape.boxlang",
+              "match": "##"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.boxlang",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "include": "#interpolation"
+            },
+            {
+              "name": "constant.character.escape.boxlang",
+              "match": "##"
+            }
+          ]
+        },
+        {
+          "include": "#interpolation"
+        },
+        {
+          "name": "string.unquoted.boxlang",
+          "match": "[^\\s>\"']+"
+        }
+      ]
+    },
+    "interpolation": {
+      "name": "meta.embedded.line.boxlang",
+      "begin": "#",
+      "end": "#",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.embedded.begin.boxlang"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.embedded.end.boxlang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#expressions"
+        }
+      ]
+    },
+    "expressions": {
+      "patterns": [
+        {
+          "include": "#keywords"
+        },
+        {
+          "include": "#operators"
+        },
+        {
+          "include": "#numbers"
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "include": "#function-calls"
+        },
+        {
+          "include": "#variables"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.boxlang",
+          "match": "(?i)\\b(if|else|elseif|switch|case|default|for|while|do|break|continue|return|try|catch|finally|throw|rethrow)\\b"
+        },
+        {
+          "name": "keyword.other.boxlang",
+          "match": "(?i)\\b(import|include|as|in|instanceof|castas|does|not|contain|contains|than|to|when|assert|param|abort|exit|lock|thread|transaction)\\b"
+        },
+        {
+          "name": "storage.modifier.boxlang",
+          "match": "(?i)\\b(public|private|remote|package|static|final|abstract|required)\\b"
+        },
+        {
+          "name": "storage.type.boxlang",
+          "match": "(?i)\\b(class|interface|function|property|var)\\b"
+        },
+        {
+          "name": "storage.type.primitive.boxlang",
+          "match": "(?i)\\b(any|array|boolean|numeric|query|string|struct)\\b"
+        },
+        {
+          "name": "constant.language.boxlang",
+          "match": "(?i)\\b(true|false|null)\\b"
+        },
+        {
+          "name": "variable.language.scope.boxlang",
+          "match": "(?i)\\b(variables|request|server|application|session|client|form|url|cgi|cookie|this)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.logical.boxlang",
+          "match": "(?i)\\b(and|or|not|xor|eqv|imp)\\b|&&|\\|\\||!"
+        },
+        {
+          "name": "keyword.operator.comparison.boxlang",
+          "match": "(?i)\\b(eq|equal|neq|gt|gte|ge|lt|lte|le|is)\\b|==|!=|<>|>=|<=|>|<|==="
+        },
+        {
+          "name": "keyword.operator.arithmetic.boxlang",
+          "match": "\\+\\+|--|\\+|\\-|\\*|/|%|\\\\|\\^|(?i)\\bmod\\b"
+        },
+        {
+          "name": "keyword.operator.assignment.boxlang",
+          "match": "=|\\+=|\\-=|\\*=|/=|%=|&="
+        },
+        {
+          "name": "keyword.operator.string.boxlang",
+          "match": "&"
+        },
+        {
+          "name": "keyword.operator.ternary.boxlang",
+          "match": "\\?:|\\?|:"
+        },
+        {
+          "name": "keyword.operator.bitwise.boxlang",
+          "match": "\\bb[&|^~]\\b|\\bb<<\\b|\\bb>>\\b|\\bb>>>\\b"
+        },
+        {
+          "name": "keyword.operator.access.boxlang",
+          "match": "\\.|::|\\\\?\\\\."
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.boxlang",
+          "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.float.boxlang",
+          "match": "\\.\\d+([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.boxlang",
+          "match": "\\b\\d+([_]?\\d)*\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.boxlang",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.boxlang",
+              "match": "##"
+            },
+            {
+              "include": "#interpolation"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.boxlang",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.boxlang",
+              "match": "##"
+            },
+            {
+              "include": "#interpolation"
+            }
+          ]
+        }
+      ]
+    },
+    "function-calls": {
+      "patterns": [
+        {
+          "name": "meta.function-call.boxlang",
+          "match": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*(\\()",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.boxlang"
+            },
+            "2": {
+              "name": "punctuation.definition.arguments.begin.boxlang"
+            }
+          }
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "variable.other.boxlang",
+          "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+        }
+      ]
+    },
+    "html-content": {
+      "patterns": [
+        {
+          "include": "#html-doctype"
+        },
+        {
+          "include": "#html-tag"
+        },
+        {
+          "name": "text.html.basic",
+          "match": "[^<#]+"
+        }
+      ]
+    },
+    "html-doctype": {
+      "name": "meta.tag.sgml.doctype.html",
+      "begin": "<!(?i:DOCTYPE)",
+      "end": ">",
+      "patterns": [
+        {
+          "name": "string.quoted.double.doctype.identifiers-and-DTDs.html",
+          "begin": "\"",
+          "end": "\""
+        }
+      ]
+    },
+    "html-tag": {
+      "name": "meta.tag.any.html",
+      "begin": "<(?!bx:|/bx:|#)",
+      "end": ">",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.tag.begin.html"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.tag.end.html"
+        }
+      },
+      "patterns": [
+        {
+          "name": "entity.name.tag.html",
+          "match": "\\G/?[a-zA-Z][a-zA-Z0-9-]*"
+        },
+        {
+          "include": "#html-attribute"
+        }
+      ]
+    },
+    "html-attribute": {
+      "patterns": [
+        {
+          "name": "meta.attribute-with-value.html",
+          "begin": "\\b([a-zA-Z-]+)(=)",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.other.attribute-name.html"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value.html"
+            }
+          },
+          "end": "(?=\\s|/?>)",
+          "patterns": [
+            {
+              "include": "#html-attribute-value"
+            }
+          ]
+        },
+        {
+          "name": "entity.other.attribute-name.html",
+          "match": "\\b[a-zA-Z-]+"
+        }
+      ]
+    },
+    "html-attribute-value": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.html",
+          "begin": "\"",
+          "end": "\"",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.html"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.html"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.entity.html",
+              "match": "&[a-zA-Z0-9]+;"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.html",
+          "begin": "'",
+          "end": "'",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.html"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.html"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.entity.html",
+              "match": "&[a-zA-Z0-9]+;"
+            }
+          ]
+        },
+        {
+          "name": "string.unquoted.html",
+          "match": "[^\\s/>]+"
+        }
+      ]
+    }
+  }
+}

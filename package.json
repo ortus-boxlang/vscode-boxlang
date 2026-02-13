@@ -112,6 +112,9 @@
                 "language": "boxlang"
             },
             {
+                "language": "boxlang-template"
+            },
+            {
                 "language": "cfml"
             }
         ],
@@ -197,15 +200,28 @@
             {
                 "id": "boxlang",
                 "aliases": [
-                    "BL",
-                    "bl",
-                    "BOXLANG"
+                    "BoxLang"
                 ],
                 "extensions": [
                     ".bx",
                     ".bxs",
-                    ".bxm",
                     ".cfs"
+                ],
+                "configuration": "./boxlang-language-configuration.json",
+                "icon": {
+                    "light": "./icons/horn-dark.svg",
+                    "dark": "./icons/horn-gradient.svg"
+                }
+            },
+            {
+                "id": "boxlang-template",
+                "aliases": [
+                    "BoxLang Template",
+                    "bxm",
+                    "BXM"
+                ],
+                "extensions": [
+                    ".bxm"
                 ],
                 "configuration": "./boxlang-language-configuration.json",
                 "icon": {
@@ -237,22 +253,19 @@
             },
             {
                 "language": "boxlang",
-                "scopeName": "embedding.boxlang",
+                "scopeName": "source.boxlang",
                 "path": "./syntaxes/boxlang.tmLanguage.json",
+                "embeddedLanguages": {}
+            },
+            {
+                "language": "boxlang-template",
+                "scopeName": "source.boxlang.template",
+                "path": "./syntaxes/boxlang-template.tmLanguage.json",
                 "embeddedLanguages": {
-                    "source.css": "css",
-                    "meta.embedded.block.css": "css",
-                    "source.js": "javascript",
-                    "meta.embedded.block.js": "javascript",
-                    "meta.embedded.line.js": "javascript",
-                    "source.sql": "sql",
-                    "meta.embedded.block.sql": "sql",
-                    "meta.tag.boxlang": "boxlang",
-                    "constant.character.escape.hash.boxlang": "boxlang",
-                    "punctuation.definition.template-expression.begin.boxlang": "boxlang",
+                    "source.boxlang": "boxlang",
+                    "meta.embedded.block.boxlang.script": "boxlang",
                     "meta.embedded.line.boxlang": "boxlang",
-                    "meta.embedded.block.boxlang": "boxlang",
-                    "punctuation.definition.template-expression.end.boxlang": "boxlang"
+                    "meta.template.embedded.boxlang": "boxlang"
                 }
             },
             {
@@ -264,6 +277,23 @@
                 "embeddedLanguages": {
                     "meta.embedded.boxlang.script": "boxlang"
                 }
+            }
+        ],
+        "themes": [
+            {
+                "label": "BoxLang Dark",
+                "uiTheme": "vs-dark",
+                "path": "./themes/BoxLang Dark.tmTheme"
+            },
+            {
+                "label": "BoxLang High Contrast",
+                "uiTheme": "hc-black",
+                "path": "./themes/BoxLang High Contrast.tmTheme"
+            },
+            {
+                "label": "BoxLang Light",
+                "uiTheme": "vs",
+                "path": "./themes/BoxLang Light.tmTheme"
             }
         ],
         "configuration": {
@@ -771,6 +801,9 @@
             },
             "[boxlang]": {
                 "editor.formatOnSave": false
+            },
+            "[boxlang-template]": {
+                "editor.formatOnSave": false
             }
         },
         "commands": [
@@ -1105,7 +1138,7 @@
             "explorer/context": [
                 {
                     "command": "boxlang.runFile",
-                    "when": "resourceLangId == boxlang"
+                    "when": "resourceLangId == boxlang || resourceLangId == boxlang-template"
                 },
                 {
                     "command": "boxlang.runServerFromLocation"
@@ -1117,7 +1150,7 @@
             "editor/context": [
                 {
                     "command": "boxlang.runFile",
-                    "when": "resourceLangId == boxlang || resourceLangId == cfml"
+                    "when": "resourceLangId == boxlang || resourceLangId == boxlang-template || resourceLangId == cfml"
                 }
             ],
             "commandPalette": [
@@ -1204,11 +1237,11 @@
                 },
                 {
                     "command": "boxlang.toggleLineComment",
-                    "when": "!editorReadonly && ( editorLangId == cfml || editorLangId == boxlang )"
+                    "when": "!editorReadonly && ( editorLangId == cfml || editorLangId == boxlang || editorLangId == boxlang-template )"
                 },
                 {
                     "command": "boxlang.toggleBlockComment",
-                    "when": "!editorReadonly && ( editorLangId == cfml || editorLangId == boxlang )"
+                    "when": "!editorReadonly && ( editorLangId == cfml || editorLangId == boxlang || editorLangId == boxlang-template )"
                 },
                 {
                     "command": "boxlang.openActiveApplicationFile",
@@ -1237,13 +1270,13 @@
                 "command": "boxlang.toggleLineComment",
                 "key": "ctrl+/",
                 "mac": "cmd+/",
-                "when": "editorTextFocus && !editorReadonly && ( editorLangId == cfml || editorLangId == boxlang )"
+                "when": "editorTextFocus && !editorReadonly && ( editorLangId == cfml || editorLangId == boxlang || editorLangId == boxlang-template )"
             },
             {
                 "command": "boxlang.toggleBlockComment",
                 "key": "shift+alt+a",
                 "mac": "shift+alt+a",
-                "when": "editorTextFocus && !editorReadonly && ( editorLangId == cfml || editorLangId == boxlang )"
+                "when": "editorTextFocus && !editorReadonly && ( editorLangId == cfml || editorLangId == boxlang || editorLangId == boxlang-template )"
             }
         ]
     },
@@ -1253,7 +1286,8 @@
         "download-all": "node install-scripts/downloadDeps.js",
         "download-lsp": "node install-scripts/get-lsp.js",
         "clean": "rimraf --glob out *.vsix",
-        "build": "tsc -p ./tsconfig.json",
+        "sync-tmbundle": "node install-scripts/sync-tmbundle.js",
+        "build": "npm run sync-tmbundle && tsc -p ./tsconfig.json",
         "compile-web": "webpack",
         "watch-web": "webpack --watch",
         "package-web": "webpack --mode production --devtool hidden-source-map",
