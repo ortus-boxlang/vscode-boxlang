@@ -18,5 +18,12 @@
     "cSpell.words": [
         "struct"
     ],
-    "java.compile.nullAnalysis.mode": "disabled"
+    "java.compile.nullAnalysis.mode": "disabled",
+    "chat.mcp.serverSampling": {
+        "vscode-boxlang/.vscode/mcp.json: atlassian-mcp-server": {
+            "allowedModels": [
+                "copilot/gpt-4.1"
+            ]
+        }
+    }
 }

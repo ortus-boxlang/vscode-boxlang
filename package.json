@@ -1257,6 +1257,7 @@
         "publish": "vsce publish",
         "lint": "tslint -p tsconfig.json -t verbose",
         "test": "npm run build && node out/test/runTestSimple.js",
+        "test:unit": "npm run build && node out/test/runUnitTests.js",
         "vscode:prepublish": "webpack --mode production --devtool hidden-source-map &&  npm run build"
     },
     "dependencies": {
@@ -1296,6 +1297,7 @@
         "@types/node": "^20.19.0",
         "@types/request": "~2.48.7",
         "@types/semver": "~7.3.9",
+        "@types/sinon": "^17.0.3",
         "@types/trie-prefix-tree": "~1.5.0",
         "@types/vscode": "^1.100.0",
         "@typescript-eslint/eslint-plugin": "^5.62.0",
@@ -1312,6 +1314,7 @@
         "mocha": "^11.7.2",
         "process": "^0.11.10",
         "rimraf": "^4.4.1",
+        "sinon": "^19.0.2",
         "ts-loader": "^9.2.2",
         "typescript": "^5.3.3",
         "vscode": "^1.1.37",

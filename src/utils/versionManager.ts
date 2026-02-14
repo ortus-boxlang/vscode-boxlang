@@ -3,13 +3,9 @@ import fs from "fs/promises";
 import path from "path";
 import vscode, { ExtensionContext } from "vscode";
 import { ExtensionConfig } from "./Configuration";
+import { DownloadManager } from "./DownloadManager";
 import * as fileUtil from "./fileUtil";
 import { boxlangOutputChannel } from "./OutputChannels";
-
-const AWS = require('aws-sdk');
-
-const BUCKET_NAME = "downloads.ortussolutions.com";
-const client = new AWS.S3({});
 
 
 export type BoxLangVersion = {
@@ -177,43 +173,23 @@ export async function getAvailableBoxLangVerions( force: boolean = false ): Prom
 }
 
 async function getBoxLangVersionsFromAWS(): Promise<BoxLangVersion[]> {
-    return new Promise((resolve, reject) => {
-        const boxlangVersions = [];
-        const versionPattern = /\.jar$/i;
-        const isJavaDoc = /javadoc/i;
+    try {
+        boxlangOutputChannel.appendLine("Fetching BoxLang versions from S3...");
+        const versions = await DownloadManager.listS3BoxLangVersions();
 
-        client.makeUnauthenticatedRequest(
-            'listObjects',
-            { Bucket: BUCKET_NAME, Prefix: "ortussolutions/boxlang/" },
-            function (err, data) {
+        // Convert to legacy format
+        const boxlangVersions: BoxLangVersion[] = versions.map(v => ({
+            url: v.url,
+            lastModified: v.date,
+            name: `boxlang-${v.version}`
+        }));
 
-                if (err) {
-                    console.log("Error", err);
-                    reject();
-                }
-
-                data.Contents.forEach(item => {
-                    if (!versionPattern.test(item.Key)) {
-                        return;
-                    }
-
-                    if (isJavaDoc.test(item.Key)) {
-                        return;
-                    }
-
-                    boxlangVersions.push({
-                        url: `https://${BUCKET_NAME}/${item.Key}`,
-                        lastModified: item.LastModified,
-                        name: item.Key.split("/").pop().replace(".jar", "")
-                    });
-                });
-
-                boxlangVersions.sort((a, b) => a.lastModified < b.lastModified ? 1 : -1);
-
-                resolve(boxlangVersions);
-            }
-        );
-    });
+        boxlangOutputChannel.appendLine(`Found ${boxlangVersions.length} BoxLang versions`);
+        return boxlangVersions;
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`Error fetching BoxLang versions: ${error}`);
+        throw error;
+    }
 }
 
 async function doesLocalVersionFileExist(): Promise<boolean>{
