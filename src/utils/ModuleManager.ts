@@ -139,6 +139,15 @@ export class ModuleManager {
             // Download and extract directly to target
             await DownloadManager.downloadAndExtract(downloadURL, directory);
 
+            // Normalize extraction so content always lives under <directory>/<slug>/*
+            await this.ensureNestedModuleDirectory(directory, slug);
+
+            // Validate installation by checking for box.json
+            const boxJsonPath = path.join(directory, slug, "box.json");
+            if (!fs.existsSync(boxJsonPath)) {
+                throw new Error(`Module installation failed: box.json not found at ${boxJsonPath}`);
+            }
+
             boxlangOutputChannel.appendLine(`Module installed to directory: ${directory}`);
             return true;
 
@@ -151,6 +160,49 @@ export class ModuleManager {
             }
 
             throw error;
+        }
+    }
+
+    /**
+     * Ensures extracted content is nested under <directory>/<slug>.
+     * Some archives extract directly into the target directory, while other
+     * archives include a top-level folder. We normalize both cases so callers
+     * can rely on <directory>/<slug>/box.json existing.
+     */
+    private async ensureNestedModuleDirectory(directory: string, slug: string): Promise<void> {
+        const slugDir = path.join(directory, slug);
+
+        // Already nested correctly
+        try {
+            const stat = await fs.promises.stat(slugDir);
+            if (stat.isDirectory()) {
+                return;
+            }
+        } catch {
+            // ignore
+        }
+
+        await fs.promises.mkdir(slugDir, { recursive: true });
+
+        const entries = await fs.promises.readdir(directory, { withFileTypes: true });
+        for (const entry of entries) {
+            if (entry.name === slug) {
+                continue;
+            }
+
+            const fromPath = path.join(directory, entry.name);
+            const toPath = path.join(slugDir, entry.name);
+
+            // If destination exists, remove it first to make rename safe.
+            try {
+                if (fs.existsSync(toPath)) {
+                    await fs.promises.rm(toPath, { recursive: true, force: true } as any);
+                }
+            } catch {
+                // ignore
+            }
+
+            await fs.promises.rename(fromPath, toPath);
         }
     }
 

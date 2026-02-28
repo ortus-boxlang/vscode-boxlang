@@ -277,6 +277,58 @@ export class DownloadManager {
     }
 
     /**
+     * List available MiniServer versions from S3 (without AWS SDK)
+     */
+    static async listS3MiniServerVersions(): Promise<Array<{ version: string; url: string; date: Date }>> {
+        const bucketUrl = "https://downloads.ortussolutions.com";
+        const prefix = "ortussolutions/boxlang-runtimes/boxlang-miniserver";
+
+        try {
+            const listUrl = `https://s3.amazonaws.com/downloads.ortussolutions.com?list-type=2&prefix=${encodeURIComponent(prefix)}`;
+
+            const response = await axios.get(listUrl, {
+                timeout: 10000,
+                headers: {
+                    "Accept": "application/xml"
+                }
+            });
+
+            const versions: Array<{ version: string; url: string; date: Date }> = [];
+            const keyMatches = response.data.matchAll(/<Key>([^<]+)<\/Key>/g);
+            const dateMatches = response.data.matchAll(/<LastModified>([^<]+)<\/LastModified>/g);
+
+            const keys = Array.from(keyMatches).map(m => m[1]);
+            const dates = Array.from(dateMatches).map(m => m[1]);
+
+            for (let i = 0; i < keys.length; i++) {
+                const key = keys[i];
+
+                if (!key.endsWith(".jar") || key.includes("javadoc")) {
+                    continue;
+                }
+
+                // Extract version from path: .../boxlang-miniserver/1.9.0/boxlang-miniserver-1.9.0.jar
+                const versionMatch = key.match(/boxlang-miniserver\/([^/]+)\//);
+                if (!versionMatch) {
+                    continue;
+                }
+
+                versions.push({
+                    version: versionMatch[1],
+                    url: `${bucketUrl}/${key}`,
+                    date: new Date(dates[i] || new Date())
+                });
+            }
+
+            versions.sort((a, b) => b.date.getTime() - a.date.getTime());
+            return versions;
+        } catch (error) {
+            boxlangOutputChannel.appendLine(`Failed to list MiniServer versions from S3: ${error}`);
+            throw new Error(`Failed to fetch MiniServer versions from S3: ${error}`);
+        }
+    }
+
+    /**
      * Download BoxLang JAR from S3
      */
     static async downloadBoxLangVersion(

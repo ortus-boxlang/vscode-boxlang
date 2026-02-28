@@ -789,6 +789,14 @@
                 "title": "BoxLang: Install BoxLang Version"
             },
             {
+                "command": "boxlang.installLSPVersion",
+                "title": "BoxLang: Install LSP Version"
+            },
+            {
+                "command": "boxlang.installMiniServerVersion",
+                "title": "BoxLang: Install MiniServer Version"
+            },
+            {
                 "command": "boxlang.removeBoxLangVersion",
                 "title": "BoxLang: Remove BoxLang Version"
             },
