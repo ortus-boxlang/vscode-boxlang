@@ -357,6 +357,37 @@
                     "scope": "resource",
                     "default": ""
                 },
+                "boxlang.debugger.mode": {
+                    "type": "string",
+                    "description": "Choose which BoxLang debugger implementation to use",
+                    "scope": "resource",
+                    "default": "legacy",
+                    "enum": [
+                        "legacy",
+                        "module"
+                    ],
+                    "enumDescriptions": [
+                        "Use the built-in debugger from the BoxLang JAR",
+                        "Use a ForgeBox debugger module managed by version"
+                    ]
+                },
+                "boxlang.debugger.moduleName": {
+                    "type": "string",
+                    "description": "ForgeBox module slug for the module-based debugger",
+                    "scope": "resource",
+                    "default": "bx-debugger"
+                },
+                "boxlang.debugger.moduleVersion": {
+                    "type": "string",
+                    "description": "Debugger module version to use when debugger mode is set to module",
+                    "scope": "resource",
+                    "default": "1.0.0-snapshot"
+                },
+                "boxlang.debugger.boxLangHome": {
+                    "type": "string",
+                    "description": "Set the home directory for the BoxLang debugger module runtime",
+                    "scope": "resource"
+                },
                 "boxlang.showLexerTokens": {
                     "type": "boolean",
                     "description": "Controls whether to show the lexer processing output",
@@ -797,6 +828,18 @@
             {
                 "command": "boxlang.installLSPVersion",
                 "title": "BoxLang: Install LSP Version"
+            },
+            {
+                "command": "boxlang.installDebuggerVersion",
+                "title": "BoxLang: Install Debugger Version"
+            },
+            {
+                "command": "boxlang.selectDebuggerVersion",
+                "title": "BoxLang: Select Debugger Version"
+            },
+            {
+                "command": "boxlang.removeDebuggerVersion",
+                "title": "BoxLang: Remove Debugger Version"
             },
             {
                 "command": "boxlang.installMiniServerVersion",

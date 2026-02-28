@@ -6,6 +6,7 @@ import vscode, { ExtensionContext, window } from "vscode";
 import { getExtensionContext } from "../context";
 import { ExtensionConfig } from "../utils/Configuration";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
+import { ensureConfiguredDebuggerModule } from "./DebuggerManager";
 import { trackedSpawn } from "./ProcessTracker";
 import { BoxServerConfig, trackServerStart, trackServerStop } from "./Server";
 import { getConfiguredBoxLangJarPath } from "./versionManager";
@@ -110,6 +111,97 @@ async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
     return runBoxLangWithHome(BOXLANG_HOME, ...args);
 }
 
+function startDebuggerProcess(args: string[], env: NodeJS.ProcessEnv): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+        const boxLang = trackedSpawn(javaExecutable, args, { env });
+        let stdout = '';
+        let found = false;
+
+        boxLang.on("error", (err) => {
+            boxlangOutputChannel.appendLine("Debugger failed to launch");
+            boxlangOutputChannel.appendLine("" + err);
+            reject(err);
+        });
+
+        boxLang.stdout.on("data", data => {
+            boxlangOutputChannel.appendLine("Debugger - output");
+            boxlangOutputChannel.appendLine("" + data);
+            stdout += data;
+
+            if (found) {
+                return;
+            }
+
+            const port = findPort( stdout );
+
+            if (!port) {
+                return;
+            }
+
+            found = true;
+            resolve(port);
+        });
+
+        boxLang.stderr.on("data", data => {
+            boxlangOutputChannel.appendLine("Debugger - error");
+            boxlangOutputChannel.appendLine("" + data);
+        });
+    });
+}
+
+function findPort(stdout: string){
+    const match = /Listening on port: (\d+)/mi.exec(stdout);
+
+    if (match) {
+        return match[1];
+    }
+
+    return null;
+}
+
+async function startLegacyDebugger(boxlangHome: string): Promise<string> {
+    boxlangOutputChannel.appendLine("Starting legacy BoxLang debugger");
+
+    return startDebuggerProcess(
+        ["ortus.boxlang.debugger.DebugMain"],
+        {
+            ...process.env,
+            JAVA_HOME: ExtensionConfig.boxlangJavaHome,
+            BOXLANG_HOME: boxlangHome,
+            CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
+        }
+    );
+}
+
+async function startModuleDebugger(boxlangHome: string): Promise<string> {
+    const debuggerInstall = await ensureConfiguredDebuggerModule();
+
+    boxlangOutputChannel.appendLine(`Starting module BoxLang debugger: ${debuggerInstall.versionSpec}`);
+
+    return startDebuggerProcess(
+        ["ortus.boxlang.runtime.BoxRunner", `module:${debuggerInstall.moduleName}`],
+        {
+            ...process.env,
+            JAVA_HOME: ExtensionConfig.boxlangJavaHome,
+            BOXLANG_HOME: boxlangHome,
+            BOXLANG_MODULESDIRECTORY: debuggerInstall.modulePath,
+            BOXLANG_DEBUGMODE: "true",
+            CLASSPATH: debuggerInstall.runtimeJarPath
+        }
+    );
+}
+
+async function startConfiguredDebugger(boxlangHome: string): Promise<string> {
+    const mode = ExtensionConfig.boxlangDebuggerMode;
+
+    if (mode === "module") {
+        return startModuleDebugger(boxlangHome);
+    }
+
+    return startLegacyDebugger(boxlangHome);
+}
+
 export class BoxLangWithHome {
     boxlangHome: string;
 
@@ -188,48 +280,7 @@ export class BoxLangWithHome {
     }
 
     async startDebugger(): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
-            const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.debugger.DebugMain"], {
-                env: {
-                    ...process.env,
-                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
-                    BOXLANG_HOME: this.boxlangHome,
-                    CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
-                }
-            });
-            let stdout = '';
-            let found = false;
-
-            boxLang.on( "error", ( err ) => {
-                boxlangOutputChannel.appendLine("Debugger failed to launch");
-                boxlangOutputChannel.appendLine( "" + err );
-            } )
-
-            boxLang.stdout.on("data", data => {
-                boxlangOutputChannel.appendLine("Debugger - output");
-                boxlangOutputChannel.appendLine("" + data);
-                stdout += data;
-
-                if (found) {
-                    return;
-                }
-
-                const matches = /Listening on port: (\d+)/mi.exec(stdout);
-
-                if (!matches) {
-                    return;
-                }
-
-                found = true;
-                resolve(matches[1]);
-            });
-
-            boxLang.stderr.on("data", data => {
-                boxlangOutputChannel.appendLine("Debugger - error");
-                boxlangOutputChannel.appendLine("" + data);
-            });
-        });
+        return startConfiguredDebugger(this.boxlangHome);
     }
 
     async startLSP(): Promise<Array<any>> {
@@ -412,43 +463,7 @@ export class BoxLang {
     }
 
     static async startDebugger(): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
-            const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.debugger.DebugMain"], {
-                env: {
-                    ...process.env,
-                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
-                    BOXLANG_HOME: BOXLANG_HOME,
-                    CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
-                }
-            });
-            let stdout = '';
-            let found = false;
-
-            boxLang.stdout.on("data", data => {
-                boxlangOutputChannel.appendLine("Debugger - output");
-                boxlangOutputChannel.appendLine("" + data);
-                stdout += data;
-
-                if (found) {
-                    return;
-                }
-
-                const matches = /Listening on port: (\d+)/mi.exec(stdout);
-
-                if (!matches) {
-                    return;
-                }
-
-                found = true;
-                resolve(matches[1]);
-            });
-
-            boxLang.stderr.on("data", data => {
-                boxlangOutputChannel.appendLine("Debugger - error");
-                boxlangOutputChannel.appendLine("" + data);
-            });
-        });
+        return startConfiguredDebugger(BOXLANG_HOME);
     }
 
     static async getVersionOutput(): Promise<string> {

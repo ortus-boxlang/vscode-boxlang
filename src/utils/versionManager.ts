@@ -148,22 +148,23 @@ export async function getAvailableBoxLangVerions( force: boolean = false ): Prom
     if( await doesLocalVersionFileExist() ) {
         const cachedVersions = await readVersionsFromLocalCache();
 
-        const versionPattern = /boxlang-\d.\d.\d$/;
+        const versionPattern = /boxlang-\d+\.\d+\.\d+$/;
         const newestRelease = versionsFromAWS.find( v => versionPattern.test(v.name) );
+
+        if( !newestRelease ){
+            writeVersionsToLocalCache( versionsFromAWS );
+            return versionsFromAWS;
+        }
 
         const inCache = cachedVersions.some( v => v.name === newestRelease.name );
         const releaseVersion = newestRelease.name.replace( "boxlang-", "" );
 
         if( !inCache ){
-            new Promise(async (resolve, reject) => {
-                const choice = await vscode.window.showInformationMessage(`BoxLang version: ${releaseVersion} is now available for download!`, "See the Release" );
+            const choice = await vscode.window.showInformationMessage(`BoxLang version: ${releaseVersion} is now available for download!`, "See the Release" );
 
-                if( choice !== "See the Release" ){
-                    return;
-                }
-
+            if( choice === "See the Release" ){
                 vscode.env.openExternal(vscode.Uri.parse(`https://github.com/ortus-boxlang/BoxLang/releases/tag/v${releaseVersion}`));
-            });
+            }
         }
     }
 

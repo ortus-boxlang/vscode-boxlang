@@ -6,6 +6,7 @@ let INCLUDED_BOXLANG_JAR_PATH = "";
 let INCLUDED_BOXLANG_MINISERVER_JAR_PATH = "";
 let INCLUDED_BOXLANG_LSP_PATH = "";
 let DEFAULT_LSP_BOXLANG_HOME = "";
+let DEFAULT_DEBUGGER_BOXLANG_HOME = "";
 let BVMRC_VERSION: string | null = null;
 let BVMRC_JAR_PATH: string | null = null;
 
@@ -14,6 +15,7 @@ export function setupConfiguration(context: ExtensionContext) {
     INCLUDED_BOXLANG_MINISERVER_JAR_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang-miniserver.jar");
     INCLUDED_BOXLANG_LSP_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang-lsp.jar");
     DEFAULT_LSP_BOXLANG_HOME = path.join(context.storageUri.fsPath, "default_lsp_boxlang_home");
+    DEFAULT_DEBUGGER_BOXLANG_HOME = path.join(context.storageUri.fsPath, "default_debugger_boxlang_home");
 }
 
 export function getUserProfileBoxLangHome() {
@@ -180,6 +182,44 @@ export const ExtensionConfig = {
 
     get boxlangLSPModules() {
         return workspace.getConfiguration("boxlang.lsp").get<string>('modules') || '';
+    },
+
+    get boxlangDebuggerMode() {
+        return workspace.getConfiguration("boxlang.debugger").get<string>('mode') || "legacy";
+    },
+
+    get boxlangDebuggerModuleName() {
+        return workspace.getConfiguration("boxlang.debugger").get<string>('moduleName') || "bx-debugger";
+    },
+
+    set boxlangDebuggerModuleVersion(version: string) {
+        const target = (workspace.workspaceFolders && workspace.workspaceFolders.length > 0)
+            ? ConfigurationTarget.Workspace
+            : ConfigurationTarget.Global;
+
+        workspace.getConfiguration("boxlang.debugger").update("moduleVersion", version, target);
+    },
+
+    get boxlangDebuggerModuleVersion() {
+        return workspace.getConfiguration("boxlang.debugger").get<string>('moduleVersion') || "1.0.0-snapshot";
+    },
+
+    get boxlangDebuggerVersionSpec() {
+        return `${this.boxlangDebuggerModuleName}@${this.boxlangDebuggerModuleVersion}`;
+    },
+
+    get boxlangDebuggerBoxLangHome() {
+        const debuggerBoxLangHome = workspace.getConfiguration("boxlang.debugger").get<string>('boxLangHome');
+
+        if (!debuggerBoxLangHome) {
+            return DEFAULT_DEBUGGER_BOXLANG_HOME;
+        }
+
+        if (path.isAbsolute(debuggerBoxLangHome)) {
+            return debuggerBoxLangHome;
+        }
+
+        return path.join(workspace.workspaceFolders[0].uri.fsPath, debuggerBoxLangHome);
     },
 
     get boxlangServerPort() {

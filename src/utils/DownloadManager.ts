@@ -226,49 +226,75 @@ export class DownloadManager {
         const prefix = "ortussolutions/boxlang";
 
         try {
-            // Use S3 REST API directly - no authentication needed for public bucket
-            const listUrl = `https://s3.amazonaws.com/downloads.ortussolutions.com?list-type=2&prefix=${encodeURIComponent(prefix)}`;
-
-            const response = await axios.get(listUrl, {
-                timeout: 10000,
-                headers: {
-                    "Accept": "application/xml"
-                }
-            });
-
-            // Parse XML response
             const versions: Array<{ version: string; url: string; date: Date }> = [];
-            const keyMatches = response.data.matchAll(/<Key>([^<]+)<\/Key>/g);
-            const dateMatches = response.data.matchAll(/<LastModified>([^<]+)<\/LastModified>/g);
+            let continuationToken: string | null = null;
 
-            const keys = Array.from(keyMatches).map(m => m[1]);
-            const dates = Array.from(dateMatches).map(m => m[1]);
+            // Use S3 REST API directly - no authentication needed for public bucket.
+            // Iterate all pages because this prefix has more than 1000 keys.
+            do {
+                const listUrl = `https://s3.amazonaws.com/downloads.ortussolutions.com?list-type=2&prefix=${encodeURIComponent(prefix)}${continuationToken ? `&continuation-token=${encodeURIComponent(continuationToken)}` : ""}`;
 
-            for (let i = 0; i < keys.length; i++) {
-                const key = keys[i];
-
-                // Filter: only .jar files, exclude javadoc
-                if (!key.endsWith(".jar") || key.includes("javadoc")) {
-                    continue;
-                }
-
-                // Extract version from path: ortussolutions/boxlang/1.9.0/boxlang-1.9.0.jar
-                const versionMatch = key.match(/boxlang\/([^/]+)\//);
-                if (!versionMatch) {
-                    continue;
-                }
-
-                versions.push({
-                    version: versionMatch[1],
-                    url: `${bucketUrl}/${key}`,
-                    date: new Date(dates[i] || new Date())
+                const response = await axios.get(listUrl, {
+                    timeout: 10000,
+                    headers: {
+                        "Accept": "application/xml"
+                    }
                 });
+
+                const pageXml: string = response.data;
+                const contentsMatches = Array.from(pageXml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g));
+
+                for (const content of contentsMatches) {
+                    const block = content[1];
+                    const keyMatch = block.match(/<Key>([^<]+)<\/Key>/);
+                    const dateMatch = block.match(/<LastModified>([^<]+)<\/LastModified>/);
+
+                    if (!keyMatch) {
+                        continue;
+                    }
+
+                    const key = keyMatch[1];
+
+                    // Match ONLY core runtime artifacts:
+                    // ortussolutions/boxlang/<version>/boxlang-<version>-all.jar
+                    // (keep compatibility for any historical boxlang-<version>.jar naming)
+                    const versionMatch = key.match(/^ortussolutions\/boxlang\/([^/]+)\/boxlang-([^/]+?)(?:-all)?\.jar$/);
+                    if (!versionMatch) {
+                        continue;
+                    }
+
+                    const folderVersion = versionMatch[1];
+                    const fileVersion = versionMatch[2];
+
+                    if (folderVersion !== fileVersion) {
+                        continue;
+                    }
+
+                    versions.push({
+                        version: folderVersion,
+                        url: `${bucketUrl}/${key}`,
+                        date: new Date(dateMatch?.[1] || new Date())
+                    });
+                }
+
+                const nextTokenMatch = pageXml.match(/<NextContinuationToken>([^<]+)<\/NextContinuationToken>/);
+                continuationToken = nextTokenMatch?.[1] || null;
+            } while (continuationToken);
+
+            const dedupedByVersion = new Map<string, { version: string; url: string; date: Date }>();
+            for (const item of versions) {
+                const existing = dedupedByVersion.get(item.version);
+
+                if (!existing || item.date.getTime() > existing.date.getTime()) {
+                    dedupedByVersion.set(item.version, item);
+                }
             }
 
             // Sort by date (newest first)
-            versions.sort((a, b) => b.date.getTime() - a.date.getTime());
+            const uniqueVersions = Array.from(dedupedByVersion.values());
+            uniqueVersions.sort((a, b) => b.date.getTime() - a.date.getTime());
 
-            return versions;
+            return uniqueVersions;
 
         } catch (error) {
             boxlangOutputChannel.appendLine(`Failed to list S3 versions: ${error}`);
