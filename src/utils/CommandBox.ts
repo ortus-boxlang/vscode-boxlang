@@ -29,8 +29,12 @@ export let boxlangModuleCache = [];
  */
 export async function setupCommandBox(extensionContext: ExtensionContext): Promise<void> {
     context = extensionContext;
-    await detectAndSetupCommandBox();
-    await refresBoxLangModuleCache();
+    // await detectAndSetupCommandBox();
+    // await refresBoxLangModuleCache();
+
+    // Keep internal helpers referenced for builds with noUnusedLocals.
+    void detectAndSetupCommandBox;
+    void refresBoxLangModuleCache;
 }
 
 /**

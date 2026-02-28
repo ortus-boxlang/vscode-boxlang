@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alpine Counter Example</title>
+  <script defer src="resources/webviews/alpinejs.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    button { font-size: 1.2rem; padding: 0.5rem 1rem; }
+    #count { font-weight: bold; margin-left: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Alpine Counter Example</h1>
+  <div x-data="{ count: 0 }">
+    <button @click="count++">Increment</button>
+    <span id="count" x-text="count"></span>
+  </div>
+</body>
+</html>

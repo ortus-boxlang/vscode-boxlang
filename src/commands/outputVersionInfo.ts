@@ -47,6 +47,14 @@ export async function outputVersionInfo(context: vscode.ExtensionContext) {
             versionInfo.push(boxlangLSPVersionInfo.split("\n").map(line => "  " + line).join("\n"));
             versionInfo.push(``);
 
+            versionInfo.push(`BoxLang MiniServer Info`);
+            versionInfo.push(``);
+
+            const boxlangMiniServerVersionInfo = await boxLangLauncher.getMiniServerVersionOutput();
+
+            versionInfo.push(boxlangMiniServerVersionInfo.split("\n").map(line => "  " + line).join("\n"));
+            versionInfo.push(``);
+
             appendToOpenDocument(vscode.Uri.file('boxlang_version_info.txt').with({ scheme: "untitled", }), versionInfo.join("\n"));
         }
     );

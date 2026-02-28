@@ -256,6 +256,8 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(commands.registerCommand("boxlang.runBoxLangREPL", applyContext(extensionCommands.runBoxLangREPL)));
     context.subscriptions.push(commands.registerCommand("boxlang.hardResetWorkspaceHome", applyContext(extensionCommands.hardResetWorkspaceHome)));
     context.subscriptions.push(commands.registerCommand("boxlang.restartLSP", applyContext(extensionCommands.restartLSP)));
+    context.subscriptions.push(commands.registerCommand("boxlang.installLSPVersion", applyContext(extensionCommands.installLSPVersion)));
+    context.subscriptions.push(commands.registerCommand("boxlang.installMiniServerVersion", applyContext(extensionCommands.installMiniServerVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.selectBoxLangVersion", applyContext(extensionCommands.selectBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.installBoxLangVersion", applyContext(extensionCommands.installBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.removeBoxLangVersion", applyContext(extensionCommands.removeBoxLangVersion)));

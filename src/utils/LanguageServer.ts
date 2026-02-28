@@ -5,8 +5,9 @@ import * as vscode from "vscode";
 import { LanguageClient, ServerOptions } from "vscode-languageclient/node";
 import { getExtensionContext } from "../context";
 import { startLSPProcess } from "./BoxLang";
-import { installBoxLangModule, installBoxLangModuleToDir, runCommandBox } from "./CommandBox";
+import { runCommandBox } from "./CommandBox";
 import { ExtensionConfig } from "./Configuration";
+import { ModuleManager } from "./ModuleManager";
 import { boxlangOutputChannel } from "./OutputChannels";
 import { ensureBoxLangVersion } from "./versionManager";
 
@@ -160,7 +161,9 @@ async function ensureLSPModule() {
         }
     }
     catch (e) {
-        await installBoxLangModuleToDir( lspVersion, lspVersionDir );
+        // Use new ModuleManager with CommandBox fallback
+        const moduleManager = new ModuleManager(true);
+        await moduleManager.installModuleToDir(lspVersion, lspVersionDir, true);
 
         try {
             await fs.access(path.join(lspVersionDir, "bx-lsp", "box.json"));
@@ -219,21 +222,17 @@ async function ensureBoxLangModules(lspBoxLangHome: string) {
         return;
     }
 
-    const installDir = path.join(lspBoxLangHome);
-    const modulesToInstall = moduleNames.join( ',' );
+    const moduleManager = new ModuleManager(true);
 
-    try {
-        boxlangOutputChannel.appendLine(`Installing BoxLang modules for LSP: ${modulesToInstall}`);
-        const result = await installBoxLangModule(installDir, modulesToInstall);
-
-        if (result.code === 0) {
-            boxlangOutputChannel.appendLine(`Successfully installed module: ${modulesToInstall} to ${installDir}`);
-        } else {
-            boxlangOutputChannel.appendLine(`Failed to install module ${modulesToInstall} to ${installDir}: ${result.stderr}`);
-            boxlangOutputChannel.appendLine( result.stdout);
+    // Install each module individually
+    for (const moduleName of moduleNames) {
+        try {
+            boxlangOutputChannel.appendLine(`Installing BoxLang module for LSP: ${moduleName}`);
+            await moduleManager.installModule(moduleName, lspBoxLangHome, true);
+            boxlangOutputChannel.appendLine(`Successfully installed module: ${moduleName}`);
+        } catch (error) {
+            boxlangOutputChannel.appendLine(`Error installing module ${moduleName}: ${error}`);
         }
-    } catch (error) {
-        boxlangOutputChannel.appendLine(`Error installing module ${modulesToInstall} to ${installDir}: ${error}`);
     }
 }
 
@@ -252,9 +251,14 @@ async function getRequiredBoxLangVersion( lspModulePath: string ): Promise<strin
         }
 
         const boxJSON = await findFirstBoxJson( lspModulePath );
+        if (!boxJSON) {
+            boxlangOutputChannel.appendLine("No box.json found in LSP module path");
+            return "";
+        }
+
         const moduleJson = JSON.parse( (await fs.readFile( boxJSON )) + "" );
 
-        return moduleJson.boxlang.minimumVersion;
+        return moduleJson.boxlang?.minimumVersion || moduleJson.boxlang?.version || "";
     }
     catch( e ){
         boxlangOutputChannel.appendLine("Error reading box.json to determine required BoxLang version for LSP module");

@@ -101,6 +101,10 @@ export const ExtensionConfig = {
         return jarPath || INCLUDED_BOXLANG_MINISERVER_JAR_PATH;
     },
 
+    set boxlangMiniServerJarPath(path: string) {
+        workspace.getConfiguration("boxlang").update("miniserverjarpath", path, ConfigurationTarget.Global);
+    },
+
     set boxlangJarPath(path: string) {
         workspace.getConfiguration("boxlang").update("jarpath", path, ConfigurationTarget.Global);
     },
@@ -135,6 +139,14 @@ export const ExtensionConfig = {
 
     get boxLangLSPBoxLangVersion() {
         return workspace.getConfiguration("boxlang.lsp").get<string>('boxLangVersion');
+    },
+
+    set boxlangLSPVersion(versionSpec: string) {
+        const target = (workspace.workspaceFolders && workspace.workspaceFolders.length > 0)
+            ? ConfigurationTarget.Workspace
+            : ConfigurationTarget.Global;
+
+        workspace.getConfiguration("boxlang.lsp").update("lspVersion", versionSpec, target);
     },
 
     get boxlangLSPVersion() {

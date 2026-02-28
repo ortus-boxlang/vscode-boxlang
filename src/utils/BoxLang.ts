@@ -3,11 +3,16 @@ import fs from "fs";
 import path from "path";
 import * as portFinder from "portfinder";
 import vscode, { ExtensionContext, window } from "vscode";
+import { getExtensionContext } from "../context";
 import { ExtensionConfig } from "../utils/Configuration";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
 import { trackedSpawn } from "./ProcessTracker";
 import { BoxServerConfig, trackServerStart, trackServerStop } from "./Server";
 import { getConfiguredBoxLangJarPath } from "./versionManager";
+
+// Avoid a hard dependency on type declarations for yauzl
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const yauzl: any = require("yauzl");
 
 export type BoxLangResult = {
     code: number,
@@ -287,13 +292,79 @@ export class BoxLangWithHome {
     }
 
     async getLSPVersionOutput(): Promise<string> {
-        const res = await runBoxLangWithHome(this.boxlangHome, "module:bx-lsp", "version");
+        try {
+            const lspVersionSpec = ExtensionConfig.boxlangLSPVersion;
+            if (!lspVersionSpec) {
+                return "No LSP version is configured (boxlang.lsp.lspVersion).";
+            }
 
-        if( res.code != 0 ){
-            return res.stderr
+            const context = getExtensionContext();
+            const lspModulesDir = path.join(context.globalStorageUri.fsPath, "lspVersions", lspVersionSpec);
+            const requiredBoxJson = path.join(lspModulesDir, "bx-lsp", "box.json");
+
+            if (!fs.existsSync(requiredBoxJson)) {
+                return `LSP module not found at expected location: ${requiredBoxJson}`;
+            }
+
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+            const runtimeJarPath = await getConfiguredBoxLangJarPath();
+
+            const res: BoxLangResult = await new Promise((resolve) => {
+                const proc = trackedSpawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner", "module:bx-lsp", "version"], {
+                    env: {
+                        ...process.env,
+                        JAVA_HOME: ExtensionConfig.boxlangJavaHome,
+                        BOXLANG_HOME: this.boxlangHome,
+                        BOXLANG_MODULESDIRECTORY: lspModulesDir,
+                        CLASSPATH: runtimeJarPath
+                    }
+                });
+
+                let stdout = "";
+                let stderr = "";
+                proc.stdout.on("data", (data) => stdout += data);
+                proc.stderr.on("data", (data) => stderr += data);
+
+                proc.on("exit", (code) => {
+                    resolve({
+                        code: code ?? 0,
+                        stdout,
+                        stderr
+                    });
+                });
+            });
+
+            if (res.code !== 0) {
+                return res.stderr || res.stdout || `Failed to retrieve LSP version (exit ${res.code}).`;
+            }
+
+            return res.stdout;
+        } catch (e: any) {
+            return `Error retrieving LSP version info: ${e?.message || e}`;
         }
+    }
 
-        return res.stdout;
+    async getMiniServerVersionOutput(): Promise<string> {
+        try {
+            const jarPath = ExtensionConfig.boxlangMiniServerJarPath;
+
+            if (!jarPath) {
+                return "No MiniServer JAR is configured (boxlang.miniserverjarpath).";
+            }
+
+            if (!fs.existsSync(jarPath)) {
+                return `MiniServer JAR not found: ${jarPath}`;
+            }
+
+            const version = await tryGetMiniServerVersionFromJar(jarPath);
+
+            const lines: string[] = [];
+            lines.push(`JAR: ${jarPath}`);
+            lines.push(`Version: ${version || "Unknown"}`);
+            return lines.join("\n");
+        } catch (e: any) {
+            return `Error retrieving MiniServer version info: ${e?.message || e}`;
+        }
     }
 
 }
@@ -492,4 +563,108 @@ async function getMiniServerCLIArgs(server: BoxServerConfig, debugPort: number):
     }
 
     return cliArgs;
+}
+
+async function tryReadJarManifest(jarPath: string): Promise<string | null> {
+    return new Promise((resolve, reject) => {
+        yauzl.open(jarPath, { lazyEntries: true }, (err: any, zipfile: any) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+
+            let resolved = false;
+
+            const finish = (value: string | null) => {
+                if (resolved) {
+                    return;
+                }
+                resolved = true;
+                try {
+                    zipfile.close();
+                } catch {}
+                resolve(value);
+            };
+
+            zipfile.readEntry();
+            zipfile.on("entry", (entry: any) => {
+                if (entry.fileName === "META-INF/MANIFEST.MF") {
+                    zipfile.openReadStream(entry, (streamErr: any, readStream: any) => {
+                        if (streamErr) {
+                            reject(streamErr);
+                            return;
+                        }
+
+                        const chunks: Buffer[] = [];
+                        readStream.on("data", (c: Buffer) => chunks.push(c));
+                        readStream.on("end", () => finish(Buffer.concat(chunks).toString("utf8")));
+                        readStream.on("error", (e: any) => reject(e));
+                    });
+                    return;
+                }
+
+                zipfile.readEntry();
+            });
+
+            zipfile.on("end", () => finish(null));
+            zipfile.on("error", (e: any) => reject(e));
+        });
+    });
+}
+
+function parseManifestAttributes(manifestText: string): Record<string, string> {
+    const attrs: Record<string, string> = {};
+    const lines = manifestText.replace(/\r\n/g, "\n").split("\n");
+
+    let currentKey: string | null = null;
+    for (const rawLine of lines) {
+        const line = rawLine.trimEnd();
+        if (!line) {
+            currentKey = null;
+            continue;
+        }
+
+        if (line.startsWith(" ") && currentKey) {
+            attrs[currentKey] = (attrs[currentKey] || "") + line.slice(1);
+            continue;
+        }
+
+        const idx = line.indexOf(":");
+        if (idx <= 0) {
+            currentKey = null;
+            continue;
+        }
+
+        const key = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        attrs[key] = value;
+        currentKey = key;
+    }
+
+    return attrs;
+}
+
+async function tryGetMiniServerVersionFromJar(jarPath: string): Promise<string | undefined> {
+    // Prefer manifest version if available
+    try {
+        const manifestText = await tryReadJarManifest(jarPath);
+        if (manifestText) {
+            const attrs = parseManifestAttributes(manifestText);
+            const version =
+                attrs["Implementation-Version"] ||
+                attrs["Bundle-Version"] ||
+                attrs["Specification-Version"] ||
+                attrs["Version"];
+
+            if (version) {
+                return version;
+            }
+        }
+    } catch {
+        // fall through to filename parsing
+    }
+
+    const fileName = path.basename(jarPath);
+    const match = /^boxlang-miniserver-(.+)\.jar$/.exec(fileName);
+    return match?.[1];
 }
