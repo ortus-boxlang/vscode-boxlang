@@ -184,6 +184,22 @@ export const ExtensionConfig = {
         return workspace.getConfiguration("boxlang.lsp").get<string>('modules') || '';
     },
 
+    get boxlangLSPSendLogToIDE() {
+        return workspace.getConfiguration("boxlang.lsp").get<boolean>('sendLogToIDE') ?? true;
+    },
+
+    get boxlangLSPLogLevel() {
+        return workspace.getConfiguration("boxlang.lsp").get<string>('logLevel') || "WARN";
+    },
+
+    get boxlangLSPVersionUpdateMode(): "auto" | "prompt" | "manual" {
+        return (workspace.getConfiguration("boxlang.lsp").get<string>('versionUpdateMode') || "auto") as "auto" | "prompt" | "manual";
+    },
+
+    get boxlangDebuggerVersionUpdateMode(): "auto" | "prompt" | "manual" {
+        return (workspace.getConfiguration("boxlang.debugger").get<string>('versionUpdateMode') || "auto") as "auto" | "prompt" | "manual";
+    },
+
     get boxlangDebuggerMode() {
         return workspace.getConfiguration("boxlang.debugger").get<string>('mode') || "legacy";
     },

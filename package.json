@@ -345,6 +345,52 @@
                     "scope": "work",
                     "default": false
                 },
+                "boxlang.lsp.sendLogToIDE": {
+                    "type": "boolean",
+                    "description": "Whether the LSP sends its logging output to the VS Code output channel",
+                    "scope": "window",
+                    "default": true
+                },
+                "boxlang.lsp.logLevel": {
+                    "type": "string",
+                    "description": "The log level for the BoxLang Language Server",
+                    "scope": "window",
+                    "default": "WARN",
+                    "enum": [
+                        "TRACE",
+                        "DEBUG",
+                        "INFO",
+                        "WARN",
+                        "ERROR",
+                        "FATAL",
+                        "OFF"
+                    ],
+                    "enumDescriptions": [
+                        "Trace level logging (most verbose)",
+                        "Debug level logging",
+                        "Info level logging",
+                        "Warning level logging (default)",
+                        "Error level logging",
+                        "Fatal level logging",
+                        "Disable LSP logging"
+                    ]
+                },
+                "boxlang.lsp.versionUpdateMode": {
+                    "type": "string",
+                    "description": "Controls how the BoxLang Language Server checks for and applies version updates",
+                    "scope": "machine",
+                    "default": "auto",
+                    "enum": [
+                        "auto",
+                        "prompt",
+                        "manual"
+                    ],
+                    "enumDescriptions": [
+                        "Check for the latest version and automatically download it",
+                        "Check for the latest version and prompt before downloading",
+                        "Do not check for the latest version"
+                    ]
+                },
                 "boxlang.lsp.processDiagnosticsInParallel": {
                     "type": "boolean",
                     "description": "Run diagnostic processing in parallel",
@@ -387,6 +433,22 @@
                     "type": "string",
                     "description": "Set the home directory for the BoxLang debugger module runtime",
                     "scope": "resource"
+                },
+                "boxlang.debugger.versionUpdateMode": {
+                    "type": "string",
+                    "description": "Controls how the BoxLang debugger checks for and applies version updates",
+                    "scope": "machine",
+                    "default": "auto",
+                    "enum": [
+                        "auto",
+                        "prompt",
+                        "manual"
+                    ],
+                    "enumDescriptions": [
+                        "Check for the latest version and automatically download it",
+                        "Check for the latest version and prompt before downloading",
+                        "Do not check for the latest version"
+                    ]
                 },
                 "boxlang.showLexerTokens": {
                     "type": "boolean",

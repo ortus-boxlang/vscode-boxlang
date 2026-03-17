@@ -1,5 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
+import semver from "semver";
+import * as vscode from "vscode";
 import { getExtensionContext } from "../context";
 import { ExtensionConfig } from "./Configuration";
 import { ForgeBoxClient } from "./ForgeBoxClient";
@@ -181,7 +183,59 @@ async function getRequiredBoxLangVersion(modulePath: string): Promise<string> {
     }
 }
 
+async function checkAndUpdateDebuggerVersion(): Promise<void> {
+    const updateMode = ExtensionConfig.boxlangDebuggerVersionUpdateMode;
+
+    if (updateMode === "manual") {
+        return;
+    }
+
+    const currentVersion = ExtensionConfig.boxlangDebuggerModuleVersion;
+    const moduleName = ExtensionConfig.boxlangDebuggerModuleName;
+
+    let latestVersion: string;
+    try {
+        const forgeBoxClient = new ForgeBoxClient();
+        latestVersion = await forgeBoxClient.getLatestVersion(moduleName);
+    } catch (e) {
+        boxlangOutputChannel.appendLine(`BoxLang: Unable to check for latest debugger version: ${e}`);
+        return;
+    }
+
+    if (!latestVersion) {
+        return;
+    }
+
+    try {
+        if (semver.rcompare(currentVersion, latestVersion) <= 0) {
+            boxlangOutputChannel.appendLine(`BoxLang: Debugger is already at the latest version (${moduleName}@${currentVersion})`);
+            return;
+        }
+    } catch {
+        // If the version strings are not valid semver (e.g. snapshots), skip the comparison
+        return;
+    }
+
+    if (updateMode === "auto") {
+        boxlangOutputChannel.appendLine(`BoxLang: Automatically updating debugger from ${currentVersion} to ${latestVersion}`);
+        ExtensionConfig.boxlangDebuggerModuleVersion = latestVersion;
+    } else {
+        const choice = await vscode.window.showInformationMessage(
+            `BoxLang: A new debugger version is available (${latestVersion}). Would you like to update from ${currentVersion}?`,
+            "Update",
+            "Skip"
+        );
+
+        if (choice === "Update") {
+            boxlangOutputChannel.appendLine(`BoxLang: Updating debugger from ${currentVersion} to ${latestVersion}`);
+            ExtensionConfig.boxlangDebuggerModuleVersion = latestVersion;
+        }
+    }
+}
+
 export async function ensureConfiguredDebuggerModule(): Promise<{ modulePath: string; runtimeJarPath: string; versionSpec: string; moduleName: string; boxlangHome: string }> {
+    await checkAndUpdateDebuggerVersion();
+
     const versionSpec = getConfiguredDebuggerVersionSpec();
     const moduleName = ExtensionConfig.boxlangDebuggerModuleName;
 

@@ -8,7 +8,7 @@ import { startLSP, stop } from "../../utils/LanguageServer";
 import { ModuleManager } from "../../utils/ModuleManager";
 import { boxlangOutputChannel } from "../../utils/OutputChannels";
 
-function compareBoxLangLspVersionsDescending(a: string, b: string): number {
+export function compareBoxLangLspVersionsDescending(a: string, b: string): number {
     const [aBase, aBuild] = a.split("+");
     const [bBase, bBuild] = b.split("+");
 

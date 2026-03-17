@@ -491,6 +491,11 @@ export function activate(context: ExtensionContext): void {
             restartAllProcesses();
         }
 
+        if (e.affectsConfiguration("boxlang.lsp.lspVersion")) {
+            boxlangOutputChannel.appendLine("Detected a change in LSP version configuration: " + workspace.getConfiguration("boxlang.lsp").get("lspVersion"));
+            restartAllProcesses();
+        }
+
         if (e.affectsConfiguration("boxlang.boxLangHome")) {
             boxlangOutputChannel.appendLine("Switching to new BoxLang Home: " + workspace.getConfiguration("boxlang.boxLangHome").get("boxLangHome"));
             restartAllProcesses();
