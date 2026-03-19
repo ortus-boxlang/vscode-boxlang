@@ -1,17 +1,22 @@
+import { ChildProcessWithoutNullStreams } from "child_process";
 import fs from "fs/promises";
 import net from "net";
 import path from "path";
 import * as vscode from "vscode";
 import { LanguageClient, ServerOptions } from "vscode-languageclient/node";
+import { compareBoxLangLspVersionsDescending } from "../commands/lsp/installLSPVersion";
 import { getExtensionContext } from "../context";
 import { startLSPProcess } from "./BoxLang";
-import { installBoxLangModule, installBoxLangModuleToDir, runCommandBox } from "./CommandBox";
+import { runCommandBox } from "./CommandBox";
 import { ExtensionConfig } from "./Configuration";
+import { ForgeBoxClient } from "./ForgeBoxClient";
+import { ModuleManager } from "./ModuleManager";
 import { boxlangOutputChannel } from "./OutputChannels";
 import { ensureBoxLangVersion } from "./versionManager";
 
 
 let client: LanguageClient;
+let lspProcess: ChildProcessWithoutNullStreams | null = null;
 
 export async function restart(){
     await stop();
@@ -24,7 +29,15 @@ export async function stop() {
     }
 
     boxlangOutputChannel.appendLine("Shutting down the language server");
-    return client.stop();
+    await client.stop();
+    client.dispose();
+    client = undefined;
+
+    if (lspProcess && !lspProcess.killed && lspProcess.exitCode === null) {
+        boxlangOutputChannel.appendLine(`Force-killing LSP process (pid ${lspProcess.pid})`);
+        lspProcess.kill();
+    }
+    lspProcess = null;
 }
 
 
@@ -65,7 +78,8 @@ export function getLSPServerConfig(): ServerOptions {
     }
 
     return async () => {
-        const [_process, port] = await startLanguageServerProcess();
+        const [proc, port] = await startLanguageServerProcess();
+        lspProcess = proc;
 
         let socket = net.connect(port, "127.0.0.1");
         return {
@@ -82,11 +96,60 @@ class InvalidLSPInstallationError extends Error {
     }
 }
 
+async function checkAndUpdateLSPVersion(): Promise<void> {
+    const updateMode = ExtensionConfig.boxlangLSPVersionUpdateMode;
+
+    if (updateMode === "manual") {
+        return;
+    }
+
+    const currentSpec = ExtensionConfig.boxlangLSPVersion;
+    const currentVersion = currentSpec?.startsWith("bx-lsp@") ? currentSpec.slice("bx-lsp@".length) : currentSpec;
+
+    let latestVersion: string;
+    try {
+        const forgeBoxClient = new ForgeBoxClient();
+        latestVersion = await forgeBoxClient.getLatestVersion("bx-lsp");
+    } catch (e) {
+        boxlangOutputChannel.appendLine(`BoxLang: Unable to check for latest LSP version: ${e}`);
+        return;
+    }
+
+    if (!latestVersion) {
+        return;
+    }
+
+    if (compareBoxLangLspVersionsDescending(currentVersion, latestVersion) <= 0) {
+        boxlangOutputChannel.appendLine(`BoxLang: LSP is already at the latest version (${currentSpec})`);
+        return;
+    }
+
+    const latestSpec = `bx-lsp@${latestVersion}`;
+
+    if (updateMode === "auto") {
+        boxlangOutputChannel.appendLine(`BoxLang: Automatically updating LSP from ${currentSpec} to ${latestSpec}`);
+        ExtensionConfig.boxlangLSPVersion = latestSpec;
+    } else {
+        const choice = await vscode.window.showInformationMessage(
+            `BoxLang: A new LSP version is available (${latestVersion}). Would you like to update from ${currentVersion}?`,
+            "Update",
+            "Skip"
+        );
+
+        if (choice === "Update") {
+            boxlangOutputChannel.appendLine(`BoxLang: Updating LSP from ${currentSpec} to ${latestSpec}`);
+            ExtensionConfig.boxlangLSPVersion = latestSpec;
+        }
+    }
+}
+
 /**
  * Initiates the BoxLang Language Server process, ensuring that the necessary LSP module and BoxLang version are installed.
  * @returns A promise that resolves when the language server process has started. The promise returns an array where the first item is the child process and the second item is the port number.
  */
 async function startLanguageServerProcess() {
+    await checkAndUpdateLSPVersion();
+
     let lspModulePath = null;
 
     try{
@@ -160,7 +223,9 @@ async function ensureLSPModule() {
         }
     }
     catch (e) {
-        await installBoxLangModuleToDir( lspVersion, lspVersionDir );
+        // Use new ModuleManager with CommandBox fallback
+        const moduleManager = new ModuleManager(true);
+        await moduleManager.installModuleToDir(lspVersion, lspVersionDir, true);
 
         try {
             await fs.access(path.join(lspVersionDir, "bx-lsp", "box.json"));
@@ -219,21 +284,17 @@ async function ensureBoxLangModules(lspBoxLangHome: string) {
         return;
     }
 
-    const installDir = path.join(lspBoxLangHome);
-    const modulesToInstall = moduleNames.join( ',' );
+    const moduleManager = new ModuleManager(true);
 
-    try {
-        boxlangOutputChannel.appendLine(`Installing BoxLang modules for LSP: ${modulesToInstall}`);
-        const result = await installBoxLangModule(installDir, modulesToInstall);
-
-        if (result.code === 0) {
-            boxlangOutputChannel.appendLine(`Successfully installed module: ${modulesToInstall} to ${installDir}`);
-        } else {
-            boxlangOutputChannel.appendLine(`Failed to install module ${modulesToInstall} to ${installDir}: ${result.stderr}`);
-            boxlangOutputChannel.appendLine( result.stdout);
+    // Install each module individually
+    for (const moduleName of moduleNames) {
+        try {
+            boxlangOutputChannel.appendLine(`Installing BoxLang module for LSP: ${moduleName}`);
+            await moduleManager.installModule(moduleName, lspBoxLangHome, true);
+            boxlangOutputChannel.appendLine(`Successfully installed module: ${moduleName}`);
+        } catch (error) {
+            boxlangOutputChannel.appendLine(`Error installing module ${moduleName}: ${error}`);
         }
-    } catch (error) {
-        boxlangOutputChannel.appendLine(`Error installing module ${modulesToInstall} to ${installDir}: ${error}`);
     }
 }
 
@@ -252,9 +313,14 @@ async function getRequiredBoxLangVersion( lspModulePath: string ): Promise<strin
         }
 
         const boxJSON = await findFirstBoxJson( lspModulePath );
+        if (!boxJSON) {
+            boxlangOutputChannel.appendLine("No box.json found in LSP module path");
+            return "";
+        }
+
         const moduleJson = JSON.parse( (await fs.readFile( boxJSON )) + "" );
 
-        return moduleJson.boxlang.minimumVersion;
+        return moduleJson.boxlang?.minimumVersion || moduleJson.boxlang?.version || "";
     }
     catch( e ){
         boxlangOutputChannel.appendLine("Error reading box.json to determine required BoxLang version for LSP module");

@@ -3,11 +3,17 @@ import fs from "fs";
 import path from "path";
 import * as portFinder from "portfinder";
 import vscode, { ExtensionContext, window } from "vscode";
+import { getExtensionContext } from "../context";
 import { ExtensionConfig } from "../utils/Configuration";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
+import { ensureConfiguredDebuggerModule } from "./DebuggerManager";
 import { trackedSpawn } from "./ProcessTracker";
 import { BoxServerConfig, trackServerStart, trackServerStop } from "./Server";
 import { getConfiguredBoxLangJarPath } from "./versionManager";
+
+// Avoid a hard dependency on type declarations for yauzl
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const yauzl: any = require("yauzl");
 
 export type BoxLangResult = {
     code: number,
@@ -105,6 +111,97 @@ async function runBoxLang(...args: string[]): Promise<BoxLangResult> {
     return runBoxLangWithHome(BOXLANG_HOME, ...args);
 }
 
+function startDebuggerProcess(args: string[], env: NodeJS.ProcessEnv): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+        const boxLang = trackedSpawn(javaExecutable, args, { env });
+        let stdout = '';
+        let found = false;
+
+        boxLang.on("error", (err) => {
+            boxlangOutputChannel.appendLine("Debugger failed to launch");
+            boxlangOutputChannel.appendLine("" + err);
+            reject(err);
+        });
+
+        boxLang.stdout.on("data", data => {
+            boxlangOutputChannel.appendLine("Debugger - output");
+            boxlangOutputChannel.appendLine("" + data);
+            stdout += data;
+
+            if (found) {
+                return;
+            }
+
+            const port = findPort( stdout );
+
+            if (!port) {
+                return;
+            }
+
+            found = true;
+            resolve(port);
+        });
+
+        boxLang.stderr.on("data", data => {
+            boxlangOutputChannel.appendLine("Debugger - error");
+            boxlangOutputChannel.appendLine("" + data);
+        });
+    });
+}
+
+function findPort(stdout: string){
+    const match = /Listening on port: (\d+)/mi.exec(stdout);
+
+    if (match) {
+        return match[1];
+    }
+
+    return null;
+}
+
+async function startLegacyDebugger(boxlangHome: string): Promise<string> {
+    boxlangOutputChannel.appendLine("Starting legacy BoxLang debugger");
+
+    return startDebuggerProcess(
+        ["ortus.boxlang.debugger.DebugMain"],
+        {
+            ...process.env,
+            JAVA_HOME: ExtensionConfig.boxlangJavaHome,
+            BOXLANG_HOME: boxlangHome,
+            CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
+        }
+    );
+}
+
+async function startModuleDebugger(boxlangHome: string): Promise<string> {
+    const debuggerInstall = await ensureConfiguredDebuggerModule();
+
+    boxlangOutputChannel.appendLine(`Starting module BoxLang debugger: ${debuggerInstall.versionSpec}`);
+
+    return startDebuggerProcess(
+        ["ortus.boxlang.runtime.BoxRunner", `module:${debuggerInstall.moduleName}`],
+        {
+            ...process.env,
+            JAVA_HOME: ExtensionConfig.boxlangJavaHome,
+            BOXLANG_HOME: boxlangHome,
+            BOXLANG_MODULESDIRECTORY: debuggerInstall.modulePath,
+            BOXLANG_DEBUGMODE: "true",
+            CLASSPATH: debuggerInstall.runtimeJarPath
+        }
+    );
+}
+
+async function startConfiguredDebugger(boxlangHome: string): Promise<string> {
+    const mode = ExtensionConfig.boxlangDebuggerMode;
+
+    if (mode === "module") {
+        return startModuleDebugger(boxlangHome);
+    }
+
+    return startLegacyDebugger(boxlangHome);
+}
+
 export class BoxLangWithHome {
     boxlangHome: string;
 
@@ -183,48 +280,7 @@ export class BoxLangWithHome {
     }
 
     async startDebugger(): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
-            const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.debugger.DebugMain"], {
-                env: {
-                    ...process.env,
-                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
-                    BOXLANG_HOME: this.boxlangHome,
-                    CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
-                }
-            });
-            let stdout = '';
-            let found = false;
-
-            boxLang.on( "error", ( err ) => {
-                boxlangOutputChannel.appendLine("Debugger failed to launch");
-                boxlangOutputChannel.appendLine( "" + err );
-            } )
-
-            boxLang.stdout.on("data", data => {
-                boxlangOutputChannel.appendLine("Debugger - output");
-                boxlangOutputChannel.appendLine("" + data);
-                stdout += data;
-
-                if (found) {
-                    return;
-                }
-
-                const matches = /Listening on port: (\d+)/mi.exec(stdout);
-
-                if (!matches) {
-                    return;
-                }
-
-                found = true;
-                resolve(matches[1]);
-            });
-
-            boxLang.stderr.on("data", data => {
-                boxlangOutputChannel.appendLine("Debugger - error");
-                boxlangOutputChannel.appendLine("" + data);
-            });
-        });
+        return startConfiguredDebugger(this.boxlangHome);
     }
 
     async startLSP(): Promise<Array<any>> {
@@ -287,13 +343,79 @@ export class BoxLangWithHome {
     }
 
     async getLSPVersionOutput(): Promise<string> {
-        const res = await runBoxLangWithHome(this.boxlangHome, "module:bx-lsp", "version");
+        try {
+            const lspVersionSpec = ExtensionConfig.boxlangLSPVersion;
+            if (!lspVersionSpec) {
+                return "No LSP version is configured (boxlang.lsp.lspVersion).";
+            }
 
-        if( res.code != 0 ){
-            return res.stderr
+            const context = getExtensionContext();
+            const lspModulesDir = path.join(context.globalStorageUri.fsPath, "lspVersions", lspVersionSpec);
+            const requiredBoxJson = path.join(lspModulesDir, "bx-lsp", "box.json");
+
+            if (!fs.existsSync(requiredBoxJson)) {
+                return `LSP module not found at expected location: ${requiredBoxJson}`;
+            }
+
+            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+            const runtimeJarPath = await getConfiguredBoxLangJarPath();
+
+            const res: BoxLangResult = await new Promise((resolve) => {
+                const proc = trackedSpawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner", "module:bx-lsp", "version"], {
+                    env: {
+                        ...process.env,
+                        JAVA_HOME: ExtensionConfig.boxlangJavaHome,
+                        BOXLANG_HOME: this.boxlangHome,
+                        BOXLANG_MODULESDIRECTORY: lspModulesDir,
+                        CLASSPATH: runtimeJarPath
+                    }
+                });
+
+                let stdout = "";
+                let stderr = "";
+                proc.stdout.on("data", (data) => stdout += data);
+                proc.stderr.on("data", (data) => stderr += data);
+
+                proc.on("exit", (code) => {
+                    resolve({
+                        code: code ?? 0,
+                        stdout,
+                        stderr
+                    });
+                });
+            });
+
+            if (res.code !== 0) {
+                return res.stderr || res.stdout || `Failed to retrieve LSP version (exit ${res.code}).`;
+            }
+
+            return res.stdout;
+        } catch (e: any) {
+            return `Error retrieving LSP version info: ${e?.message || e}`;
         }
+    }
 
-        return res.stdout;
+    async getMiniServerVersionOutput(): Promise<string> {
+        try {
+            const jarPath = ExtensionConfig.boxlangMiniServerJarPath;
+
+            if (!jarPath) {
+                return "No MiniServer JAR is configured (boxlang.miniserverjarpath).";
+            }
+
+            if (!fs.existsSync(jarPath)) {
+                return `MiniServer JAR not found: ${jarPath}`;
+            }
+
+            const version = await tryGetMiniServerVersionFromJar(jarPath);
+
+            const lines: string[] = [];
+            lines.push(`JAR: ${jarPath}`);
+            lines.push(`Version: ${version || "Unknown"}`);
+            return lines.join("\n");
+        } catch (e: any) {
+            return `Error retrieving MiniServer version info: ${e?.message || e}`;
+        }
     }
 
 }
@@ -341,43 +463,7 @@ export class BoxLang {
     }
 
     static async startDebugger(): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
-            const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.debugger.DebugMain"], {
-                env: {
-                    ...process.env,
-                    JAVA_HOME: ExtensionConfig.boxlangJavaHome,
-                    BOXLANG_HOME: BOXLANG_HOME,
-                    CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
-                }
-            });
-            let stdout = '';
-            let found = false;
-
-            boxLang.stdout.on("data", data => {
-                boxlangOutputChannel.appendLine("Debugger - output");
-                boxlangOutputChannel.appendLine("" + data);
-                stdout += data;
-
-                if (found) {
-                    return;
-                }
-
-                const matches = /Listening on port: (\d+)/mi.exec(stdout);
-
-                if (!matches) {
-                    return;
-                }
-
-                found = true;
-                resolve(matches[1]);
-            });
-
-            boxLang.stderr.on("data", data => {
-                boxlangOutputChannel.appendLine("Debugger - error");
-                boxlangOutputChannel.appendLine("" + data);
-            });
-        });
+        return startConfiguredDebugger(BOXLANG_HOME);
     }
 
     static async getVersionOutput(): Promise<string> {
@@ -492,4 +578,108 @@ async function getMiniServerCLIArgs(server: BoxServerConfig, debugPort: number):
     }
 
     return cliArgs;
+}
+
+async function tryReadJarManifest(jarPath: string): Promise<string | null> {
+    return new Promise((resolve, reject) => {
+        yauzl.open(jarPath, { lazyEntries: true }, (err: any, zipfile: any) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+
+            let resolved = false;
+
+            const finish = (value: string | null) => {
+                if (resolved) {
+                    return;
+                }
+                resolved = true;
+                try {
+                    zipfile.close();
+                } catch {}
+                resolve(value);
+            };
+
+            zipfile.readEntry();
+            zipfile.on("entry", (entry: any) => {
+                if (entry.fileName === "META-INF/MANIFEST.MF") {
+                    zipfile.openReadStream(entry, (streamErr: any, readStream: any) => {
+                        if (streamErr) {
+                            reject(streamErr);
+                            return;
+                        }
+
+                        const chunks: Buffer[] = [];
+                        readStream.on("data", (c: Buffer) => chunks.push(c));
+                        readStream.on("end", () => finish(Buffer.concat(chunks).toString("utf8")));
+                        readStream.on("error", (e: any) => reject(e));
+                    });
+                    return;
+                }
+
+                zipfile.readEntry();
+            });
+
+            zipfile.on("end", () => finish(null));
+            zipfile.on("error", (e: any) => reject(e));
+        });
+    });
+}
+
+function parseManifestAttributes(manifestText: string): Record<string, string> {
+    const attrs: Record<string, string> = {};
+    const lines = manifestText.replace(/\r\n/g, "\n").split("\n");
+
+    let currentKey: string | null = null;
+    for (const rawLine of lines) {
+        const line = rawLine.trimEnd();
+        if (!line) {
+            currentKey = null;
+            continue;
+        }
+
+        if (line.startsWith(" ") && currentKey) {
+            attrs[currentKey] = (attrs[currentKey] || "") + line.slice(1);
+            continue;
+        }
+
+        const idx = line.indexOf(":");
+        if (idx <= 0) {
+            currentKey = null;
+            continue;
+        }
+
+        const key = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        attrs[key] = value;
+        currentKey = key;
+    }
+
+    return attrs;
+}
+
+async function tryGetMiniServerVersionFromJar(jarPath: string): Promise<string | undefined> {
+    // Prefer manifest version if available
+    try {
+        const manifestText = await tryReadJarManifest(jarPath);
+        if (manifestText) {
+            const attrs = parseManifestAttributes(manifestText);
+            const version =
+                attrs["Implementation-Version"] ||
+                attrs["Bundle-Version"] ||
+                attrs["Specification-Version"] ||
+                attrs["Version"];
+
+            if (version) {
+                return version;
+            }
+        }
+    } catch {
+        // fall through to filename parsing
+    }
+
+    const fileName = path.basename(jarPath);
+    const match = /^boxlang-miniserver-(.+)\.jar$/.exec(fileName);
+    return match?.[1];
 }

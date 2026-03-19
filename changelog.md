@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add schema for .bxformat.json
+
 ## [1.14.0] - 2026-01-24
 
 - Add Feature Audit tool UI
@@ -11,6 +13,10 @@
 
 - BLIDE-253 Fix REPL not opening when the default shell is PowerShell
 - BLIDE-254 add workspace setting to control boxlang version
+
+- BLIDE-253 Fix REPL not opening when the default shell is PowerShell
+- BLIDE-254 add workspace setting to control boxlang version
+
 
 ## [1.12.0] - 2025-10-16
 

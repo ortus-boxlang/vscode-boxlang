@@ -1,0 +1,503 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://boxlang.io/schemas/bxformat.schema.json",
+	"title": "BoxLang Format Configuration",
+	"description": "Configuration schema for the BoxLang code formatter (.bxformat.json)",
+	"type": "object",
+	"properties": {
+		"indentSize": {
+			"type": "integer",
+			"default": 4,
+			"minimum": 1,
+			"maximum": 16,
+			"description": "Number of spaces per indentation level"
+		},
+		"tabIndent": {
+			"type": "boolean",
+			"default": true,
+			"description": "Use tabs instead of spaces for indentation"
+		},
+		"maxLineLength": {
+			"type": "integer",
+			"default": 80,
+			"minimum": 40,
+			"maximum": 500,
+			"description": "Maximum line length before wrapping"
+		},
+		"newLine": {
+			"type": "string",
+			"default": "os",
+			"enum": ["os", "\n", "\r\n"],
+			"description": "Line ending style: 'os' for system default, '\\n' for Unix, '\\r\\n' for Windows"
+		},
+		"singleQuote": {
+			"type": "boolean",
+			"default": false,
+			"description": "Use single quotes instead of double quotes for strings"
+		},
+		"bracketPadding": {
+			"type": "boolean",
+			"default": false,
+			"description": "Add spaces inside square brackets [ ]"
+		},
+		"parensPadding": {
+			"type": "boolean",
+			"default": false,
+			"description": "Add spaces inside parentheses ( )"
+		},
+		"binaryOperatorsPadding": {
+			"type": "boolean",
+			"default": true,
+			"description": "Add spaces around binary operators (+, -, *, /, etc.)"
+		},
+		"semicolons": {
+			"type": "boolean",
+			"default": true,
+			"description": "Add semicolons at the end of statements"
+		},
+		"struct": {
+			"$ref": "#/$defs/structConfig"
+		},
+		"property": {
+			"$ref": "#/$defs/propertyConfig"
+		},
+		"array": {
+			"$ref": "#/$defs/arrayConfig"
+		},
+		"for_loop_semicolons": {
+			"$ref": "#/$defs/forLoopSemicolonsConfig"
+		},
+		"function": {
+			"$ref": "#/$defs/functionConfig"
+		},
+		"arguments": {
+			"$ref": "#/$defs/argumentsConfig"
+		},
+		"braces": {
+			"$ref": "#/$defs/bracesConfig"
+		},
+		"operators": {
+			"$ref": "#/$defs/operatorsConfig"
+		},
+		"chain": {
+			"$ref": "#/$defs/chainConfig"
+		},
+		"template": {
+			"$ref": "#/$defs/templateConfig"
+		},
+		"import": {
+			"$ref": "#/$defs/importConfig"
+		},
+		"comments": {
+			"$ref": "#/$defs/commentsConfig"
+		},
+		"class": {
+			"$ref": "#/$defs/classConfig"
+		},
+		"sql": {
+			"$ref": "#/$defs/sqlConfig"
+		}
+	},
+	"$defs": {
+		"leadingCommaConfig": {
+			"type": "object",
+			"description": "Configuration for leading comma style",
+			"properties": {
+				"enabled": {
+					"type": "boolean",
+					"default": false,
+					"description": "Enable leading comma style (comma at start of line)"
+				},
+				"padding": {
+					"type": "boolean",
+					"default": true,
+					"description": "Add space after leading comma"
+				}
+			},
+			"additionalProperties": false
+		},
+		"multilineConfig": {
+			"type": "object",
+			"description": "Configuration for multiline formatting",
+			"properties": {
+				"element_count": {
+					"type": "integer",
+					"default": 4,
+					"minimum": 1,
+					"description": "Number of elements that triggers multiline formatting"
+				},
+				"comma_dangle": {
+					"type": "boolean",
+					"default": false,
+					"description": "Add trailing comma after the last element"
+				},
+				"leading_comma": {
+					"$ref": "#/$defs/leadingCommaConfig"
+				},
+				"min_length": {
+					"type": "integer",
+					"default": 40,
+					"minimum": 1,
+					"description": "Minimum line length to trigger multiline formatting"
+				}
+			},
+			"additionalProperties": false
+		},
+		"structConfig": {
+			"type": "object",
+			"description": "Configuration for struct literal formatting",
+			"properties": {
+				"padding": {
+					"type": "boolean",
+					"default": false,
+					"description": "Add spaces inside struct braces { }"
+				},
+				"empty_padding": {
+					"type": "boolean",
+					"default": false,
+					"description": "Add spaces inside empty struct braces { }"
+				},
+				"quote_keys": {
+					"type": "boolean",
+					"default": false,
+					"description": "Always quote struct keys"
+				},
+				"separator": {
+					"type": "string",
+					"default": ": ",
+					"enum": [":", "=", ": ", "= "],
+					"description": "Separator between key and value"
+				},
+				"multiline": {
+					"$ref": "#/$defs/multilineConfig"
+				}
+			},
+			"additionalProperties": false
+		},
+		"arrayConfig": {
+			"type": "object",
+			"description": "Configuration for array literal formatting",
+			"properties": {
+				"padding": {
+					"type": "boolean",
+					"default": false,
+					"description": "Add spaces inside array brackets [ ]"
+				},
+				"empty_padding": {
+					"type": "boolean",
+					"default": false,
+					"description": "Add spaces inside empty array brackets [ ]"
+				},
+				"multiline": {
+					"$ref": "#/$defs/multilineConfig"
+				}
+			},
+			"additionalProperties": false
+		},
+		"propertyConfig": {
+			"type": "object",
+			"description": "Configuration for property declaration formatting",
+			"properties": {
+				"multiline": {
+					"$ref": "#/$defs/multilineConfig"
+				},
+				"key_value": {
+					"type": "object",
+					"properties": {
+						"padding": {
+							"type": "boolean",
+							"default": false,
+							"description": "Add spaces around key-value separator in property attributes"
+						}
+					},
+					"additionalProperties": false
+				}
+			},
+			"additionalProperties": false
+		},
+		"forLoopSemicolonsConfig": {
+			"type": "object",
+			"description": "Configuration for for loop semicolon formatting",
+			"properties": {
+				"padding": {
+					"type": "boolean",
+					"default": true,
+					"description": "Add space after semicolons in for loop (i=0; i<10; i++)"
+				}
+			},
+			"additionalProperties": false
+		},
+		"functionConfig": {
+			"type": "object",
+			"description": "Configuration for function declaration formatting",
+			"properties": {
+				"style": {
+					"type": "string",
+					"default": "preserve",
+					"enum": ["preserve", "declaration", "expression"],
+					"description": "Function style: preserve original, force declaration, or force expression"
+				},
+				"parameters": {
+					"type": "object",
+					"description": "Configuration for function parameters",
+					"properties": {
+						"comma_dangle": {
+							"type": "boolean",
+							"default": false,
+							"description": "Add trailing comma after last parameter"
+						},
+						"multiline_count": {
+							"type": "integer",
+							"default": 4,
+							"minimum": 1,
+							"description": "Number of parameters that triggers multiline formatting"
+						},
+						"multiline_length": {
+							"type": "integer",
+							"default": 60,
+							"minimum": 1,
+							"description": "Line length that triggers multiline parameters"
+						}
+					},
+					"additionalProperties": false
+				},
+				"arrow": {
+					"type": "object",
+					"description": "Configuration for arrow/lambda function formatting",
+					"properties": {
+						"parens": {
+							"type": "string",
+							"default": "always",
+							"enum": ["always", "as-needed"],
+							"description": "When to use parentheses around arrow function parameters"
+						}
+					},
+					"additionalProperties": false
+				}
+			},
+			"additionalProperties": false
+		},
+		"argumentsConfig": {
+			"type": "object",
+			"description": "Configuration for function call arguments formatting",
+			"properties": {
+				"comma_dangle": {
+					"type": "boolean",
+					"default": false,
+					"description": "Add trailing comma after last argument"
+				},
+				"multiline_count": {
+					"type": "integer",
+					"default": 4,
+					"minimum": 1,
+					"description": "Number of arguments that triggers multiline formatting"
+				},
+				"multiline_length": {
+					"type": "integer",
+					"default": 60,
+					"minimum": 1,
+					"description": "Line length that triggers multiline arguments"
+				}
+			},
+			"additionalProperties": false
+		},
+		"bracesConfig": {
+			"type": "object",
+			"description": "Configuration for brace style",
+			"properties": {
+				"style": {
+					"type": "string",
+					"default": "same-line",
+					"enum": ["same-line", "new-line"],
+					"description": "Opening brace placement: same-line (K&R) or new-line (Allman)"
+				},
+				"require_for_single_statement": {
+					"type": "boolean",
+					"default": true,
+					"description": "Require braces for single-statement blocks (if, for, while)"
+				},
+				"else": {
+					"type": "object",
+					"description": "Configuration for else clause formatting",
+					"properties": {
+						"style": {
+							"type": "string",
+							"default": "same-line",
+							"enum": ["same-line", "new-line"],
+							"description": "Else placement relative to closing brace"
+						}
+					},
+					"additionalProperties": false
+				}
+			},
+			"additionalProperties": false
+		},
+		"operatorsConfig": {
+			"type": "object",
+			"description": "Configuration for operator formatting",
+			"properties": {
+				"position": {
+					"type": "string",
+					"default": "end",
+					"enum": ["start", "end"],
+					"description": "Position of operators when breaking lines: start or end of line"
+				},
+				"ternary": {
+					"type": "object",
+					"description": "Configuration for ternary operator formatting",
+					"properties": {
+						"style": {
+							"type": "string",
+							"default": "flat",
+							"enum": ["flat", "multiline"],
+							"description": "Ternary operator style: flat (single line) or multiline"
+						},
+						"question_position": {
+							"type": "string",
+							"default": "start",
+							"enum": ["start", "end"],
+							"description": "Position of ? and : when breaking ternary expressions"
+						}
+					},
+					"additionalProperties": false
+				}
+			},
+			"additionalProperties": false
+		},
+		"chainConfig": {
+			"type": "object",
+			"description": "Configuration for method chain formatting",
+			"properties": {
+				"break_count": {
+					"type": "integer",
+					"default": 3,
+					"minimum": 1,
+					"description": "Number of chained calls that triggers line breaks"
+				},
+				"break_length": {
+					"type": "integer",
+					"default": 60,
+					"minimum": 1,
+					"description": "Line length that triggers breaking method chains"
+				}
+			},
+			"additionalProperties": false
+		},
+		"templateConfig": {
+			"type": "object",
+			"description": "Configuration for template/tag-based code formatting",
+			"properties": {
+				"component_prefix": {
+					"type": "string",
+					"default": "bx",
+					"description": "Prefix for BoxLang components (bx:set, cf:set, etc.)"
+				},
+				"indent_content": {
+					"type": "boolean",
+					"default": true,
+					"description": "Indent content inside template tags"
+				},
+				"single_attribute_per_line": {
+					"type": "boolean",
+					"default": false,
+					"description": "Place each attribute on its own line"
+				},
+				"self_closing": {
+					"type": "boolean",
+					"default": true,
+					"description": "Use self-closing syntax for void elements"
+				}
+			},
+			"additionalProperties": false
+		},
+		"importConfig": {
+			"type": "object",
+			"description": "Configuration for import statement formatting",
+			"properties": {
+				"sort": {
+					"type": "boolean",
+					"default": false,
+					"description": "Sort import statements alphabetically"
+				},
+				"group": {
+					"type": "boolean",
+					"default": false,
+					"description": "Group import statements by package"
+				}
+			},
+			"additionalProperties": false
+		},
+		"commentsConfig": {
+			"type": "object",
+			"description": "Configuration for comment formatting",
+			"properties": {
+				"preserve_blank_lines": {
+					"type": "boolean",
+					"default": true,
+					"description": "Preserve blank lines within multi-line comments"
+				},
+				"wrap": {
+					"type": "boolean",
+					"default": false,
+					"description": "Wrap long comments to fit within maxLineLength"
+				}
+			},
+			"additionalProperties": false
+		},
+		"classConfig": {
+			"type": "object",
+			"description": "Configuration for class/interface formatting",
+			"properties": {
+				"member_order": {
+					"type": "string",
+					"default": "preserve",
+					"enum": ["preserve", "alphabetical", "visibility"],
+					"description": "Order of class members"
+				},
+				"member_spacing": {
+					"type": "integer",
+					"default": 1,
+					"minimum": 0,
+					"maximum": 5,
+					"description": "Number of blank lines between class members"
+				},
+				"property_order": {
+					"type": "string",
+					"default": "preserve",
+					"enum": ["preserve", "alphabetical"],
+					"description": "Order of property declarations"
+				},
+				"method_order": {
+					"type": "string",
+					"default": "preserve",
+					"enum": ["preserve", "alphabetical", "visibility"],
+					"description": "Order of method declarations"
+				},
+				"method_grouping": {
+					"type": "boolean",
+					"default": false,
+					"description": "Group methods by visibility (public, private, etc.)"
+				}
+			},
+			"additionalProperties": false
+		},
+		"sqlConfig": {
+			"type": "object",
+			"description": "Configuration for embedded SQL formatting",
+			"properties": {
+				"uppercase_keywords": {
+					"type": "boolean",
+					"default": true,
+					"description": "Uppercase SQL keywords (SELECT, FROM, WHERE, etc.)"
+				},
+				"indent_clauses": {
+					"type": "boolean",
+					"default": true,
+					"description": "Indent SQL clauses for readability"
+				}
+			},
+			"additionalProperties": false
+		}
+	},
+	"additionalProperties": false
+}

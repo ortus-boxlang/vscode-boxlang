@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "1.14.0",
+    "version": "1.15.3",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -117,12 +117,18 @@
         ],
         "jsonValidation": [
             {
-                "fileMatch": "boxlang.json",
-                "url": "./resources/boxlang_schema.json"
+                "fileMatch": [
+                    "*boxlang.json",
+                    "**/*boxlang.json"
+                ],
+                "url": "./resources/schemas/boxlang_schema.json"
             },
             {
-                "fileMatch": "*.boxlang.json",
-                "url": "./resources/boxlang_schema.json"
+                "fileMatch": [
+                    "*bxformat.json",
+                    "**/*bxformat.json"
+                ],
+                "url": "./resources/schemas/bxformat.schema.json"
             }
         ],
         "debuggers": [
@@ -339,6 +345,52 @@
                     "scope": "work",
                     "default": false
                 },
+                "boxlang.lsp.sendLogToIDE": {
+                    "type": "boolean",
+                    "description": "Whether the LSP sends its logging output to the VS Code output channel",
+                    "scope": "window",
+                    "default": true
+                },
+                "boxlang.lsp.logLevel": {
+                    "type": "string",
+                    "description": "The log level for the BoxLang Language Server",
+                    "scope": "window",
+                    "default": "WARN",
+                    "enum": [
+                        "TRACE",
+                        "DEBUG",
+                        "INFO",
+                        "WARN",
+                        "ERROR",
+                        "FATAL",
+                        "OFF"
+                    ],
+                    "enumDescriptions": [
+                        "Trace level logging (most verbose)",
+                        "Debug level logging",
+                        "Info level logging",
+                        "Warning level logging (default)",
+                        "Error level logging",
+                        "Fatal level logging",
+                        "Disable LSP logging"
+                    ]
+                },
+                "boxlang.lsp.versionUpdateMode": {
+                    "type": "string",
+                    "description": "Controls how the BoxLang Language Server checks for and applies version updates",
+                    "scope": "machine",
+                    "default": "auto",
+                    "enum": [
+                        "auto",
+                        "prompt",
+                        "manual"
+                    ],
+                    "enumDescriptions": [
+                        "Check for the latest version and automatically download it",
+                        "Check for the latest version and prompt before downloading",
+                        "Do not check for the latest version"
+                    ]
+                },
                 "boxlang.lsp.processDiagnosticsInParallel": {
                     "type": "boolean",
                     "description": "Run diagnostic processing in parallel",
@@ -350,6 +402,53 @@
                     "description": "Comma-delimited list of BoxLang modules to install in the LSP home before booting up",
                     "scope": "resource",
                     "default": ""
+                },
+                "boxlang.debugger.mode": {
+                    "type": "string",
+                    "description": "Choose which BoxLang debugger implementation to use",
+                    "scope": "resource",
+                    "default": "legacy",
+                    "enum": [
+                        "legacy",
+                        "module"
+                    ],
+                    "enumDescriptions": [
+                        "Use the built-in debugger from the BoxLang JAR",
+                        "Use a ForgeBox debugger module managed by version"
+                    ]
+                },
+                "boxlang.debugger.moduleName": {
+                    "type": "string",
+                    "description": "ForgeBox module slug for the module-based debugger",
+                    "scope": "resource",
+                    "default": "bx-debugger"
+                },
+                "boxlang.debugger.moduleVersion": {
+                    "type": "string",
+                    "description": "Debugger module version to use when debugger mode is set to module",
+                    "scope": "resource",
+                    "default": "1.0.0-snapshot"
+                },
+                "boxlang.debugger.boxLangHome": {
+                    "type": "string",
+                    "description": "Set the home directory for the BoxLang debugger module runtime",
+                    "scope": "resource"
+                },
+                "boxlang.debugger.versionUpdateMode": {
+                    "type": "string",
+                    "description": "Controls how the BoxLang debugger checks for and applies version updates",
+                    "scope": "machine",
+                    "default": "auto",
+                    "enum": [
+                        "auto",
+                        "prompt",
+                        "manual"
+                    ],
+                    "enumDescriptions": [
+                        "Check for the latest version and automatically download it",
+                        "Check for the latest version and prompt before downloading",
+                        "Do not check for the latest version"
+                    ]
                 },
                 "boxlang.showLexerTokens": {
                     "type": "boolean",
@@ -787,6 +886,26 @@
             {
                 "command": "boxlang.installBoxLangVersion",
                 "title": "BoxLang: Install BoxLang Version"
+            },
+            {
+                "command": "boxlang.installLSPVersion",
+                "title": "BoxLang: Install LSP Version"
+            },
+            {
+                "command": "boxlang.installDebuggerVersion",
+                "title": "BoxLang: Install Debugger Version"
+            },
+            {
+                "command": "boxlang.selectDebuggerVersion",
+                "title": "BoxLang: Select Debugger Version"
+            },
+            {
+                "command": "boxlang.removeDebuggerVersion",
+                "title": "BoxLang: Remove Debugger Version"
+            },
+            {
+                "command": "boxlang.installMiniServerVersion",
+                "title": "BoxLang: Install MiniServer Version"
             },
             {
                 "command": "boxlang.removeBoxLangVersion",
@@ -1257,6 +1376,7 @@
         "publish": "vsce publish",
         "lint": "tslint -p tsconfig.json -t verbose",
         "test": "npm run build && node out/test/runTestSimple.js",
+        "test:unit": "npm run build && node out/test/runUnitTests.js",
         "vscode:prepublish": "webpack --mode production --devtool hidden-source-map &&  npm run build"
     },
     "dependencies": {
@@ -1296,6 +1416,7 @@
         "@types/node": "^20.19.0",
         "@types/request": "~2.48.7",
         "@types/semver": "~7.3.9",
+        "@types/sinon": "^17.0.3",
         "@types/trie-prefix-tree": "~1.5.0",
         "@types/vscode": "^1.100.0",
         "@typescript-eslint/eslint-plugin": "^5.62.0",
@@ -1312,6 +1433,7 @@
         "mocha": "^11.7.2",
         "process": "^0.11.10",
         "rimraf": "^4.4.1",
+        "sinon": "^19.0.2",
         "ts-loader": "^9.2.2",
         "typescript": "^5.3.3",
         "vscode": "^1.1.37",

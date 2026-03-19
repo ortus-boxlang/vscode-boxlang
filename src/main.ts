@@ -256,6 +256,11 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(commands.registerCommand("boxlang.runBoxLangREPL", applyContext(extensionCommands.runBoxLangREPL)));
     context.subscriptions.push(commands.registerCommand("boxlang.hardResetWorkspaceHome", applyContext(extensionCommands.hardResetWorkspaceHome)));
     context.subscriptions.push(commands.registerCommand("boxlang.restartLSP", applyContext(extensionCommands.restartLSP)));
+    context.subscriptions.push(commands.registerCommand("boxlang.installLSPVersion", applyContext(extensionCommands.installLSPVersion)));
+    context.subscriptions.push(commands.registerCommand("boxlang.installDebuggerVersion", applyContext(extensionCommands.installDebuggerVersion)));
+    context.subscriptions.push(commands.registerCommand("boxlang.selectDebuggerVersion", applyContext(extensionCommands.selectDebuggerVersion)));
+    context.subscriptions.push(commands.registerCommand("boxlang.removeDebuggerVersion", applyContext(extensionCommands.removeDebuggerVersion)));
+    context.subscriptions.push(commands.registerCommand("boxlang.installMiniServerVersion", applyContext(extensionCommands.installMiniServerVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.selectBoxLangVersion", applyContext(extensionCommands.selectBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.installBoxLangVersion", applyContext(extensionCommands.installBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.removeBoxLangVersion", applyContext(extensionCommands.removeBoxLangVersion)));
@@ -483,6 +488,11 @@ export function activate(context: ExtensionContext): void {
 
         if (e.affectsConfiguration("boxlang.lsp.maxHeapSize")) {
             boxlangOutputChannel.appendLine("Detected a change in LSP maxHeapSize configuration: " + workspace.getConfiguration("boxlang.lsp").get("maxHeapSize"));
+            restartAllProcesses();
+        }
+
+        if (e.affectsConfiguration("boxlang.lsp.lspVersion")) {
+            boxlangOutputChannel.appendLine("Detected a change in LSP version configuration: " + workspace.getConfiguration("boxlang.lsp").get("lspVersion"));
             restartAllProcesses();
         }
 
