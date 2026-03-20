@@ -81,7 +81,7 @@ jobs:
             }
 
             $newVersion = "$major.$nextMinor.$nextPatch"
-            $isPatch = $nextPath -ne 0
+            $isPatch = ($nextPatch -ne 0).ToString().ToLower()
             echo "newVersion=$newVersion" >> $env:GITHUB_OUTPUT
             echo "isPatch=$isPatch" >> $env:GITHUB_OUTPUT
             npm version $newVersion --no-git-tag-version
@@ -101,22 +101,11 @@ jobs:
             npm install -g markdownlint-cli
             markdownlint changelog.md --fix || true
 
-        - name: Commit Changelog [unreleased] with latest version
-          uses: EndBug/add-and-commit@v9.1.4
-          if: inputs.pre-release == false
-          with:
-            author_name: Github Actions
-            author_email: info@ortussolutions.com
-            push: false
-            message: "Finalized changelog for v${{ steps.setup.outputs.newVersion }}"
-            add: changelog.md
-
         - name: Commit Version Bump
           uses: EndBug/add-and-commit@v9.1.4
           with:
             author_name: Github Actions
             author_email: info@ortussolutions.com
-            message: "Version bump"
+            message: "chore: version bump to v${{ steps.setup.outputs.newVersion }} [skip ci]"
+            add: "['package.json', 'changelog.md']"
             tag: v${{ steps.setup.outputs.newVersion }}
-            add: |
-              package.json

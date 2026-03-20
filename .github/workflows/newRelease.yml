@@ -50,8 +50,8 @@ jobs:
   updateDevelopment:
     name: Update Development Branch
     runs-on: ubuntu-latest
-    needs: buildAndPackageRelease
-    if: needs.createReleaseVersion.outputs.isPatch == false
+    needs: [createReleaseVersion, buildAndPackageRelease]
+    if: needs.createReleaseVersion.outputs.isPatch == 'false'
     steps:
       - name: Checkout Development Branch
         uses: actions/checkout@v6
@@ -69,26 +69,36 @@ jobs:
 
       - name: Merge main into development
         run: |
-          git merge origin/main --no-edit
+          git merge origin/main -X theirs --no-edit
 
-      - name: Push changes
-        run: git push origin development
+      - name: Bump to next pre-release minor version
+        id: nextPreRelease
+        shell: pwsh
+        run: |
+          $version = (Get-Content ./package.json -Raw | ConvertFrom-Json).version
+          $major = [int]($version -split '\.')[0]
+          $minor = [int]($version -split '\.')[1]
+          # After merge, minor is even (release). Bump to next odd minor for pre-release.
+          $nextMinor = $minor + 1
+          $nextVersion = "$major.$nextMinor.0"
+          npm version $nextVersion --no-git-tag-version
+          Write-Output "nextVersion=$nextVersion" >> $env:GITHUB_OUTPUT
+          Write-Host "Bumped development to $nextVersion"
 
-  doPreRelease:
-    name: Do Pre-Release
-    needs: updateDevelopment
-    uses: ./.github/workflows/preRelease.yml
-    secrets: inherit
-    permissions:
-      checks: write
-      contents: write
+      - name: Commit and Push
+        uses: EndBug/add-and-commit@v9.1.4
+        with:
+          author_name: Github Actions
+          author_email: info@ortussolutions.com
+          message: "chore: post-release sync, bumped to v${{ steps.nextPreRelease.outputs.nextVersion }} [skip ci]"
+          add: "package.json"
 
   publishMS:
     name: Publish to VS marketplace
     runs-on: ubuntu-latest
-    needs: [ doPreRelease, buildAndPackageRelease ]
+    needs: [ buildAndPackageRelease ]
     # Run if triggered by push OR if manually triggered with publishToVSMarketplace enabled
-    if: ${{ always() && (github.event_name == 'push' || inputs.publishToVSMarketplace == true) }}
+    if: ${{ github.event_name == 'push' || inputs.publishToVSMarketplace == true }}
     steps:
       - uses: actions/checkout@v6
 
@@ -107,9 +117,9 @@ jobs:
   publishOpenVSX:
     name: Publish to Open VSX
     runs-on: ubuntu-latest
-    needs: [ doPreRelease, buildAndPackageRelease ]
+    needs: [ buildAndPackageRelease ]
     # Run if triggered by push OR if manually triggered with publishToOpenVSX enabled
-    if: ${{ always() && (github.event_name == 'push' || inputs.publishToOpenVSX == true) }}
+    if: ${{ github.event_name == 'push' || inputs.publishToOpenVSX == true }}
     steps:
       - uses: actions/checkout@v6
 
