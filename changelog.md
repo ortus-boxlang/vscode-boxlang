@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.16.1] - 2026-03-20
+
 ## [1.16.0] - 2026-03-19
 
 - Add schema for .bxformat.json
@@ -145,7 +147,8 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.16.0...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.16.1...HEAD
+[1.16.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.16.0...v1.16.1
 [1.16.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.14.0...v1.16.0
 [1.14.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.1...v1.14.0
 [1.12.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.0...v1.12.1
