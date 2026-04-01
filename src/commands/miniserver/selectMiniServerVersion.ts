@@ -153,7 +153,7 @@ async function pickMiniServerVersion(
     });
 }
 
-export async function installMiniServerVersion(context: ExtensionContext) {
+export async function selectMiniServerVersion(context: ExtensionContext) {
     try {
         const data = await vscode.window.withProgress(
             { title: "BoxLang: Fetching MiniServer versions", location: ProgressLocation.Notification },

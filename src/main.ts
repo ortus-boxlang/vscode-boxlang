@@ -256,13 +256,13 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(commands.registerCommand("boxlang.runBoxLangREPL", applyContext(extensionCommands.runBoxLangREPL)));
     context.subscriptions.push(commands.registerCommand("boxlang.hardResetWorkspaceHome", applyContext(extensionCommands.hardResetWorkspaceHome)));
     context.subscriptions.push(commands.registerCommand("boxlang.restartLSP", applyContext(extensionCommands.restartLSP)));
-    context.subscriptions.push(commands.registerCommand("boxlang.installLSPVersion", applyContext(extensionCommands.installLSPVersion)));
-    context.subscriptions.push(commands.registerCommand("boxlang.installDebuggerVersion", applyContext(extensionCommands.installDebuggerVersion)));
+    context.subscriptions.push(commands.registerCommand("boxlang.selectLSPVersion", applyContext(extensionCommands.selectLSPVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.selectDebuggerVersion", applyContext(extensionCommands.selectDebuggerVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.removeDebuggerVersion", applyContext(extensionCommands.removeDebuggerVersion)));
-    context.subscriptions.push(commands.registerCommand("boxlang.installMiniServerVersion", applyContext(extensionCommands.installMiniServerVersion)));
+    context.subscriptions.push(commands.registerCommand("boxlang.selectMiniServerVersion", applyContext(extensionCommands.selectMiniServerVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.selectBoxLangVersion", applyContext(extensionCommands.selectBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.removeBoxLangVersion", applyContext(extensionCommands.removeBoxLangVersion)));
+    context.subscriptions.push(commands.registerCommand("boxlang.reinstallBoxLangComponent", applyContext(extensionCommands.reinstallBoxLangComponent)));
     context.subscriptions.push(commands.registerCommand("boxlang.addBoxLangHome", extensionCommands.addBoxLangHome));
     context.subscriptions.push(commands.registerCommand("boxlang.removeBoxLangHome", extensionCommands.removeBoxLangHome));
     context.subscriptions.push(commands.registerCommand("boxlang.downloadJava", applyContext(extensionCommands.downloadJava)));

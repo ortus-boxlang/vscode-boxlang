@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- BLIDE-275 update lsp, debugger, and miniserver install commands
 - BLIDE-274 merge install and select boxlang version commands
   
 ## [1.16.1] - 2026-03-20

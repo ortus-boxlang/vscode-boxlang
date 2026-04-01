@@ -4,7 +4,7 @@ import net from "net";
 import path from "path";
 import * as vscode from "vscode";
 import { LanguageClient, ServerOptions } from "vscode-languageclient/node";
-import { compareBoxLangLspVersionsDescending } from "../commands/lsp/installLSPVersion";
+import { compareBoxLangLspVersionsDescending } from "../commands/lsp/selectLSPVersion";
 import { getExtensionContext } from "../context";
 import { startLSPProcess } from "./BoxLang";
 import { runCommandBox } from "./CommandBox";

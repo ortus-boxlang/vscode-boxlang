@@ -53,11 +53,11 @@ async function isNonEmptyDir(dirPath: string): Promise<boolean> {
     }
 }
 
-async function getInstalledVersionSpecs(lspVersionsParentDir: string): Promise<Set<string>> {
-    const specs = new Set<string>();
+async function getInstalledVersionData(lspVersionsParentDir: string): Promise<Map<string, Date>> {
+    const result = new Map<string, Date>();
 
     if (!(await fileExists(lspVersionsParentDir))) {
-        return specs;
+        return result;
     }
 
     const entries = await fs.readdir(lspVersionsParentDir, { withFileTypes: true });
@@ -67,12 +67,24 @@ async function getInstalledVersionSpecs(lspVersionsParentDir: string): Promise<S
         }
 
         const fullPath = path.join(lspVersionsParentDir, entry.name);
-        if (await isNonEmptyDir(fullPath)) {
-            specs.add(entry.name);
+        if (!(await isNonEmptyDir(fullPath))) {
+            continue;
         }
+
+        let installDate: Date;
+        try {
+            const versionJson = JSON.parse((await fs.readFile(path.join(fullPath, "version.json"))) + "");
+            installDate = new Date(versionJson.createDate);
+        } catch {
+            // Fall back to directory mtime for installs predating version.json
+            const stat = await fs.stat(fullPath);
+            installDate = stat.mtime;
+        }
+
+        result.set(entry.name, installDate);
     }
 
-    return specs;
+    return result;
 }
 
 type LspPickResult =
@@ -82,21 +94,30 @@ type LspPickResult =
 const RECENT_VERSION_LIMIT = 10;
 const SHOW_ALL_LABEL = "Show older versions...";
 
-async function fetchLspData(context: ExtensionContext): Promise<{ versions: string[]; installedSpecs: Set<string>; currentSpec: string }> {
+async function fetchLspData(context: ExtensionContext): Promise<{
+    versions: string[];
+    remoteCreateDates: Map<string, Date>;
+    installedDates: Map<string, Date>;
+    currentSpec: string;
+}> {
     const lspVersionsParentDir = path.join(context.globalStorageUri.fsPath, "lspVersions");
-    const installedSpecs = await getInstalledVersionSpecs(lspVersionsParentDir);
+    const installedDates = await getInstalledVersionData(lspVersionsParentDir);
     const currentSpec = ExtensionConfig.boxlangLSPVersion;
 
     const forgeBoxClient = new ForgeBoxClient();
     const metadata = await forgeBoxClient.getModuleMetadata("bx-lsp");
 
+    const remoteCreateDates = new Map<string, Date>();
     const versionSet = new Set<string>();
     if (metadata.latestVersion?.version) {
         versionSet.add(metadata.latestVersion.version);
+        const v = metadata.latestVersion;
+        remoteCreateDates.set(`bx-lsp@${v.version}`, new Date(v.modifyDate ?? v.createDate));
     }
     for (const v of metadata.versions || []) {
         if (v?.version) {
             versionSet.add(v.version);
+            remoteCreateDates.set(`bx-lsp@${v.version}`, new Date(v.modifyDate ?? v.createDate));
         }
     }
 
@@ -104,12 +125,13 @@ async function fetchLspData(context: ExtensionContext): Promise<{ versions: stri
         .filter(v => typeof v === "string" && v.length > 0)
         .sort(compareBoxLangLspVersionsDescending);
 
-    return { versions, installedSpecs, currentSpec };
+    return { versions, remoteCreateDates, installedDates, currentSpec };
 }
 
 async function pickLspVersion(
     versions: string[],
-    installedSpecs: Set<string>,
+    remoteCreateDates: Map<string, Date>,
+    installedDates: Map<string, Date>,
     currentSpec: string,
     context: ExtensionContext,
     showAll: boolean
@@ -135,12 +157,18 @@ async function pickLspVersion(
         for (const version of visibleVersions) {
             const versionSpec = `bx-lsp@${version}`;
             const isCurrent = currentSpec === versionSpec;
-            const isInstalled = installedSpecs.has(versionSpec);
+            const localDate = installedDates.get(versionSpec);
+            const remoteDate = remoteCreateDates.get(versionSpec);
+            const isUpdateAvailable = localDate && remoteDate && remoteDate > localDate;
 
             let description = "";
-            if (isCurrent) {
+            if (isCurrent && isUpdateAvailable) {
+                description = "Update Available";
+            } else if (isCurrent) {
                 description = "Current";
-            } else if (isInstalled) {
+            } else if (isUpdateAvailable) {
+                description = "Update Available";
+            } else if (localDate) {
                 description = "Installed";
             }
 
@@ -160,10 +188,14 @@ async function pickLspVersion(
             picker.hide();
 
             if (selection.label === SHOW_ALL_LABEL) {
-                resolve(pickLspVersion(versions, installedSpecs, currentSpec, context, true));
+                resolve(pickLspVersion(versions, remoteCreateDates, installedDates, currentSpec, context, true));
             } else {
                 const versionSpec = `bx-lsp@${selection.label}`;
-                if (installedSpecs.has(versionSpec)) {
+                const localDate = installedDates.get(versionSpec);
+                const remoteDate = remoteCreateDates.get(versionSpec);
+                const isUpdateAvailable = localDate && remoteDate && remoteDate > localDate;
+                const isInstalled = !!localDate && !isUpdateAvailable;
+                if (isInstalled) {
                     resolve({ versionSpec });
                 } else {
                     resolve({ needsInstall: true, version: selection.label, versionSpec });
@@ -197,14 +229,14 @@ async function restartLsp(): Promise<void> {
     await startLSP();
 }
 
-export async function installLSPVersion(context: ExtensionContext) {
+export async function selectLSPVersion(context: ExtensionContext) {
     try {
         const data = await vscode.window.withProgress(
             { title: "BoxLang: Fetching LSP versions", location: ProgressLocation.Notification },
             async () => fetchLspData(context)
         );
 
-        const result = await pickLspVersion(data.versions, data.installedSpecs, data.currentSpec, context, false);
+        const result = await pickLspVersion(data.versions, data.remoteCreateDates, data.installedDates, data.currentSpec, context, false);
 
         if (!result) {
             return;
@@ -214,6 +246,7 @@ export async function installLSPVersion(context: ExtensionContext) {
             const { version, versionSpec } = result;
             const lspVersionsParentDir = path.join(context.globalStorageUri.fsPath, "lspVersions");
             const lspVersionDir = path.join(lspVersionsParentDir, versionSpec);
+            const remoteCreateDate = data.remoteCreateDates.get(versionSpec);
 
             await vscode.window.withProgress(
                 { title: `BoxLang: Installing LSP Version: ${version}`, location: ProgressLocation.Notification },
@@ -227,6 +260,11 @@ export async function installLSPVersion(context: ExtensionContext) {
                     if (!(await fileExists(boxJsonPath))) {
                         throw new Error(`LSP installation is missing box.json: ${boxJsonPath}`);
                     }
+
+                    await fs.writeFile(
+                        path.join(lspVersionDir, "version.json"),
+                        JSON.stringify({ versionSpec, createDate: remoteCreateDate?.toISOString() ?? new Date().toISOString() })
+                    );
 
                     ExtensionConfig.boxlangLSPVersion = versionSpec;
                     boxlangOutputChannel.appendLine(`BoxLang: LSP version set to ${versionSpec}`);

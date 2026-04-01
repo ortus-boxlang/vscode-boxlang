@@ -22,6 +22,7 @@ export interface ForgeBoxVersion {
     downloadURL: string;
     isActive: boolean;
     createDate: string;
+    modifyDate?: string;
 }
 
 export interface ForgeBoxSearchResult {

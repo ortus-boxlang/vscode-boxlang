@@ -884,12 +884,12 @@
                 "title": "BoxLang: Select BoxLang Version"
             },
             {
-                "command": "boxlang.installLSPVersion",
-                "title": "BoxLang: Install LSP Version"
+                "command": "boxlang.reinstallBoxLangComponent",
+                "title": "BoxLang: Reinstall Component"
             },
             {
-                "command": "boxlang.installDebuggerVersion",
-                "title": "BoxLang: Install Debugger Version"
+                "command": "boxlang.selectLSPVersion",
+                "title": "BoxLang: Select LSP Version"
             },
             {
                 "command": "boxlang.selectDebuggerVersion",
@@ -900,8 +900,8 @@
                 "title": "BoxLang: Remove Debugger Version"
             },
             {
-                "command": "boxlang.installMiniServerVersion",
-                "title": "BoxLang: Install MiniServer Version"
+                "command": "boxlang.selectMiniServerVersion",
+                "title": "BoxLang: Select MiniServer Version"
             },
             {
                 "command": "boxlang.removeBoxLangVersion",
