@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 - BLIDE-274 merge install and select boxlang version commands
+  
+## [1.16.1] - 2026-03-20
+
+## [1.16.0] - 2026-03-19
+
 - Add schema for .bxformat.json
 
 ## [1.14.0] - 2026-01-24
@@ -13,11 +18,12 @@
 ## [1.12.1] - 2025-10-16
 
 - BLIDE-253 Fix REPL not opening when the default shell is PowerShell
+
 - BLIDE-254 add workspace setting to control boxlang version
 
 - BLIDE-253 Fix REPL not opening when the default shell is PowerShell
-- BLIDE-254 add workspace setting to control boxlang version
 
+- BLIDE-254 add workspace setting to control boxlang version
 
 ## [1.12.0] - 2025-10-16
 
@@ -143,7 +149,9 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.14.0...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.16.1...HEAD
+[1.16.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.16.0...v1.16.1
+[1.16.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.14.0...v1.16.0
 [1.14.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.1...v1.14.0
 [1.12.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.10.0...v1.12.0

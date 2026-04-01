@@ -5,7 +5,6 @@ on:
     branches:
       - development
   workflow_dispatch:
-  workflow_call:
 
 
 # Cancel running builds if another push to branch is made while this build is running
@@ -39,7 +38,7 @@ jobs:
       contents: write
     with:
         pre-release: true
-        ref: development
+        ref: v${{ needs.validatePreReleaseVersion.outputs.newVersion }}
 
   publishMS:
     name: Publish to VS marketplace
