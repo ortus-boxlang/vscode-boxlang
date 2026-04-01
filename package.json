@@ -881,11 +881,7 @@
             },
             {
                 "command": "boxlang.selectBoxLangVersion",
-                "title": "BoxLang: Select Default BoxLang Version"
-            },
-            {
-                "command": "boxlang.installBoxLangVersion",
-                "title": "BoxLang: Install BoxLang Version"
+                "title": "BoxLang: Select BoxLang Version"
             },
             {
                 "command": "boxlang.installLSPVersion",

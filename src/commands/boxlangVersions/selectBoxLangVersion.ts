@@ -1,45 +1,113 @@
 
-import vscode, { ExtensionContext } from "vscode";
+import vscode, { ExtensionContext, ProgressLocation } from "vscode";
 import { ExtensionConfig } from "../../utils/Configuration";
-import { BoxLangVersion, getDownloadedBoxLangVersions } from "../../utils/versionManager";
+import { BoxLangVersion, getAvailableBoxLangVerions, getDownloadedBoxLangVersions, installVersion } from "../../utils/versionManager";
+
+type PickResult =
+    | { version: BoxLangVersion }
+    | { jarPath: string; name: string };
+
+const RECENT_VERSION_LIMIT = 10;
+const SHOW_ALL_LABEL = "Show older versions...";
 
 export async function selectBoxLangVersion(context: ExtensionContext) {
     try {
-        const versionToSelect = await pickBoxLangVersion();
+        const result = await pickBoxLangVersion(false);
 
-        ExtensionConfig.boxlangJarPath = versionToSelect.jarPath;
+        if (!result) {
+            return;
+        }
 
-        vscode.window.showInformationMessage(`BoxLang: Version ${versionToSelect.name} is now the default version`);
+        if ("version" in result) {
+            const { version } = result;
+            await vscode.window.withProgress(
+                { title: `BoxLang: Downloading BoxLang Version: ${version.name}`, location: ProgressLocation.Notification },
+                async () => {
+                    const jarPath = await installVersion(version);
+                    ExtensionConfig.boxlangJarPath = jarPath;
+                }
+            );
+            vscode.window.showInformationMessage(`BoxLang: Version ${version.name} is now the default version`);
+        } else {
+            ExtensionConfig.boxlangJarPath = result.jarPath;
+            vscode.window.showInformationMessage(`BoxLang: Version ${result.name} is now the default version`);
+        }
     }
     catch (e) {
         vscode.window.showErrorMessage(`Unable to select BoxLang version: ${e.toString()}`);
     }
 }
 
-async function pickBoxLangVersion(): Promise<BoxLangVersion> {
-    const availableVersions = await getDownloadedBoxLangVersions();
-    return new Promise(async (resolve, reject) => {
-        const choices = availableVersions
-            .map(version => {
-                const isDefault = ExtensionConfig.boxlangJarPath === version.jarPath;
+async function pickBoxLangVersion(showAll: boolean): Promise<PickResult | null> {
+    const [availableVersions, downloadedVersions] = await Promise.all([
+        getAvailableBoxLangVerions(),
+        getDownloadedBoxLangVersions()
+    ]);
 
-                return {
-                    label: version.name,
-                    description: isDefault ? "Default" : ""
-                }
-            });
+    const currentJarPath = ExtensionConfig.boxlangJarPath;
+    const currentDownloaded = downloadedVersions.find(v => v.jarPath === currentJarPath);
 
-        choices.push({
-            label: "Choose local file",
-            description: ""
-        });
+    let visibleVersions = availableVersions;
+    let hasOlderVersions = false;
+
+    if (!showAll && availableVersions.length > RECENT_VERSION_LIMIT) {
+        const recent = availableVersions.slice(0, RECENT_VERSION_LIMIT);
+        const currentIsIncluded = !currentDownloaded || recent.some(v => v.name === currentDownloaded.name);
+
+        if (currentIsIncluded) {
+            visibleVersions = recent;
+        } else {
+            // Keep the current version in the list even though it's older
+            visibleVersions = [...recent, availableVersions.find(v => v.name === currentDownloaded.name)].filter(Boolean);
+        }
+
+        hasOlderVersions = true;
+    }
+
+    return new Promise((resolve) => {
+        const resultMap = new Map<string, PickResult>();
+
+        const choices: vscode.QuickPickItem[] = [
+            { label: "Choose local file", description: "" }
+        ];
+
+        if (hasOlderVersions) {
+            choices.push({ label: SHOW_ALL_LABEL, description: "" });
+        }
+
+        for (const version of visibleVersions) {
+            const downloaded = downloadedVersions.find(v => v.name === version.name);
+            const isDefault = downloaded && currentJarPath === downloaded.jarPath;
+            const isNewerAvailable = downloaded && downloaded.lastModified < version.lastModified;
+
+            let description = "";
+            if (isDefault) {
+                description = "Default";
+            } else if (isNewerAvailable) {
+                description = "Update Available";
+            } else if (downloaded) {
+                description = "Installed";
+            }
+
+            choices.push({ label: version.name, description });
+
+            if (downloaded && !isNewerAvailable) {
+                resultMap.set(version.name, { jarPath: downloaded.jarPath, name: version.name });
+            } else {
+                resultMap.set(version.name, { version });
+            }
+        }
 
         const picker = vscode.window.createQuickPick();
         picker.title = "Select BoxLang Version";
         picker.items = choices;
 
+        let accepted = false;
+
         picker.onDidAccept(async () => {
-            const selection = picker.activeItems[0]
+            accepted = true;
+            const selection = picker.activeItems[0];
+            picker.hide();
 
             if (selection.label === "Choose local file") {
                 const filePath = await vscode.window.showOpenDialog({
@@ -49,21 +117,24 @@ async function pickBoxLangVersion(): Promise<BoxLangVersion> {
                     canSelectFiles: true
                 });
 
-                if (filePath && filePath[0]) {
-                    resolve({
-                        lastModified: new Date(),
-                        url: "",
-                        jarPath: filePath[0].fsPath,
-                        name: "Local Version"
-                    });
-                }
+                resolve(filePath?.[0]
+                    ? { jarPath: filePath[0].fsPath, name: "Local Version" }
+                    : null
+                );
+            } else if (selection.label === SHOW_ALL_LABEL) {
+                resolve(pickBoxLangVersion(true));
+            } else {
+                resolve(resultMap.get(selection.label) ?? null);
             }
-            else {
-                resolve(availableVersions.find(v => v.name === selection.label))
-            }
+        });
 
-            picker.hide()
-        })
+        picker.onDidHide(() => {
+            if (!accepted) {
+                resolve(null);
+            }
+            picker.dispose();
+        });
+
         picker.show();
-    })
+    });
 }

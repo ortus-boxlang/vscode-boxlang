@@ -262,7 +262,6 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(commands.registerCommand("boxlang.removeDebuggerVersion", applyContext(extensionCommands.removeDebuggerVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.installMiniServerVersion", applyContext(extensionCommands.installMiniServerVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.selectBoxLangVersion", applyContext(extensionCommands.selectBoxLangVersion)));
-    context.subscriptions.push(commands.registerCommand("boxlang.installBoxLangVersion", applyContext(extensionCommands.installBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.removeBoxLangVersion", applyContext(extensionCommands.removeBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.addBoxLangHome", extensionCommands.addBoxLangHome));
     context.subscriptions.push(commands.registerCommand("boxlang.removeBoxLangHome", extensionCommands.removeBoxLangHome));

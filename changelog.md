@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- BLIDE-274 merge install and select boxlang version commands
 - Add schema for .bxformat.json
 
 ## [1.14.0] - 2026-01-24
