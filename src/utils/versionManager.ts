@@ -1,7 +1,7 @@
 // import fs from "fs";
 import fs from "fs/promises";
 import path from "path";
-import vscode, { ExtensionContext } from "vscode";
+import { ExtensionContext } from "vscode";
 import { ExtensionConfig } from "./Configuration";
 import { DownloadManager } from "./DownloadManager";
 import * as fileUtil from "./fileUtil";
@@ -23,8 +23,6 @@ export async function setupVersionManagement(_context: ExtensionContext): Promis
     context = _context;
     BOXLANG_INSTALLATIONS = path.join(context.globalStorageUri.fsPath, "boxlang_versions");
     BOXLANG_LOCAL_VERSIONS_CACHE = path.join(context.globalStorageUri.fsPath, "boxlang_version_cache.json");
-
-    getAvailableBoxLangVerions( true );
 
     try {
         await fs.access(BOXLANG_INSTALLATIONS);
@@ -72,7 +70,7 @@ export async function getConfiguredBoxLangJarPath(): Promise<string> {
 
     const configuredVersion = ExtensionConfig.boxlangVersion;
 
-    if( !validateConfiguredVersion( configuredVersion ) ){
+    if( !(await validateConfiguredVersion( configuredVersion )) ){
         boxlangOutputChannel.appendLine("Configured BoxLang version is not valid: " + configuredVersion);
         boxlangOutputChannel.appendLine("Falling back to included BoxLang JAR path: " + ExtensionConfig.includedBoxLangJarPath);
         return ExtensionConfig.includedBoxLangJarPath;
@@ -146,25 +144,12 @@ export async function getAvailableBoxLangVerions( force: boolean = false ): Prom
     const versionsFromAWS = await getBoxLangVersionsFromAWS();
 
     if( await doesLocalVersionFileExist() ) {
-        const cachedVersions = await readVersionsFromLocalCache();
-
         const versionPattern = /boxlang-\d+\.\d+\.\d+$/;
         const newestRelease = versionsFromAWS.find( v => versionPattern.test(v.name) );
 
         if( !newestRelease ){
             writeVersionsToLocalCache( versionsFromAWS );
             return versionsFromAWS;
-        }
-
-        const inCache = cachedVersions.some( v => v.name === newestRelease.name );
-        const releaseVersion = newestRelease.name.replace( "boxlang-", "" );
-
-        if( !inCache ){
-            const choice = await vscode.window.showInformationMessage(`BoxLang version: ${releaseVersion} is now available for download!`, "See the Release" );
-
-            if( choice === "See the Release" ){
-                vscode.env.openExternal(vscode.Uri.parse(`https://github.com/ortus-boxlang/BoxLang/releases/tag/v${releaseVersion}`));
-            }
         }
     }
 

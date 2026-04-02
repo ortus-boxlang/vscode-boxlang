@@ -56,6 +56,7 @@ import { setupLocalJavaInstall } from "./utils/Java";
 import * as LSP from "./utils/LanguageServer";
 import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
 import { setupServers } from "./utils/Server";
+import { checkAllUpdates } from "./utils/UpdateManager";
 import { setupBvmrcSupport } from "./utils/bvmrcSupport";
 import { setupVersionManagement } from "./utils/versionManager";
 import { setupWorkspace } from "./utils/workspaceSetup";
@@ -263,6 +264,7 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(commands.registerCommand("boxlang.selectBoxLangVersion", applyContext(extensionCommands.selectBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.removeBoxLangVersion", applyContext(extensionCommands.removeBoxLangVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.reinstallBoxLangComponent", applyContext(extensionCommands.reinstallBoxLangComponent)));
+    context.subscriptions.push(commands.registerCommand("boxlang.checkForUpdates", extensionCommands.checkForUpdates));
     context.subscriptions.push(commands.registerCommand("boxlang.addBoxLangHome", extensionCommands.addBoxLangHome));
     context.subscriptions.push(commands.registerCommand("boxlang.removeBoxLangHome", extensionCommands.removeBoxLangHome));
     context.subscriptions.push(commands.registerCommand("boxlang.downloadJava", applyContext(extensionCommands.downloadJava)));
@@ -552,6 +554,13 @@ async function runSetup( context: ExtensionContext ){
     await setupBvmrcSupport(context);
 
     migrateSettings(false);
+
+    // Run update checks in the background after a short delay so LSP can start first
+    setTimeout(() => {
+        checkAllUpdates(false).catch(e => {
+            boxlangOutputChannel.appendLine(`BoxLang: Background update check failed: ${e}`);
+        });
+    }, 3000);
 
     client = LSP.startLSP()
 

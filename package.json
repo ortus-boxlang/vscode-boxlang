@@ -450,6 +450,44 @@
                         "Do not check for the latest version"
                     ]
                 },
+                "boxlang.updates.runtime": {
+                    "type": "string",
+                    "description": "Controls how the BoxLang runtime checks for and applies version updates",
+                    "scope": "machine",
+                    "default": "prompt",
+                    "enum": [
+                        "auto",
+                        "prompt",
+                        "manual"
+                    ],
+                    "enumDescriptions": [
+                        "Check for the latest version and automatically download it",
+                        "Check for the latest version and prompt before downloading",
+                        "Do not check for the latest version"
+                    ]
+                },
+                "boxlang.updates.miniserver": {
+                    "type": "string",
+                    "description": "Controls how the BoxLang MiniServer checks for and applies version updates",
+                    "scope": "machine",
+                    "default": "prompt",
+                    "enum": [
+                        "auto",
+                        "prompt",
+                        "manual"
+                    ],
+                    "enumDescriptions": [
+                        "Check for the latest version and automatically download it",
+                        "Check for the latest version and prompt before downloading",
+                        "Do not check for the latest version"
+                    ]
+                },
+                "boxlang.updates.preRelease": {
+                    "type": "boolean",
+                    "description": "When enabled, update checks will include pre-release (snapshot, beta, alpha) versions",
+                    "scope": "machine",
+                    "default": false
+                },
                 "boxlang.showLexerTokens": {
                     "type": "boolean",
                     "description": "Controls whether to show the lexer processing output",
@@ -886,6 +924,10 @@
             {
                 "command": "boxlang.reinstallBoxLangComponent",
                 "title": "BoxLang: Reinstall Component"
+            },
+            {
+                "command": "boxlang.checkForUpdates",
+                "title": "BoxLang: Check for Updates"
             },
             {
                 "command": "boxlang.selectLSPVersion",

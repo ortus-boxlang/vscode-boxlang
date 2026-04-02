@@ -27,7 +27,8 @@
                 "${workspaceFolder}/out/**/*.js"
             ],
             "env": {
-                "xBOXLANG_LSP_PORT": "7777"
+                "xBOXLANG_LSP_PORT": "7777",
+                "BOXLANG_IGNORE_UPDATE_COOLDOWN": 1
             },
             "skipFiles": [
                 "<node_internals>/**"

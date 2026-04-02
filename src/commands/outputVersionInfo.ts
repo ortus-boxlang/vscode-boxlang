@@ -3,6 +3,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { ExtensionConfig } from "../utils/Configuration";
 import { appendToOpenDocument } from "../utils/documentUtil";
+import { getConfiguredBoxLangJarPath } from "../utils/versionManager";
 import { boxLangLauncher } from "../utils/workspaceSetup";
 
 export async function outputVersionInfo(context: vscode.ExtensionContext) {
@@ -24,7 +25,7 @@ export async function outputVersionInfo(context: vscode.ExtensionContext) {
             versionInfo.push(``);
             versionInfo.push(`  boxlangHome:                ${boxLangLauncher.boxlangHome}`);
             versionInfo.push(`  boxlangJavaHome:            ${ExtensionConfig.boxlangJavaHome}`);
-            versionInfo.push(`  boxlangJarPath:             ${ExtensionConfig.boxlangJarPath}`);
+            versionInfo.push(`  boxlangJarPath:             ${await getConfiguredBoxLangJarPath()}`);
             versionInfo.push(`  boxlangLSPPath:             ${ExtensionConfig.boxlangLSPPath}`);
             versionInfo.push(`  boxlangMiniServerJarPath:   ${ExtensionConfig.boxlangMiniServerJarPath}`);
             versionInfo.push(`  boxlangServerPort:          ${ExtensionConfig.boxlangServerPort}`);

@@ -4,12 +4,10 @@ import net from "net";
 import path from "path";
 import * as vscode from "vscode";
 import { LanguageClient, ServerOptions } from "vscode-languageclient/node";
-import { compareBoxLangLspVersionsDescending } from "../commands/lsp/selectLSPVersion";
 import { getExtensionContext } from "../context";
 import { startLSPProcess } from "./BoxLang";
 import { runCommandBox } from "./CommandBox";
 import { ExtensionConfig } from "./Configuration";
-import { ForgeBoxClient } from "./ForgeBoxClient";
 import { ModuleManager } from "./ModuleManager";
 import { boxlangOutputChannel } from "./OutputChannels";
 import { ensureBoxLangVersion } from "./versionManager";
@@ -96,60 +94,11 @@ class InvalidLSPInstallationError extends Error {
     }
 }
 
-async function checkAndUpdateLSPVersion(): Promise<void> {
-    const updateMode = ExtensionConfig.boxlangLSPVersionUpdateMode;
-
-    if (updateMode === "manual") {
-        return;
-    }
-
-    const currentSpec = ExtensionConfig.boxlangLSPVersion;
-    const currentVersion = currentSpec?.startsWith("bx-lsp@") ? currentSpec.slice("bx-lsp@".length) : currentSpec;
-
-    let latestVersion: string;
-    try {
-        const forgeBoxClient = new ForgeBoxClient();
-        latestVersion = await forgeBoxClient.getLatestVersion("bx-lsp");
-    } catch (e) {
-        boxlangOutputChannel.appendLine(`BoxLang: Unable to check for latest LSP version: ${e}`);
-        return;
-    }
-
-    if (!latestVersion) {
-        return;
-    }
-
-    if (compareBoxLangLspVersionsDescending(currentVersion, latestVersion) <= 0) {
-        boxlangOutputChannel.appendLine(`BoxLang: LSP is already at the latest version (${currentSpec})`);
-        return;
-    }
-
-    const latestSpec = `bx-lsp@${latestVersion}`;
-
-    if (updateMode === "auto") {
-        boxlangOutputChannel.appendLine(`BoxLang: Automatically updating LSP from ${currentSpec} to ${latestSpec}`);
-        ExtensionConfig.boxlangLSPVersion = latestSpec;
-    } else {
-        const choice = await vscode.window.showInformationMessage(
-            `BoxLang: A new LSP version is available (${latestVersion}). Would you like to update from ${currentVersion}?`,
-            "Update",
-            "Skip"
-        );
-
-        if (choice === "Update") {
-            boxlangOutputChannel.appendLine(`BoxLang: Updating LSP from ${currentSpec} to ${latestSpec}`);
-            ExtensionConfig.boxlangLSPVersion = latestSpec;
-        }
-    }
-}
-
 /**
  * Initiates the BoxLang Language Server process, ensuring that the necessary LSP module and BoxLang version are installed.
  * @returns A promise that resolves when the language server process has started. The promise returns an array where the first item is the child process and the second item is the port number.
  */
 async function startLanguageServerProcess() {
-    await checkAndUpdateLSPVersion();
-
     let lspModulePath = null;
 
     try{

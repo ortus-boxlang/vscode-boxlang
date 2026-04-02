@@ -23,12 +23,15 @@ export async function selectBoxLangVersion(context: ExtensionContext) {
             await vscode.window.withProgress(
                 { title: `BoxLang: Downloading BoxLang Version: ${version.name}`, location: ProgressLocation.Notification },
                 async () => {
-                    const jarPath = await installVersion(version);
-                    ExtensionConfig.boxlangJarPath = jarPath;
+                    await installVersion(version);
                 }
             );
+            const versionNumber = version.name.replace(/^boxlang-/, "");
+            ExtensionConfig.clearBoxlangJarPath();
+            ExtensionConfig.boxlangVersion = versionNumber;
             vscode.window.showInformationMessage(`BoxLang: Version ${version.name} is now the default version`);
-        } else {
+        } else if ("jarPath" in result) {
+            // Local file path — explicit jar path takes precedence over version
             ExtensionConfig.boxlangJarPath = result.jarPath;
             vscode.window.showInformationMessage(`BoxLang: Version ${result.name} is now the default version`);
         }
@@ -45,7 +48,22 @@ async function pickBoxLangVersion(showAll: boolean): Promise<PickResult | null> 
     ]);
 
     const currentJarPath = ExtensionConfig.boxlangJarPath;
-    const currentDownloaded = downloadedVersions.find(v => v.jarPath === currentJarPath);
+    const currentVersion = ExtensionConfig.boxlangVersion;
+
+    // A version is "current" if it matches the configured version string, or if an
+    // explicit jar path is set and matches the downloaded jar for that version.
+    const isCurrentVersion = (v: { name: string; jarPath?: string }) => {
+        const vNum = v.name.replace(/^boxlang-/, "");
+        if (currentVersion && vNum === currentVersion) {
+            return true;
+        }
+        if (currentJarPath && v.jarPath === currentJarPath) {
+            return true;
+        }
+        return false;
+    };
+
+    const currentDownloaded = downloadedVersions.find(v => isCurrentVersion(v));
 
     let visibleVersions = availableVersions;
     let hasOlderVersions = false;
@@ -77,7 +95,7 @@ async function pickBoxLangVersion(showAll: boolean): Promise<PickResult | null> 
 
         for (const version of visibleVersions) {
             const downloaded = downloadedVersions.find(v => v.name === version.name);
-            const isDefault = downloaded && currentJarPath === downloaded.jarPath;
+            const isDefault = downloaded && isCurrentVersion(downloaded);
             const isNewerAvailable = downloaded && downloaded.lastModified < version.lastModified;
 
             let description = "";
@@ -92,7 +110,7 @@ async function pickBoxLangVersion(showAll: boolean): Promise<PickResult | null> 
             choices.push({ label: version.name, description });
 
             if (downloaded && !isNewerAvailable) {
-                resultMap.set(version.name, { jarPath: downloaded.jarPath, name: version.name });
+                resultMap.set(version.name, { version: downloaded });
             } else {
                 resultMap.set(version.name, { version });
             }

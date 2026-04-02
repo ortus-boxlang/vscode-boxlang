@@ -82,12 +82,13 @@ export async function startLSPProcess(
 }
 
 async function runBoxLangWithHome(boxlangHome, ...args: string[]): Promise<BoxLangResult> {
+    const jarPath = await getConfiguredBoxLangJarPath();
     return new Promise((resolve, reject) => {
         const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
         const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner"].concat(args), {
             env: {
                 BOXLANG_HOME: boxlangHome,
-                CLASSPATH: ExtensionConfig.boxlangJarPath
+                CLASSPATH: jarPath
             }
         });
         let stdout = '';

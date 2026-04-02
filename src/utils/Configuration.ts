@@ -111,6 +111,14 @@ export const ExtensionConfig = {
         workspace.getConfiguration("boxlang").update("jarpath", path, ConfigurationTarget.Global);
     },
 
+    clearBoxlangJarPath() {
+        workspace.getConfiguration("boxlang").update("jarpath", undefined, ConfigurationTarget.Global);
+    },
+
+    set boxlangVersion(version: string) {
+        workspace.getConfiguration("boxlang").update("boxlangVersion", version, ConfigurationTarget.Global);
+    },
+
     get boxlangVersion() {
         // If .bvmrc version is set and jar path is available, use it
         if (BVMRC_VERSION ) {
@@ -198,6 +206,18 @@ export const ExtensionConfig = {
 
     get boxlangDebuggerVersionUpdateMode(): "auto" | "prompt" | "manual" {
         return (workspace.getConfiguration("boxlang.debugger").get<string>('versionUpdateMode') || "auto") as "auto" | "prompt" | "manual";
+    },
+
+    get boxlangRuntimeVersionUpdateMode(): "auto" | "prompt" | "manual" {
+        return (workspace.getConfiguration("boxlang.updates").get<string>('runtime') || "prompt") as "auto" | "prompt" | "manual";
+    },
+
+    get boxlangMiniServerVersionUpdateMode(): "auto" | "prompt" | "manual" {
+        return (workspace.getConfiguration("boxlang.updates").get<string>('miniserver') || "prompt") as "auto" | "prompt" | "manual";
+    },
+
+    get boxlangUpdatesPreRelease(): boolean {
+        return workspace.getConfiguration("boxlang.updates").get<boolean>('preRelease') ?? false;
     },
 
     get boxlangDebuggerMode() {
