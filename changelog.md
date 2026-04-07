@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- BLIDE-278 fix LSP workspace setting configuration
 - BLIDE-276 improve auto update of main componenets
 - BLIDE-275 update lsp, debugger, and miniserver install commands
 - BLIDE-274 merge install and select boxlang version commands
