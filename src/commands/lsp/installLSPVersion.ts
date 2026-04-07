@@ -12,6 +12,19 @@ export function compareBoxLangLspVersionsDescending(a: string, b: string): numbe
     const [aBase, aBuild] = a.split("+");
     const [bBase, bBuild] = b.split("+");
 
+    if (!semver.valid(aBase) && !semver.valid(bBase)) {
+        boxlangOutputChannel.appendLine(`BoxLang LSP: Skipping sort — both versions are invalid: "${a}" and "${b}"`);
+        return 0;
+    }
+    if (!semver.valid(aBase)) {
+        boxlangOutputChannel.appendLine(`BoxLang LSP: Invalid LSP version string encountered during sort: "${a}" — ignoring and sorting to end`);
+        return 1;
+    }
+    if (!semver.valid(bBase)) {
+        boxlangOutputChannel.appendLine(`BoxLang LSP: Invalid LSP version string encountered during sort: "${b}" — ignoring and sorting to end`);
+        return -1;
+    }
+
     const baseCmp = semver.rcompare(aBase, bBase);
     if (baseCmp !== 0) {
         return baseCmp;

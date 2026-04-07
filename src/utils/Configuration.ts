@@ -152,11 +152,7 @@ export const ExtensionConfig = {
     },
 
     set boxlangLSPVersion(versionSpec: string) {
-        const target = (workspace.workspaceFolders && workspace.workspaceFolders.length > 0)
-            ? ConfigurationTarget.Workspace
-            : ConfigurationTarget.Global;
-
-        workspace.getConfiguration("boxlang.lsp").update("lspVersion", versionSpec, target);
+        workspace.getConfiguration("boxlang.lsp").update("lspVersion", versionSpec, ConfigurationTarget.Global);
     },
 
     get boxlangLSPVersion() {

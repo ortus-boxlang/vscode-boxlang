@@ -162,6 +162,10 @@ async function getLatestVersion(component: Component): Promise<{ current: string
                 return null;
             }
             const current = currentSpec.startsWith("bx-lsp@") ? currentSpec.slice("bx-lsp@".length) : currentSpec;
+            if (!current) {
+                boxlangOutputChannel.appendLine(`BoxLang UpdateManager: LSP version spec "${currentSpec}" has no version number \u2014 skipping update check`);
+                return null;
+            }
 
             const forgeBoxClient = new ForgeBoxClient();
             const metadata = await forgeBoxClient.getModuleMetadata("bx-lsp");
