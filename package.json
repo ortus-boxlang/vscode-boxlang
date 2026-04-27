@@ -893,6 +893,40 @@
                     "type": "string",
                     "description": "An alternative locatin to use as your BoxLang Home",
                     "scope": "resource"
+                },
+                "boxlang.dump.panelMode": {
+                    "type": "string",
+                    "description": "Controls whether each dump replaces the current panel or opens a new tab.",
+                    "scope": "window",
+                    "default": "replace",
+                    "enum": [
+                        "replace",
+                        "newTab"
+                    ],
+                    "enumDescriptions": [
+                        "Each dump replaces the content of the existing dump panel",
+                        "Each dump opens in its own editor tab"
+                    ]
+                },
+                "boxlang.dump.panelLocation": {
+                    "type": "string",
+                    "description": "Controls which editor column the dump panel opens in.",
+                    "scope": "window",
+                    "default": "beside",
+                    "enum": [
+                        "beside",
+                        "active",
+                        "one",
+                        "two",
+                        "three"
+                    ],
+                    "enumDescriptions": [
+                        "Open beside the currently active editor (default)",
+                        "Open in the currently active editor column",
+                        "Open in editor column one",
+                        "Open in editor column two",
+                        "Open in editor column three"
+                    ]
                 }
             }
         },
@@ -1123,6 +1157,16 @@
                 "title": "BoxLang: Open FeatureAudit Tool",
                 "category": "BoxLang",
                 "icon": "$(browser)"
+            },
+            {
+                "command": "boxlang.dumpVariable",
+                "title": "BoxLang: Dump Variable",
+                "category": "BoxLang"
+            },
+            {
+                "command": "boxlang.dumpVariableFromPanel",
+                "title": "Dump Variable",
+                "category": "BoxLang"
             }
         ],
         "viewsContainers": {
@@ -1269,6 +1313,18 @@
                 {
                     "command": "boxlang.runFile",
                     "when": "resourceLangId == boxlang || resourceLangId == cfml"
+                },
+                {
+                    "command": "boxlang.dumpVariable",
+                    "when": "inDebugMode && (resourceLangId == boxlang || resourceLangId == cfml)",
+                    "group": "debug"
+                }
+            ],
+            "debug/variables/context": [
+                {
+                    "command": "boxlang.dumpVariableFromPanel",
+                    "when": "debugType == boxlang",
+                    "group": "boxlang"
                 }
             ],
             "commandPalette": [
@@ -1342,6 +1398,10 @@
                 },
                 {
                     "command": "boxlang.addBoxLangHome",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.dumpVariableFromPanel",
                     "when": "false"
                 },
                 {

@@ -46,6 +46,7 @@ import {
 import { setupChatIntegration } from "./chat/tools";
 import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
+import { DumpManager } from "./debug/DumpManager";
 import { registerStatusBar } from "./features/statusBar";
 import { migrateSettings } from "./settingMigration";
 import { BoxLangTaskProvider } from "./tasks/BoxLangTaskProvider";
@@ -288,6 +289,9 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(commands.registerCommand("boxlang.runFile", applyContext(extensionCommands.runBoxLangFile)));
     context.subscriptions.push(commands.registerCommand("boxlang.runWebServer", extensionCommands.runBoxLangWebServer));
     context.subscriptions.push(commands.registerCommand("boxlang.openFeatureAuditTool", applyContext(extensionCommands.openFeatureAuditTool)));
+    context.subscriptions.push(commands.registerCommand("boxlang.dumpVariable", extensionCommands.dumpVariable));
+    context.subscriptions.push(commands.registerCommand("boxlang.dumpVariableFromPanel", extensionCommands.dumpVariableFromPanel));
+    context.subscriptions.push(new DumpManager());
     // commenting these out as they broke sometime over the past few months
     // these should be moved into a bx-language-tools repo instead
     // context.subscriptions.push(commands.registerCommand("boxlang.transpileToJava", extensionCommands.transpileToJava));

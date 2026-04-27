@@ -39,4 +39,5 @@ export * from "./showBoxLangASTGraph"
 export * from "./openFeatureAuditTool"
 export * from "./showStatusBarCommandPicker"
 export * from "./transpileToJava"
+export * from "./dumpVariable"
 
