@@ -314,7 +314,7 @@
                     "additionalProperties": {
                         "type": "string"
                     },
-                    "description": "Editor or workspace mapping overrides for the BoxLang language server. Keys are logical paths such as /models and values are path strings. These overrides take precedence over shared project mappings defined in boxlang.json.",
+                    "description": "Workspace mapping overrides for the BoxLang language server. Keys are logical paths such as /models and values are path strings. These overrides take precedence over shared project mappings defined in boxlang.json.",
                     "scope": "resource"
                 },
                 "boxlang.lsp.lspVersion": {
@@ -871,6 +871,7 @@
                 "boxlang.cfml.mappings": {
                     "type": "array",
                     "default": [],
+                    "deprecationMessage": "Deprecated. Use boxlang.mappings instead.",
                     "items": {
                         "type": "object",
                         "properties": {
