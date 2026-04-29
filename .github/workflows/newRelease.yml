@@ -52,6 +52,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [createReleaseVersion, buildAndPackageRelease]
     if: needs.createReleaseVersion.outputs.isPatch == 'false'
+    permissions:
+      contents: write
     steps:
       - name: Checkout Development Branch
         uses: actions/checkout@v6
@@ -86,12 +88,10 @@ jobs:
           Write-Host "Bumped development to $nextVersion"
 
       - name: Commit and Push
-        uses: EndBug/add-and-commit@v9.1.4
-        with:
-          author_name: Github Actions
-          author_email: info@ortussolutions.com
-          message: "chore: post-release sync, bumped to v${{ steps.nextPreRelease.outputs.nextVersion }} [skip ci]"
-          add: "package.json"
+        run: |
+          git add package.json
+          git commit -m "chore: post-release sync, bumped to v${{ steps.nextPreRelease.outputs.nextVersion }} [skip ci]"
+          git push origin HEAD:development
 
   publishMS:
     name: Publish to VS marketplace
