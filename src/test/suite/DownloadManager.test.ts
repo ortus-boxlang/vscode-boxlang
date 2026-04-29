@@ -3,6 +3,7 @@ import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as sinon from 'sinon';
+import { PassThrough } from 'stream';
 import { DownloadManager } from '../../utils/DownloadManager';
 
 suite('DownloadManager Test Suite', () => {
@@ -110,35 +111,18 @@ suite('DownloadManager Test Suite', () => {
     suite('downloadFile', () => {
         test('should report download progress', async () => {
             const progressUpdates: any[] = [];
-            const mockStream = {
-                pipe: sinon.stub().returnsThis(),
-                on: sinon.stub().callsFake((event: string, callback: Function) => {
-                    if (event === 'data') {
-                        // Simulate data chunks
-                        setTimeout(() => {
-                            callback(Buffer.alloc(50));
-                            callback(Buffer.alloc(50));
-                        }, 10);
-                    }
-                    return mockStream;
-                })
-            };
+            const mockStream = new PassThrough();
 
             axiosStub = sinon.stub(axios, 'request').resolves({
                 data: mockStream,
                 headers: { 'content-length': '100' }
             });
 
-            const mockWriter = {
-                on: sinon.stub().callsFake((event: string, callback: () => void) => {
-                    if (event === 'finish') {
-                        setTimeout(() => callback(), 50);
-                    }
-                    return mockWriter;
-                })
-            };
-
-            sinon.stub(fs, 'createWriteStream').returns(mockWriter as any);
+            setTimeout(() => {
+                mockStream.write(Buffer.alloc(50));
+                mockStream.write(Buffer.alloc(50));
+                mockStream.end();
+            }, 10);
 
             await DownloadManager.downloadFile(
                 'https://example.com/test.jar',
@@ -162,26 +146,15 @@ suite('DownloadManager Test Suite', () => {
                     return Promise.reject(new Error('Network error'));
                 }
                 // Succeed on second attempt
-                const mockStream = {
-                    pipe: sinon.stub().returnsThis(),
-                    on: sinon.stub().returnsThis()
-                };
+                const mockStream = new PassThrough();
+                setTimeout(() => {
+                    mockStream.end(Buffer.alloc(100));
+                }, 10);
                 return Promise.resolve({
                     data: mockStream,
                     headers: { 'content-length': '100' }
                 });
             });
-
-            const mockWriter = {
-                on: sinon.stub().callsFake((event: string, callback: () => void) => {
-                    if (event === 'finish') {
-                        setTimeout(() => callback(), 10);
-                    }
-                    return mockWriter;
-                })
-            };
-
-            sinon.stub(fs, 'createWriteStream').returns(mockWriter as any);
 
             await DownloadManager.downloadFile(
                 'https://example.com/test.jar',

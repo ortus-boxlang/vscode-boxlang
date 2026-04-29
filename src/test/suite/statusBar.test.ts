@@ -13,6 +13,20 @@ const vscode = {
 		}),
 		showInformationMessage: (message: string) => {}
 	},
+	workspace: {
+		getConfiguration: () => ({
+			get: () => undefined,
+			has: () => false,
+			inspect: () => undefined,
+			update: () => Promise.resolve()
+		}),
+		workspaceFolders: []
+	},
+	ConfigurationTarget: {
+		Global: 1,
+		Workspace: 2,
+		WorkspaceFolder: 3
+	},
 	ExtensionMode: {
 		Test: 3
 	}
@@ -73,7 +87,7 @@ suite('StatusBar Test Suite', () => {
 
 	test('setLoadingText sets loading text with spinner', () => {
 		const testText = 'Loading test data';
-		
+
 		// This test assumes the status bar has been registered
 		assert.doesNotThrow(() => {
 			setLoadingText(testText);

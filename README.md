@@ -81,6 +81,27 @@ The extensions BoxLang features are primarily configured via the following setti
 * `boxlang.parserPath` The path to the antlr parser file
 * `boxlang.customAntlrToolsCommand` A custom command to run instead of the configured antlr command
 
+## Project Mappings
+
+Project mapping configuration is split between shared project config and editor overrides:
+
+* `boxlang.json` is the shared project config for `mappings`, `classPaths`, and `modulesDirectory`.
+* `.bxlint.json` is for lint configuration only and does not support project mappings.
+* `boxlang.mappings` is the editor or workspace override for mappings only.
+* `boxlang.mappings` takes precedence over the same logical path from `boxlang.json`.
+
+Example workspace override in `.vscode/settings.json`:
+
+```json
+{
+  "boxlang.mappings": {
+    "/models": "./src/models"
+  }
+}
+```
+
+Use `boxlang.json` when the mapping should be shared with the whole project. Use `boxlang.mappings` when the override is editor-specific.
+
 ## Configuring the BoxLang Debugger
 
 Eventually this extension will ship with the BoxLang debugger. For now, we have opted to provide the debugger via launch configuration.
