@@ -64,7 +64,7 @@ export async function startLSPProcess(
         let stdout = '';
         let found = false;
 
-        lsp.stdout.on("data", data => {
+        const onData = (data) => {
             stdout += data;
 
             if (found) {
@@ -78,30 +78,48 @@ export async function startLSPProcess(
             }
 
             found = true;
+            cleanup();
             resolve([lsp, matches[1]]);
-        });
+        };
 
-        lsp.stderr.on("data", data => {
+        const onStderr = (data) => {
             boxlangOutputChannel.appendLine(data + "");
-        });
+        };
 
-        lsp.on("error", (err) => {
+        const onError = (err) => {
             if (!found) {
+                cleanup();
                 reject(new Error(`LSP process failed to start: ${err.message}`));
             }
-        });
+        };
 
-        lsp.on("exit", (code) => {
+        const onExit = (code) => {
             if (!found) {
+                cleanup();
                 reject(new Error(`LSP process exited with code ${code} before opening port`));
             }
-        });
+        };
 
-        lsp.on("close", () => {
+        const onClose = () => {
             if (!found) {
+                cleanup();
                 reject(new Error("LSP process closed before opening port"));
             }
-        });
+        };
+
+        function cleanup() {
+            lsp.stdout.off("data", onData);
+            lsp.stderr.off("data", onStderr);
+            lsp.off("error", onError);
+            lsp.off("exit", onExit);
+            lsp.off("close", onClose);
+        }
+
+        lsp.stdout.on("data", onData);
+        lsp.stderr.on("data", onStderr);
+        lsp.on("error", onError);
+        lsp.on("exit", onExit);
+        lsp.on("close", onClose);
     });
 }
 

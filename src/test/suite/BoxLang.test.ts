@@ -111,4 +111,38 @@ suite('BoxLang LSP Process Test Suite', () => {
 
         localSandbox.restore();
     });
+
+    test('should clean up event listeners after resolving', async () => {
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
+
+        setTimeout(() => {
+            lastMockProcess.stdout.emit('data', 'Listening on port: 8080\n');
+        }, 10);
+
+        const [proc] = await promise;
+        assert.strictEqual(proc.stdout.listenerCount('data'), 0, 'stdout data listener should be removed');
+        assert.strictEqual(proc.stderr.listenerCount('data'), 0, 'stderr data listener should be removed');
+        assert.strictEqual(proc.listenerCount('error'), 0, 'error listener should be removed');
+        assert.strictEqual(proc.listenerCount('exit'), 0, 'exit listener should be removed');
+        assert.strictEqual(proc.listenerCount('close'), 0, 'close listener should be removed');
+    });
+
+    test('should clean up event listeners after rejecting on exit', async () => {
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
+
+        setTimeout(() => {
+            lastMockProcess.emit('exit', 1);
+        }, 10);
+
+        await assert.rejects(
+            promise,
+            /LSP process exited with code 1 before opening port/
+        );
+
+        assert.strictEqual(lastMockProcess.stdout.listenerCount('data'), 0, 'stdout data listener should be removed');
+        assert.strictEqual(lastMockProcess.stderr.listenerCount('data'), 0, 'stderr data listener should be removed');
+        assert.strictEqual(lastMockProcess.listenerCount('error'), 0, 'error listener should be removed');
+        assert.strictEqual(lastMockProcess.listenerCount('exit'), 0, 'exit listener should be removed');
+        assert.strictEqual(lastMockProcess.listenerCount('close'), 0, 'close listener should be removed');
+    });
 });
