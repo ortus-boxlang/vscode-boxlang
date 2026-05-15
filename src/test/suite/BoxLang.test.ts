@@ -41,7 +41,7 @@ const { ExtensionConfig } = ConfigurationModule;
 // Force re-evaluation so our ProcessTracker intercept below is used
 // (LanguageServer.test.ts may have loaded BoxLang.js before our intercept was active)
 delete require.cache[require.resolve('../../utils/BoxLang')];
-const { startLSPProcess } = require('../../utils/BoxLang');
+const { startLSPProcess, BoxLangWithHome, BoxLang } = require('../../utils/BoxLang');
 
 
 
@@ -144,5 +144,40 @@ suite('BoxLang LSP Process Test Suite', () => {
         assert.strictEqual(lastMockProcess.listenerCount('error'), 0, 'error listener should be removed');
         assert.strictEqual(lastMockProcess.listenerCount('exit'), 0, 'exit listener should be removed');
         assert.strictEqual(lastMockProcess.listenerCount('close'), 0, 'close listener should be removed');
+    });
+
+    test('BoxLangWithHome.startLSP should reject when javaExecutable is not configured', async () => {
+        sinon.restore();
+        const localSandbox = sinon.createSandbox();
+        localSandbox.stub(ExtensionConfig, 'boxlangJavaExecutable').get(() => undefined);
+        localSandbox.stub(ExtensionConfig, 'boxlangMaxHeapSize').get(() => 512);
+        localSandbox.stub(ExtensionConfig, 'boxlangLSPJVMArgs').get(() => '');
+
+        const boxLangWithHome = new BoxLangWithHome('/mock/home');
+        const promise = boxLangWithHome.startLSP();
+
+        await assert.rejects(
+            promise,
+            /Java executable not found/
+        );
+
+        localSandbox.restore();
+    });
+
+    test('BoxLang.startLSP should reject when javaExecutable is not configured', async () => {
+        sinon.restore();
+        const localSandbox = sinon.createSandbox();
+        localSandbox.stub(ExtensionConfig, 'boxlangJavaExecutable').get(() => undefined);
+        localSandbox.stub(ExtensionConfig, 'boxlangMaxHeapSize').get(() => 512);
+        localSandbox.stub(ExtensionConfig, 'boxlangLSPJVMArgs').get(() => '');
+
+        const promise = BoxLang.startLSP();
+
+        await assert.rejects(
+            promise,
+            /Java executable not found/
+        );
+
+        localSandbox.restore();
     });
 });
