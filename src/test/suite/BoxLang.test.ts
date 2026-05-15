@@ -146,6 +146,21 @@ suite('BoxLang LSP Process Test Suite', () => {
         assert.strictEqual(lastMockProcess.listenerCount('close'), 0, 'close listener should be removed');
     });
 
+    test('should reject with timeout when process is silent', async () => {
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar', 100);
+
+        await assert.rejects(
+            promise,
+            /LSP process failed to start within 100ms/
+        );
+
+        assert.strictEqual(lastMockProcess.stdout.listenerCount('data'), 0, 'stdout data listener should be removed');
+        assert.strictEqual(lastMockProcess.stderr.listenerCount('data'), 0, 'stderr data listener should be removed');
+        assert.strictEqual(lastMockProcess.listenerCount('error'), 0, 'error listener should be removed');
+        assert.strictEqual(lastMockProcess.listenerCount('exit'), 0, 'exit listener should be removed');
+        assert.strictEqual(lastMockProcess.listenerCount('close'), 0, 'close listener should be removed');
+    });
+
     test('BoxLangWithHome.startLSP should reject when javaExecutable is not configured', async () => {
         sinon.restore();
         const localSandbox = sinon.createSandbox();

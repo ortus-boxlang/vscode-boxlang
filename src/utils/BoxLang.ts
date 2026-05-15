@@ -41,7 +41,8 @@ export async function setupVSCodeBoxLangHome(context: ExtensionContext): Promise
 export async function startLSPProcess(
     boxlangHome: string,
     lspModulePath: string,
-    boxlangVersionPath: string
+    boxlangVersionPath: string,
+    timeoutMs = 30000
 ): Promise<Array<any>> {
     return new Promise((resolve, reject) => {
         const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
@@ -107,7 +108,15 @@ export async function startLSPProcess(
             }
         };
 
+        const timeoutId = setTimeout(() => {
+            if (!found) {
+                cleanup();
+                reject(new Error(`LSP process failed to start within ${timeoutMs}ms`));
+            }
+        }, timeoutMs);
+
         function cleanup() {
+            clearTimeout(timeoutId);
             lsp.stdout.off("data", onData);
             lsp.stderr.off("data", onStderr);
             lsp.off("error", onError);
