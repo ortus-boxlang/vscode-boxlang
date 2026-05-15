@@ -171,7 +171,7 @@ async function ensureLSPModule() {
     const lspVersion = ExtensionConfig.boxlangLSPVersion;
 
     if (!lspVersion) {
-        throw new Error("boxlang.lsp.lspVersion is not configured. Please set a valid LSP version (e.g., bx-lsp@1.6.0+7).");
+        throw new InvalidLSPInstallationError("boxlang.lsp.lspVersion is not configured. Please set a valid LSP version (e.g., bx-lsp@1.6.0+7).");
     }
 
     const context = getExtensionContext();

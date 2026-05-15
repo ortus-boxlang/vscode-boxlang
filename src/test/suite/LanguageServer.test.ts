@@ -45,4 +45,15 @@ suite('LanguageServer Test Suite', () => {
             /boxlang\.lsp\.lspVersion is not configured/
         );
     });
+
+    test('getLSPServerConfig should throw InvalidLSPInstallationError when LSP version is not configured', async () => {
+        sinon.stub(ExtensionConfig, 'boxlangLSPVersion').get(() => undefined);
+
+        const serverOptions = getLSPServerConfig();
+
+        await assert.rejects(
+            serverOptions(),
+            (err: any) => err.name === 'InvalidLSPInstallationError' && /boxlang\.lsp\.lspVersion is not configured/.test(err.message)
+        );
+    });
 });
