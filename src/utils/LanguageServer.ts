@@ -16,6 +16,18 @@ import { ensureBoxLangVersion } from "./versionManager";
 let client: LanguageClient;
 let lspProcess: ChildProcessWithoutNullStreams | null = null;
 
+function getLSPConfigurationPayload() {
+    const boxlangSettings = vscode.workspace.getConfiguration().get<Record<string, unknown>>("boxlang") ?? {};
+    const legacyLSPSettings = vscode.workspace.getConfiguration("boxlang.lsp").get<Record<string, unknown>>("") ?? {};
+
+    return {
+        settings: {
+            boxlang: boxlangSettings,
+            ...legacyLSPSettings
+        }
+    };
+}
+
 export async function restart(){
     await stop();
     startLSP();
@@ -55,10 +67,18 @@ export function startLSP() {
 
     client.start().then(() => {
         boxlangOutputChannel.appendLine("The language server was succesfully started");
-        client.sendNotification("workspace/didChangeConfiguration", { settings: vscode.workspace.getConfiguration("boxlang.lsp") });
+        client.sendNotification("workspace/didChangeConfiguration", getLSPConfigurationPayload());
     });
 
     return client;
+}
+
+export function notifyConfigurationChanged() {
+    if (!client) {
+        return;
+    }
+
+    client.sendNotification("workspace/didChangeConfiguration", getLSPConfigurationPayload());
 }
 
 

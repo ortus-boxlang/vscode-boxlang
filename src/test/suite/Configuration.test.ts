@@ -42,6 +42,7 @@ Module.prototype.require = function(id: string) {
     return originalRequire.apply(this, arguments);
 };
 
+delete require.cache[require.resolve('../../utils/Configuration')];
 const { ExtensionConfig } = require('../../utils/Configuration');
 
 suite('Configuration Test Suite', () => {

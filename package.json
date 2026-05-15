@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "1.17.2",
+    "version": "1.19.2",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -307,6 +307,15 @@
                     "type": "number",
                     "description": "The port to use for local development",
                     "scope": "window"
+                },
+                "boxlang.mappings": {
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "Workspace mapping overrides for the BoxLang language server. Keys are logical paths such as /models and values are path strings. These overrides take precedence over shared project mappings defined in boxlang.json.",
+                    "scope": "resource"
                 },
                 "boxlang.lsp.lspVersion": {
                     "type": "string",
@@ -862,6 +871,7 @@
                 "boxlang.cfml.mappings": {
                     "type": "array",
                     "default": [],
+                    "deprecationMessage": "Deprecated. Use boxlang.mappings instead.",
                     "items": {
                         "type": "object",
                         "properties": {

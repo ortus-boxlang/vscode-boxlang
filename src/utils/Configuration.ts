@@ -1,6 +1,9 @@
 import path from "path";
 import { ConfigurationTarget, ExtensionContext, workspace } from "vscode";
-import { getJavaInstallDir } from "./Java";
+
+function getConfiguredJavaInstallDir() {
+    return require("./Java").getJavaInstallDir();
+}
 
 let INCLUDED_BOXLANG_JAR_PATH = "";
 let INCLUDED_BOXLANG_MINISERVER_JAR_PATH = "";
@@ -91,7 +94,7 @@ export const ExtensionConfig = {
         const javaPath = workspace.getConfiguration("boxlang.java").get<string>('javaHome');
 
         if (!javaPath) {
-            return getJavaInstallDir();
+            return getConfiguredJavaInstallDir();
         }
 
         return javaPath;

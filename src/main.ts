@@ -39,10 +39,6 @@ import CFDocsService from "./utils/cfdocs/cfDocsService";
 import { APPLICATION_CFM_GLOB, isCfcFile } from "./utils/contextUtil";
 import { DocumentStateContext, getDocumentStateContext } from "./utils/documentUtil";
 
-
-import {
-    LanguageClient
-} from 'vscode-languageclient/node';
 import { setupChatIntegration } from "./chat/tools";
 import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
@@ -109,8 +105,6 @@ const CF_DOCUMENT_SELECTOR: DocumentSelector = [
 // ];
 
 export let extensionContext: ExtensionContext;
-
-let client: LanguageClient;
 
 /**
  * Gets a ConfigurationTarget enumerable based on a string representation
@@ -479,9 +473,8 @@ export function activate(context: ExtensionContext): void {
     commands.executeCommand("boxlang.refreshWorkspaceDefinitionCache");
 
     context.subscriptions.push(workspace.onDidChangeConfiguration((e: ConfigurationChangeEvent) => {
-        if (e.affectsConfiguration("boxlang.lsp")) {
-            const settings = workspace.getConfiguration("boxlang.lsp");
-            client.sendNotification("workspace/didChangeConfiguration", { settings });
+        if (e.affectsConfiguration("boxlang")) {
+            LSP.notifyConfigurationChanged();
         }
     }));
 
@@ -566,7 +559,7 @@ async function runSetup( context: ExtensionContext ){
         });
     }, 3000);
 
-    client = LSP.startLSP()
+    LSP.startLSP();
 
     try {
         setupServers(context);

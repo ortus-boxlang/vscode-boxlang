@@ -60,15 +60,13 @@ suite('ModuleManager Test Suite', () => {
                 .resolves('https://forgebox.io/downloads/bx-lsp.zip');
 
             // Stub download and extract
-            downloadStub = sinon.stub(DownloadManager, 'downloadAndExtract').resolves();
-
-            // Create a mock box.json file
-            const modulePath = path.join(testBoxLangHome, 'modules', 'bx-lsp');
-            fs.mkdirSync(modulePath, { recursive: true });
-            fs.writeFileSync(
-                path.join(modulePath, 'box.json'),
-                JSON.stringify({ name: 'bx-lsp', version: '1.5.0' })
-            );
+            downloadStub = sinon.stub(DownloadManager, 'downloadAndExtract').callsFake(async (_url, dest) => {
+                fs.mkdirSync(dest, { recursive: true });
+                fs.writeFileSync(
+                    path.join(dest, 'box.json'),
+                    JSON.stringify({ name: 'bx-lsp', version: '1.5.0' })
+                );
+            });
 
             const result = await manager.installModule('bx-lsp@1.5.0', testBoxLangHome, false);
 
@@ -89,6 +87,7 @@ suite('ModuleManager Test Suite', () => {
 
             downloadStub = sinon.stub(DownloadManager, 'downloadAndExtract').callsFake(async (url, dest) => {
                 // Create box.json after "extraction"
+                fs.mkdirSync(dest, { recursive: true });
                 fs.writeFileSync(
                     path.join(dest, 'box.json'),
                     JSON.stringify({ name: 'bx-lsp' })
@@ -137,7 +136,13 @@ suite('ModuleManager Test Suite', () => {
             sinon.stub(ForgeBoxClient.prototype, 'getDownloadURL')
                 .resolves('https://forgebox.io/downloads/bx-lsp.zip');
 
-            downloadStub = sinon.stub(DownloadManager, 'downloadAndExtract').resolves();
+            downloadStub = sinon.stub(DownloadManager, 'downloadAndExtract').callsFake(async (_url, dest) => {
+                fs.mkdirSync(path.join(dest, 'bx-lsp'), { recursive: true });
+                fs.writeFileSync(
+                    path.join(dest, 'bx-lsp', 'box.json'),
+                    JSON.stringify({ name: 'bx-lsp' })
+                );
+            });
 
             await manager.installModuleToDir('bx-lsp', customDir, false);
 

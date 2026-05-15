@@ -56,7 +56,7 @@ export class DownloadManager {
             try {
                 boxlangOutputChannel.appendLine(`Downloading: ${url} (attempt ${attempt}/${maxRetries})`);
 
-                const response = await axios({
+                const response = await axios.request({
                     method: "GET",
                     url,
                     responseType: "stream",

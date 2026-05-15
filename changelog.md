@@ -2,11 +2,13 @@
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-04-27
+
 - BLIDE-278 fix LSP workspace setting configuration
 - BLIDE-276 improve auto update of main componenets
 - BLIDE-275 update lsp, debugger, and miniserver install commands
 - BLIDE-274 merge install and select boxlang version commands
-  
+
 ## [1.16.1] - 2026-03-20
 
 ## [1.16.0] - 2026-03-19
@@ -152,7 +154,8 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.16.1...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.18.0...HEAD
+[1.18.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.16.1...v1.18.0
 [1.16.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.16.0...v1.16.1
 [1.16.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.14.0...v1.16.0
 [1.14.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.1...v1.14.0
