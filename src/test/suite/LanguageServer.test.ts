@@ -1,54 +1,11 @@
 import * as assert from 'assert';
 import * as sinon from 'sinon';
 
-// Mock vscode before any imports that need it
-class MockEventEmitter {
-    private listeners: Array<(data: any) => void> = [];
-    event: any;
-    constructor() {
-        this.event = (listener: (data: any) => void) => {
-            this.listeners.push(listener);
-            return { dispose: () => {} };
-        };
-    }
-    fire(data: any) { this.listeners.forEach(l => l(data)); }
-    dispose() {}
-}
-
-const mockVSCode = {
-    ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
-    EventEmitter: MockEventEmitter,
-    CompletionItem: class { constructor() {} },
-    Uri: { file: (p: string) => ({ fsPath: p }), parse: (p: string) => ({ fsPath: p }) },
-    TreeItem: class { constructor() {} },
-    TreeItemCollapsibleState: { Expanded: 1, Collapsed: 2, None: 0 },
-    window: {
-        createOutputChannel: () => ({
-            append: () => {},
-            appendLine: () => {},
-            clear: () => {},
-            dispose: () => {},
-            hide: () => {},
-            show: () => {}
-        })
-    },
-    workspace: {
-        getConfiguration: () => ({
-            get: () => undefined,
-            has: () => false,
-            inspect: () => undefined,
-            update: () => Promise.resolve()
-        }),
-        workspaceFolders: []
-    }
-};
-
+// Mock local dependencies that transitively need VS Code before importing them.
+// The global vscode mock (loaded by runTestSimple.ts / runUnitTests.ts) handles 'vscode'.
 const Module = require('module');
 const originalRequire = Module.prototype.require;
 Module.prototype.require = function(id: string) {
-    if (id === 'vscode') {
-        return mockVSCode;
-    }
     if (id.endsWith('/Java') || id.endsWith('\\Java') || id === './Java') {
         return { getJavaInstallDir: () => '/mock/java' };
     }

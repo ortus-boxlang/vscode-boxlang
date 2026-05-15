@@ -46,7 +46,7 @@ export async function startLSPProcess(
     return new Promise((resolve, reject) => {
         const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
         const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
-        const jvmArgs = ExtensionConfig.boxlangLSPJVMArgs.length ? ExtensionConfig.boxlangLSPJVMArgs.split( " " ) : [];
+        const jvmArgs = (ExtensionConfig.boxlangLSPJVMArgs || "").length ? (ExtensionConfig.boxlangLSPJVMArgs || "").split( " " ) : [];
         const lsp = trackedSpawn(javaExecutable, [ maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
             env: {
                 BOXLANG_HOME: boxlangHome,
@@ -317,7 +317,7 @@ export class BoxLangWithHome {
         return new Promise((resolve, reject) => {
             const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
             const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
-            const jvmArgs = ExtensionConfig.boxlangLSPJVMArgs.length ? ExtensionConfig.boxlangLSPJVMArgs.split( " " ) : [];
+            const jvmArgs = (ExtensionConfig.boxlangLSPJVMArgs || "").length ? (ExtensionConfig.boxlangLSPJVMArgs || "").split( " " ) : [];
             const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
                 env: {
                     ...process.env,

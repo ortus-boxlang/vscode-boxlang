@@ -1,5 +1,9 @@
 import * as path from 'path';
 import * as fs from 'fs';
+
+// Load VS Code mock BEFORE any test files so they share a consistent mock
+import './mocks/vscode';
+
 const Mocha = require('mocha');
 const { glob } = require('glob');
 

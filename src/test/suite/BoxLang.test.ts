@@ -2,44 +2,11 @@ import * as assert from 'assert';
 import { EventEmitter } from 'events';
 import * as sinon from 'sinon';
 
-// Mock vscode before any imports that need it
-class MockEventEmitter {
-    private listeners: Array<(data: any) => void> = [];
-    event: any;
-    constructor() {
-        this.event = (listener: (data: any) => void) => {
-            this.listeners.push(listener);
-            return { dispose: () => {} };
-        };
-    }
-    fire(data: any) { this.listeners.forEach(l => l(data)); }
-    dispose() {}
-}
-
-const mockVSCode = {
-    ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
-    EventEmitter: MockEventEmitter,
-    Uri: { file: (p: string) => ({ fsPath: p }), parse: (p: string) => ({ fsPath: p }) },
-    window: {
-        createOutputChannel: () => ({
-            append: () => {},
-            appendLine: () => {},
-            clear: () => {},
-            dispose: () => {},
-            hide: () => {},
-            show: () => {}
-        })
-    },
-    workspace: {
-        getConfiguration: () => ({
-            get: () => undefined,
-            has: () => false,
-            inspect: () => undefined,
-            update: () => Promise.resolve()
-        }),
-        workspaceFolders: []
-    }
-};
+// Use the global vscode mock loaded by runTestSimple.ts / runUnitTests.ts.
+// We only need to mock ProcessTracker here so we can simulate child process
+// events without actually spawning anything.
+const Module = require('module');
+const originalRequire = Module.prototype.require;
 
 // Track mock processes created by tests
 let lastMockProcess: any = null;
@@ -55,24 +22,7 @@ function createMockProcess() {
     return mockProcess;
 }
 
-const Module = require('module');
-const originalRequire = Module.prototype.require;
 Module.prototype.require = function(id: string) {
-    if (id === 'vscode') {
-        return mockVSCode;
-    }
-    if (id.endsWith('/Java') || id.endsWith('\\Java') || id === './Java') {
-        return { getJavaInstallDir: () => '/mock/java' };
-    }
-    if (id.endsWith('/entities/component') || id === './entities/component') {
-        return {
-            COMPONENT_EXT: '.cfc',
-            COMPONENT_FILE_GLOB: '**/*.cfc'
-        };
-    }
-    if (id.endsWith('/main') || id === './main') {
-        return { extensionContext: {}, CFML_LANGUAGE_ID: 'cfml', BL_LANGUAGE_ID: 'boxlang' };
-    }
     if (id.endsWith('/ProcessTracker') || id === './ProcessTracker') {
         return {
             trackedSpawn: (...args: any[]) => {
@@ -85,8 +35,15 @@ Module.prototype.require = function(id: string) {
     return originalRequire.apply(this, arguments);
 };
 
-const { ExtensionConfig } = require('../../utils/Configuration');
+const ConfigurationModule = require('../../utils/Configuration');
+const { ExtensionConfig } = ConfigurationModule;
+
+// Force re-evaluation so our ProcessTracker intercept below is used
+// (LanguageServer.test.ts may have loaded BoxLang.js before our intercept was active)
+delete require.cache[require.resolve('../../utils/BoxLang')];
 const { startLSPProcess } = require('../../utils/BoxLang');
+
+
 
 suite('BoxLang LSP Process Test Suite', () => {
     setup(() => {

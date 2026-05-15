@@ -3,60 +3,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as sinon from 'sinon';
 
-// Mock vscode and local dependencies before any imports that transitively need them
-const mockVSCode = {
-    ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
-    EventEmitter: class {
-        private listeners: Array<(data: any) => void> = [];
-        event: any;
-        constructor() {
-            this.event = (listener: (data: any) => void) => {
-                this.listeners.push(listener);
-                return { dispose: () => {} };
-            };
-        }
-        fire(data: any) { this.listeners.forEach(l => l(data)); }
-        dispose() {}
-    },
-    CancellationTokenSource: class {
-        token = { isCancellationRequested: false, onCancellationRequested: { event: () => ({ dispose: () => {} }) } };
-        cancel() {}
-        dispose() {}
-    },
-    Uri: { file: (p: string) => ({ fsPath: p, path: p }), parse: (p: string) => ({ fsPath: p, path: p }) },
-    TreeItem: class { constructor() {} },
-    TreeItemCollapsibleState: { Expanded: 1, Collapsed: 2, None: 0 },
-    Position: class { constructor() {} },
-    Range: class { constructor() {} },
-    window: {
-        createOutputChannel: () => ({
-            append: () => {},
-            appendLine: () => {},
-            clear: () => {},
-            dispose: () => {},
-            hide: () => {},
-            show: () => {}
-        }),
-        createTerminal: () => ({ show: () => {}, dispose: () => {} }),
-        terminals: []
-    },
-    workspace: {
-        getConfiguration: () => ({
-            get: () => undefined,
-            has: () => false,
-            inspect: () => undefined,
-            update: () => Promise.resolve()
-        }),
-        workspaceFolders: []
-    }
-};
-
+// Mock local dependencies that transitively need VS Code before importing them.
+// The global vscode mock (loaded by runTestSimple.ts / runUnitTests.ts) handles 'vscode'.
 const Module = require('module');
 const originalRequire = Module.prototype.require;
 Module.prototype.require = function(id: string) {
-    if (id === 'vscode') {
-        return mockVSCode;
-    }
     if (id.endsWith('/Java') || id.endsWith('\\Java') || id === './Java') {
         return { getJavaInstallDir: () => '/mock/java' };
     }
@@ -82,7 +33,7 @@ suite('versionManager Test Suite', () => {
     const testTempDir = path.join(__dirname, 'temp-version-test');
     let mockContext: any;
 
-    setup(() => {
+    setup(async () => {
         if (!fs.existsSync(testTempDir)) {
             fs.mkdirSync(testTempDir, { recursive: true });
         }
@@ -91,13 +42,13 @@ suite('versionManager Test Suite', () => {
             globalStorageUri: { fsPath: testTempDir }
         };
 
-        setupVersionManagement(mockContext);
+        await setupVersionManagement(mockContext);
     });
 
     teardown(() => {
         sinon.restore();
         if (fs.existsSync(testTempDir)) {
-            fs.rmSync(testTempDir, { recursive: true, force: true });
+            fs.rmSync(testTempDir, { recursive: true, force: true, maxRetries: 3 });
         }
     });
 
