@@ -105,7 +105,7 @@ async function startLanguageServerProcess() {
         lspModulePath = await ensureLSPModule();
     }
     catch (e) {
-        if( e instanceof InvalidLSPInstallationError ){
+        if (e instanceof InvalidLSPInstallationError) {
             const choice = await vscode.window.showInformationMessage("BoxLang: The BoxLang Language Server installation is invalid. This may related to outdated dependcies.",
                 "Update",
                 "Cancel"
@@ -116,9 +116,11 @@ async function startLanguageServerProcess() {
             }
 
             boxlangOutputChannel.appendLine("Updating commandbox-boxlang module");
-            await runCommandBox( {}, "install", "commandbox-boxlang", "--force" );
+            await runCommandBox({}, "install", "commandbox-boxlang", "--force");
             boxlangOutputChannel.appendLine("Attempting to reinstall LSP modules");
             lspModulePath = await ensureLSPModule();
+        } else {
+            throw e;
         }
 
     }
@@ -147,6 +149,11 @@ async function startLanguageServerProcess() {
 async function ensureLSPModule() {
     boxlangOutputChannel.appendLine("Ensuring BoxLang Language Server module is installed");
     const lspVersion = ExtensionConfig.boxlangLSPVersion;
+
+    if (!lspVersion) {
+        throw new Error("boxlang.lsp.lspVersion is not configured. Please set a valid LSP version (e.g., bx-lsp@1.6.0+7).");
+    }
+
     const context = getExtensionContext();
     const lspVersionParentDir = path.join(context.globalStorageUri.fsPath, "lspVersions");
 

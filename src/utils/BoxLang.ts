@@ -78,6 +78,24 @@ export async function startLSPProcess(
         lsp.stderr.on("data", data => {
             boxlangOutputChannel.appendLine(data + "");
         });
+
+        lsp.on("error", (err) => {
+            if (!found) {
+                reject(new Error(`LSP process failed to start: ${err.message}`));
+            }
+        });
+
+        lsp.on("exit", (code) => {
+            if (!found) {
+                reject(new Error(`LSP process exited with code ${code} before opening port`));
+            }
+        });
+
+        lsp.on("close", () => {
+            if (!found) {
+                reject(new Error("LSP process closed before opening port"));
+            }
+        });
     });
 }
 
@@ -331,10 +349,22 @@ export class BoxLangWithHome {
 
             lsp.on("close", () => {
                 boxlangOutputChannel.appendLine( "BoxLang language server closed" );
+                if (!found) {
+                    reject(new Error("BoxLang language server closed before opening port"));
+                }
             });
 
             lsp.on("exit", ( code ) => {
                 boxlangOutputChannel.appendLine( "BoxLang language server exited with code: " + code );
+                if (!found) {
+                    reject(new Error(`BoxLang language server exited with code ${code} before opening port`));
+                }
+            });
+
+            lsp.on("error", (err) => {
+                if (!found) {
+                    reject(new Error(`BoxLang language server failed to start: ${err.message}`));
+                }
             });
 
             lsp.stderr.on("data", data => {
@@ -459,6 +489,24 @@ export class BoxLang {
 
             lsp.stderr.on("data", data => {
                 boxlangOutputChannel.appendLine(data + "");
+            });
+
+            lsp.on("error", (err) => {
+                if (!found) {
+                    reject(new Error(`BoxLang language server failed to start: ${err.message}`));
+                }
+            });
+
+            lsp.on("exit", (code) => {
+                if (!found) {
+                    reject(new Error(`BoxLang language server exited with code ${code} before opening port`));
+                }
+            });
+
+            lsp.on("close", () => {
+                if (!found) {
+                    reject(new Error("BoxLang language server closed before opening port"));
+                }
             });
         })
     }

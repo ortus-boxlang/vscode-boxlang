@@ -21,7 +21,7 @@ async function run(): Promise<void> {
     const testsRoot = path.resolve(__dirname, '../..');
 
     try {
-        // Find test files - only include our new utility tests
+        // Find test files - only include our utility tests
         const testPattern = '**/+(ForgeBoxClient|DownloadManager|ModuleManager|Configuration).test.js';
         const files = await glob(testPattern, {
             cwd: path.join(testsRoot, 'out', 'test', 'suite'),
