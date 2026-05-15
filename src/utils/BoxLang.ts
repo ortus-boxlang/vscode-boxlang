@@ -64,12 +64,17 @@ export async function startLSPProcess(
         });
         let stdout = '';
         let found = false;
+        const MAX_STDOUT_BUFFER = 1024 * 100; // 100KB cap
 
         const onData = (data) => {
             stdout += data;
 
             if (found) {
                 return;
+            }
+
+            if (stdout.length > MAX_STDOUT_BUFFER) {
+                stdout = stdout.slice(-MAX_STDOUT_BUFFER);
             }
 
             const matches = /Listening on port: (\d+)/mi.exec(stdout);

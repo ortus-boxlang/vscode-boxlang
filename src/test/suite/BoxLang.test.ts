@@ -161,6 +161,24 @@ suite('BoxLang LSP Process Test Suite', () => {
         assert.strictEqual(lastMockProcess.listenerCount('close'), 0, 'close listener should be removed');
     });
 
+    test('should still find port after large output if port is within last 100KB', async () => {
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
+
+        // Emit 150KB of garbage, then port message in the last chunk
+        const garbage = 'x'.repeat(150 * 1024);
+        setTimeout(() => {
+            lastMockProcess.stdout.emit('data', garbage);
+        }, 10);
+
+        setTimeout(() => {
+            lastMockProcess.stdout.emit('data', 'Listening on port: 9090\n');
+        }, 20);
+
+        const result = await promise;
+        assert.strictEqual(result[0], lastMockProcess);
+        assert.strictEqual(result[1], '9090');
+    });
+
     test('BoxLangWithHome.startLSP should reject when javaExecutable is not configured', async () => {
         sinon.restore();
         const localSandbox = sinon.createSandbox();
