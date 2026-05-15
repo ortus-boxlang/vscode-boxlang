@@ -45,6 +45,12 @@ export async function startLSPProcess(
 ): Promise<Array<any>> {
     return new Promise((resolve, reject) => {
         const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+
+        if (!javaExecutable) {
+            reject(new Error("Java executable not found. Please install Java or set boxlang.java.javaHome."));
+            return;
+        }
+
         const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
         const jvmArgs = (ExtensionConfig.boxlangLSPJVMArgs || "").length ? (ExtensionConfig.boxlangLSPJVMArgs || "").split( " " ) : [];
         const lsp = trackedSpawn(javaExecutable, [ maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {

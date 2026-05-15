@@ -93,4 +93,22 @@ suite('BoxLang LSP Process Test Suite', () => {
         assert.strictEqual(result[0], lastMockProcess);
         assert.strictEqual(result[1], '8080');
     });
+
+    test('should reject when javaExecutable is not configured', async () => {
+        // Restore default stubs from setup() and use a local sandbox for this test
+        sinon.restore();
+        const localSandbox = sinon.createSandbox();
+        localSandbox.stub(ExtensionConfig, 'boxlangJavaExecutable').get(() => undefined);
+        localSandbox.stub(ExtensionConfig, 'boxlangMaxHeapSize').get(() => 512);
+        localSandbox.stub(ExtensionConfig, 'boxlangLSPJVMArgs').get(() => '');
+
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
+
+        await assert.rejects(
+            promise,
+            /Java executable not found/
+        );
+
+        localSandbox.restore();
+    });
 });
