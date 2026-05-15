@@ -48,7 +48,7 @@ export async function startLSPProcess(
         const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
 
         if (!javaExecutable) {
-            reject(new Error("Java executable not found. Please install Java or set boxlang.java.javaHome."));
+            reject(new Error("Java executable not found. Please install Java or set the 'boxlang.java.javaHome' setting."));
             return;
         }
 
@@ -356,7 +356,7 @@ export class BoxLangWithHome {
             const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
 
             if (!javaExecutable) {
-                reject(new Error("Java executable not found. Please install Java or set boxlang.java.javaHome."));
+                reject(new Error("Java executable not found. Please install Java or set the 'boxlang.java.javaHome' setting."));
                 return;
             }
 
@@ -521,7 +521,7 @@ export class BoxLang {
             const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
 
             if (!javaExecutable) {
-                reject(new Error("Java executable not found. Please install Java or set boxlang.java.javaHome."));
+                reject(new Error("Java executable not found. Please install Java or set the 'boxlang.java.javaHome' setting."));
                 return;
             }
 

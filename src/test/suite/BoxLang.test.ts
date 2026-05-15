@@ -106,7 +106,7 @@ suite('BoxLang LSP Process Test Suite', () => {
 
         await assert.rejects(
             promise,
-            /Java executable not found/
+            /Java executable not found.*boxlang\.java\.javaHome/
         );
 
         localSandbox.restore();
@@ -191,7 +191,7 @@ suite('BoxLang LSP Process Test Suite', () => {
 
         await assert.rejects(
             promise,
-            /Java executable not found/
+            /Java executable not found.*boxlang\.java\.javaHome/
         );
 
         localSandbox.restore();
@@ -208,7 +208,7 @@ suite('BoxLang LSP Process Test Suite', () => {
 
         await assert.rejects(
             promise,
-            /Java executable not found/
+            /Java executable not found.*boxlang\.java\.javaHome/
         );
 
         localSandbox.restore();

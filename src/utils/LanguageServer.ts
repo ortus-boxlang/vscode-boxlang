@@ -16,6 +16,12 @@ import { ensureBoxLangVersion } from "./versionManager";
 let client: LanguageClient;
 let lspProcess: ChildProcessWithoutNullStreams | null = null;
 
+// Error message constants — centralized for future i18n
+const MSG_LSP_VERSION_NOT_CONFIGURED = "boxlang.lsp.lspVersion is not configured. Please set a valid LSP version (e.g., bx-lsp@1.6.0+7).";
+const MSG_LSP_INSTALL_INVALID = "BoxLang: The BoxLang Language Server installation is invalid. This may be related to outdated dependencies.";
+const MSG_LSP_ENSURE_FAILED = "Unable to ensure BoxLang Language Server module is installed";
+const MSG_LSP_INSTALLATION_INVALID = "The BoxLang Language Server installation is invalid.";
+
 function getLSPConfigurationPayload() {
     const boxlangSettings = vscode.workspace.getConfiguration().get<Record<string, unknown>>("boxlang") ?? {};
     const legacyLSPSettings = vscode.workspace.getConfiguration("boxlang.lsp").get<Record<string, unknown>>("") ?? {};
@@ -126,7 +132,7 @@ async function startLanguageServerProcess() {
     }
     catch (e) {
         if (e instanceof InvalidLSPInstallationError) {
-            const choice = await vscode.window.showInformationMessage("BoxLang: The BoxLang Language Server installation is invalid. This may related to outdated dependcies.",
+            const choice = await vscode.window.showInformationMessage(MSG_LSP_INSTALL_INVALID,
                 "Update",
                 "Cancel"
             );
@@ -146,7 +152,7 @@ async function startLanguageServerProcess() {
     }
 
     if( !lspModulePath ){
-        throw new Error("Unable to ensure BoxLang Language Server module is installed");
+        throw new Error(MSG_LSP_ENSURE_FAILED);
     }
 
     const boxlangVersionPath = await ensureBoxLangVersion( await getRequiredBoxLangVersion( lspModulePath) );
@@ -171,7 +177,7 @@ async function ensureLSPModule() {
     const lspVersion = ExtensionConfig.boxlangLSPVersion;
 
     if (!lspVersion) {
-        throw new InvalidLSPInstallationError("boxlang.lsp.lspVersion is not configured. Please set a valid LSP version (e.g., bx-lsp@1.6.0+7).");
+        throw new InvalidLSPInstallationError(MSG_LSP_VERSION_NOT_CONFIGURED);
     }
 
     const context = getExtensionContext();
@@ -209,7 +215,7 @@ async function ensureLSPModule() {
         catch (e) {
             boxlangOutputChannel.appendLine(`Tried to install LSP module but it appears to be invalid: ${lspVersion}`);
             await fs.rm(lspVersionDir, { recursive: true, force: true });
-            throw new InvalidLSPInstallationError( "The BoxLang Language Server installation is invalid." )
+            throw new InvalidLSPInstallationError(MSG_LSP_INSTALLATION_INVALID)
         }
 
         boxlangOutputChannel.appendLine(`Installed LSP module to: ${lspVersionDir}`);

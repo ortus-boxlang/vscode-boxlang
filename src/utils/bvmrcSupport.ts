@@ -41,12 +41,12 @@ async function getBvmrcVersion(workspaceFolder?: vscode.WorkspaceFolder): Promis
             return null;
         }
 
-        // Validate version format (basic validation)
-        if (version === "latest" || /^\d+(\.\d+)*$/.test(version)) {
+        // Validate version format — must be "latest" or a numeric version like 1.9.0
+        if (version === "latest" || /^\d+(\.\d+){0,2}$/.test(version)) {
             boxlangOutputChannel.appendLine(`Found .bvmrc with BoxLang version: ${version}`);
             return version;
         } else {
-            boxlangOutputChannel.appendLine(`Warning: Invalid version format in .bvmrc: ${version}`);
+            boxlangOutputChannel.appendLine(`Warning: Invalid version format in .bvmrc: ${version}. Expected "latest" or a numeric version like 1.9.0`);
             return null;
         }
     } catch (error) {
@@ -103,7 +103,8 @@ export async function setupBvmrcSupport(context: ExtensionContext): Promise<void
                 updateVersionDisplay();
                 
             } catch (error) {
-                boxlangOutputChannel.appendLine(`Warning: Could not setup BoxLang version ${bvmrcVersion} from .bvmrc: ${error.toString()}`);
+                boxlangOutputChannel.appendLine(`Warning: Could not set up BoxLang version "${bvmrcVersion}" from .bvmrc: ${error.toString()}`);
+                boxlangOutputChannel.appendLine("Please check your .bvmrc file contains a valid version (e.g., 1.9.0 or latest) and that the version is available.");
                 boxlangOutputChannel.appendLine("Falling back to configured version");
                 setBvmrcVersion(null, null);
                 updateVersionDisplay();
