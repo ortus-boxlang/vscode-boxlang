@@ -95,10 +95,10 @@ async function checkComponentUpdate(component: Component, force: boolean): Promi
 
 function getUpdateMode(component: Component): UpdateMode {
     switch (component) {
-        case "runtime":   return ExtensionConfig.boxlangRuntimeVersionUpdateMode;
+        case "runtime": return ExtensionConfig.boxlangRuntimeVersionUpdateMode;
         case "miniserver": return ExtensionConfig.boxlangMiniServerVersionUpdateMode;
-        case "lsp":       return ExtensionConfig.boxlangLSPVersionUpdateMode;
-        case "debugger":  return ExtensionConfig.boxlangDebuggerVersionUpdateMode;
+        case "lsp": return ExtensionConfig.boxlangLSPVersionUpdateMode;
+        case "debugger": return ExtensionConfig.boxlangDebuggerVersionUpdateMode;
     }
 }
 
@@ -367,7 +367,7 @@ async function applyMiniServerUpdate(version: string, timing: UpdateTiming): Pro
 async function applyLSPUpdate(version: string, timing: UpdateTiming): Promise<void> {
     const latestSpec = `bx-lsp@${version}`;
     boxlangOutputChannel.appendLine(`BoxLang UpdateManager: Setting LSP version to ${latestSpec}`);
-    ExtensionConfig.boxlangLSPVersion = latestSpec;
+    await ExtensionConfig.updateBoxlangLSPVersion(latestSpec);
 
     if (timing === "now") {
         boxlangOutputChannel.appendLine("BoxLang UpdateManager: Restarting LSP to apply update");
@@ -405,9 +405,9 @@ function hasActiveDebugSession(): boolean {
 
 function getComponentLabel(component: Component): string {
     switch (component) {
-        case "runtime":   return "BoxLang Runtime";
+        case "runtime": return "BoxLang Runtime";
         case "miniserver": return "BoxLang MiniServer";
-        case "lsp":       return "BoxLang Language Server";
-        case "debugger":  return "BoxLang Debugger";
+        case "lsp": return "BoxLang Language Server";
+        case "debugger": return "BoxLang Debugger";
     }
 }

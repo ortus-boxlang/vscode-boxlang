@@ -28,10 +28,10 @@ suite('Configuration Test Suite', () => {
         vscode.workspace.getConfiguration = originalGetConfiguration;
     });
 
-    test('boxlangLSPVersion writes to global settings even when a workspace is open', async () => {
+    test('updateBoxlangLSPVersion writes to global settings even when a workspace is open', async () => {
         const { ExtensionConfig } = require('../../utils/Configuration');
 
-        ExtensionConfig.boxlangLSPVersion = '1.2.3';
+        await ExtensionConfig.updateBoxlangLSPVersion('1.2.3');
 
         assert.strictEqual(configurationUpdates.length, 1);
         assert.deepStrictEqual(configurationUpdates[0], {

@@ -13,7 +13,7 @@ import { boxlangOutputChannel } from "./OutputChannels";
 import { ensureBoxLangVersion } from "./versionManager";
 
 
-let client: LanguageClient;
+let client: LanguageClient | undefined;
 let lspProcess: ChildProcessWithoutNullStreams | null = null;
 
 // Error message constants — centralized for future i18n
@@ -21,6 +21,9 @@ const MSG_LSP_VERSION_NOT_CONFIGURED = "boxlang.lsp.lspVersion is not configured
 const MSG_LSP_INSTALL_INVALID = "BoxLang: The BoxLang Language Server installation is invalid. This may be related to outdated dependencies.";
 const MSG_LSP_ENSURE_FAILED = "Unable to ensure BoxLang Language Server module is installed";
 const MSG_LSP_INSTALLATION_INVALID = "The BoxLang Language Server installation is invalid.";
+const LSP_STOP_TIMEOUT_MS = 10000;
+const LSP_PROCESS_EXIT_GRACE_MS = 1000;
+const LSP_FORCE_KILL_TIMEOUT_MS = 1000;
 
 function getLSPConfigurationPayload() {
     const boxlangSettings = vscode.workspace.getConfiguration().get<Record<string, unknown>>("boxlang") ?? {};
@@ -34,7 +37,7 @@ function getLSPConfigurationPayload() {
     };
 }
 
-export async function restart(){
+export async function restart() {
     await stop();
     startLSP();
 }
@@ -44,21 +47,101 @@ export async function stop() {
         return;
     }
 
-    boxlangOutputChannel.appendLine("Shutting down the language server");
-    await client.stop();
-    client.dispose();
-    client = undefined;
+    const activeClient = client;
+    const processToStop = lspProcess;
 
-    if (lspProcess && !lspProcess.killed && lspProcess.exitCode === null) {
-        boxlangOutputChannel.appendLine(`Force-killing LSP process (pid ${lspProcess.pid})`);
-        lspProcess.kill();
-    }
+    client = undefined;
     lspProcess = null;
+
+    boxlangOutputChannel.appendLine("Shutting down the language server");
+    let stoppedGracefully = false;
+
+    try {
+        await activeClient.stop(LSP_STOP_TIMEOUT_MS);
+        stoppedGracefully = true;
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`Language server stop failed after ${LSP_STOP_TIMEOUT_MS}ms: ${formatError(error)}`);
+    } finally {
+        activeClient.dispose();
+    }
+
+    if (!processToStop) {
+        return;
+    }
+
+    if (stoppedGracefully && await waitForProcessExit(processToStop, LSP_PROCESS_EXIT_GRACE_MS)) {
+        return;
+    }
+
+    await terminateLSPProcess(processToStop, stoppedGracefully ? "" : " after a shutdown failure");
+}
+
+async function terminateLSPProcess(process: ChildProcessWithoutNullStreams, reason = ""): Promise<void> {
+    if (!isProcessActive(process)) {
+        return;
+    }
+
+    boxlangOutputChannel.appendLine(`Force-killing LSP process (pid ${process.pid})${reason}`);
+
+    try {
+        process.kill();
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`Failed to signal LSP process (pid ${process.pid}): ${formatError(error)}`);
+        return;
+    }
+
+    if (await waitForProcessExit(process, LSP_FORCE_KILL_TIMEOUT_MS)) {
+        return;
+    }
+
+    boxlangOutputChannel.appendLine(`LSP process (pid ${process.pid}) did not exit after SIGTERM, sending SIGKILL`);
+
+    try {
+        process.kill("SIGKILL");
+        await waitForProcessExit(process, LSP_FORCE_KILL_TIMEOUT_MS);
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`Failed to force-kill LSP process (pid ${process.pid}): ${formatError(error)}`);
+    }
+}
+
+function isProcessActive(process: ChildProcessWithoutNullStreams): boolean {
+    return process.exitCode === null && process.signalCode === null;
+}
+
+function waitForProcessExit(process: ChildProcessWithoutNullStreams, timeoutMs: number): Promise<boolean> {
+    if (!isProcessActive(process)) {
+        return Promise.resolve(true);
+    }
+
+    return new Promise(resolve => {
+        const timeoutId = setTimeout(() => {
+            cleanup();
+            resolve(false);
+        }, timeoutMs);
+
+        const onExit = () => {
+            cleanup();
+            resolve(true);
+        };
+
+        const cleanup = () => {
+            clearTimeout(timeoutId);
+            process.off("exit", onExit);
+            process.off("close", onExit);
+        };
+
+        process.once("exit", onExit);
+        process.once("close", onExit);
+    });
+}
+
+function formatError(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
 }
 
 
 export function startLSP() {
-    client = new LanguageClient(
+    const nextClient = new LanguageClient(
         "boxlang",
         "BoxLang Language Support",
         getLSPServerConfig(),
@@ -71,20 +154,24 @@ export function startLSP() {
         true
     );
 
-    client.start().then(() => {
+    client = nextClient;
+
+    nextClient.start().then(() => {
         boxlangOutputChannel.appendLine("The language server was succesfully started");
-        client.sendNotification("workspace/didChangeConfiguration", getLSPConfigurationPayload());
+        nextClient.sendNotification("workspace/didChangeConfiguration", getLSPConfigurationPayload());
     });
 
-    return client;
+    return nextClient;
 }
 
 export function notifyConfigurationChanged() {
-    if (!client) {
+    const activeClient = client;
+
+    if (!activeClient) {
         return;
     }
 
-    client.sendNotification("workspace/didChangeConfiguration", getLSPConfigurationPayload());
+    activeClient.sendNotification("workspace/didChangeConfiguration", getLSPConfigurationPayload());
 }
 
 
@@ -127,7 +214,7 @@ class InvalidLSPInstallationError extends Error {
 async function startLanguageServerProcess() {
     let lspModulePath = null;
 
-    try{
+    try {
         lspModulePath = await ensureLSPModule();
     }
     catch (e) {
@@ -151,15 +238,15 @@ async function startLanguageServerProcess() {
 
     }
 
-    if( !lspModulePath ){
+    if (!lspModulePath) {
         throw new Error(MSG_LSP_ENSURE_FAILED);
     }
 
-    const boxlangVersionPath = await ensureBoxLangVersion( await getRequiredBoxLangVersion( lspModulePath) );
+    const boxlangVersionPath = await ensureBoxLangVersion(await getRequiredBoxLangVersion(lspModulePath));
     let lspBoxLangHome = await ensureLSPBoxLangHome();
 
 
-    await ensureBoxLangModules( lspBoxLangHome);
+    await ensureBoxLangModules(lspBoxLangHome);
 
     return startLSPProcess(
         lspBoxLangHome,
@@ -199,7 +286,7 @@ async function ensureLSPModule() {
 
         const contents = await fs.readdir(lspVersionDir); // Just to check if we can read it
 
-        if( contents.length === 0 ){
+        if (contents.length === 0) {
             await fs.rm(lspVersionDir, { recursive: true, force: true })
             throw new Error("LSP version directory is empty");
         }
@@ -285,26 +372,26 @@ async function ensureBoxLangModules(lspBoxLangHome: string) {
  * @param lspModulePath The path to the LSP module.
  * @returns The path to the installed LSP module.
  */
-async function getRequiredBoxLangVersion( lspModulePath: string ): Promise<string>{
-    try{
+async function getRequiredBoxLangVersion(lspModulePath: string): Promise<string> {
+    try {
         const configuredVersion = ExtensionConfig.boxLangLSPBoxLangVersion;
 
-        if( !!configuredVersion ){
+        if (!!configuredVersion) {
             boxlangOutputChannel.appendLine("Using configured BoxLang version for LSP module: " + configuredVersion);
             return configuredVersion;
         }
 
-        const boxJSON = await findFirstBoxJson( lspModulePath );
+        const boxJSON = await findFirstBoxJson(lspModulePath);
         if (!boxJSON) {
             boxlangOutputChannel.appendLine("No box.json found in LSP module path");
             return "";
         }
 
-        const moduleJson = JSON.parse( (await fs.readFile( boxJSON )) + "" );
+        const moduleJson = JSON.parse((await fs.readFile(boxJSON)) + "");
 
         return moduleJson.boxlang?.minimumVersion || moduleJson.boxlang?.version || "";
     }
-    catch( e ){
+    catch (e) {
         boxlangOutputChannel.appendLine("Error reading box.json to determine required BoxLang version for LSP module");
     }
 

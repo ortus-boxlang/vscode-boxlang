@@ -66,10 +66,10 @@ export const ExtensionConfig = {
      *
      * Defaults to the user's home directory but this can be overridden by setting the `boxLangHome` setting
      */
-    get boxLangHome(){
+    get boxLangHome() {
         const configuredHome = workspace.getConfiguration("boxlang").get<string>('boxLangHome');
 
-        if( !!configuredHome ){
+        if (!!configuredHome) {
             return configuredHome;
         }
 
@@ -83,7 +83,7 @@ export const ExtensionConfig = {
     get boxlangJavaExecutable() {
         const javaPath = path.join(this.boxlangJavaHome, "bin", "java");
 
-        if( process.platform != "win32" ){
+        if (process.platform != "win32") {
             return javaPath;
         }
 
@@ -124,7 +124,7 @@ export const ExtensionConfig = {
 
     get boxlangVersion() {
         // If .bvmrc version is set and jar path is available, use it
-        if (BVMRC_VERSION ) {
+        if (BVMRC_VERSION) {
             return BVMRC_VERSION;
         }
 
@@ -154,26 +154,26 @@ export const ExtensionConfig = {
         return workspace.getConfiguration("boxlang.lsp").get<string>('boxLangVersion');
     },
 
-    set boxlangLSPVersion(versionSpec: string) {
-        workspace.getConfiguration("boxlang.lsp").update("lspVersion", versionSpec, ConfigurationTarget.Global);
-    },
-
     get boxlangLSPVersion() {
         return workspace.getConfiguration("boxlang.lsp").get<string>('lspVersion');
+    },
+
+    async updateBoxlangLSPVersion(versionSpec: string) {
+        await workspace.getConfiguration("boxlang.lsp").update("lspVersion", versionSpec, ConfigurationTarget.Global);
     },
 
     get boxlangLSPBoxLangHome() {
         const lspBoxLangHome = workspace.getConfiguration("boxlang.lsp").get<string>('boxLangHome');
 
-        if( !lspBoxLangHome ){
+        if (!lspBoxLangHome) {
             return DEFAULT_LSP_BOXLANG_HOME;
         }
 
-        if( path.isAbsolute(lspBoxLangHome) ){
+        if (path.isAbsolute(lspBoxLangHome)) {
             return lspBoxLangHome;
         }
 
-        return path.join( workspace.workspaceFolders[0].uri.fsPath, lspBoxLangHome);
+        return path.join(workspace.workspaceFolders[0].uri.fsPath, lspBoxLangHome);
     },
 
     get boxlangMaxHeapSize() {
