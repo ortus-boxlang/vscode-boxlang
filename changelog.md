@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- Bump default BoxLang Version
+- Bump default LSP Version
+- Add project mapping configuration and migrate legacy mapping settings to `boxlang.mappings`
+- Add missing properties to the `.bxformat.json` schema
+- Improve Java executable and LSP version validation with clearer configuration errors
+- Improve LSP install and startup reliability with async updates, listener cleanup, output buffering, and timeout handling
+
 ## [1.18.0] - 2026-04-27
 
 - BLIDE-278 fix LSP workspace setting configuration

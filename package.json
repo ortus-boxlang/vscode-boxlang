@@ -291,7 +291,7 @@
                     "type": "string",
                     "description": "The version of BoxLang you want to use for execution",
                     "scope": "resource",
-                    "default": "1.9.0"
+                    "default": "1.13.0"
                 },
                 "boxlang.miniserverjarpath": {
                     "type": "string",
@@ -321,7 +321,7 @@
                     "type": "string",
                     "description": "Set the version of the language server to use",
                     "scope": "resource",
-                    "default": "bx-lsp@1.6.0+7"
+                    "default": "bx-lsp@1.10.0+9"
                 },
                 "boxlang.lsp.boxLangHome": {
                     "type": "string",
