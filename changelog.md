@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-289 add command palette workflows to create `.bxlint.json`, create `.bxformat.json`, and convert existing CFFormat configs with workspace selection and overwrite prompts
+- BLIDE-289 improve externally managed LSP connections by avoiding update-driven restarts, suppressing duplicate command registration, and adding better startup diagnostics
 - Bump default BoxLang Version
 - Bump default LSP Version
 - Add project mapping configuration and migrate legacy mapping settings to `boxlang.mappings`

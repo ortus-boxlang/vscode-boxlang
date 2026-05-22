@@ -156,6 +156,7 @@ suite('UpdateManager Test Suite', () => {
         outputLines.length = 0;
         stateStore.clear();
         mockBvmrcVersion = null;
+        delete process.env.BOXLANG_LSP_PORT;
         mockLatestMetadata = {
             latestVersion: { version: '1.10.0+9' },
             versions: [{ version: '1.9.0+8' }]
@@ -170,6 +171,7 @@ suite('UpdateManager Test Suite', () => {
     });
 
     teardown(() => {
+        delete process.env.BOXLANG_LSP_PORT;
         sinon.restore();
     });
 
@@ -242,5 +244,21 @@ suite('UpdateManager Test Suite', () => {
         assert.strictEqual(persistStub.callCount, 2);
         assert.strictEqual(restartStub.callCount, 2);
         assert.strictEqual(errorStub.calledOnce, true);
+    });
+
+    test('checkAllUpdates should skip LSP updates when BOXLANG_LSP_PORT is set', async () => {
+        process.env.BOXLANG_LSP_PORT = '7777';
+
+        const persistStub = sinon.stub(mockExtensionConfig, 'updateBoxlangLSPVersion');
+        const restartStub = sinon.stub(mockLSP, 'restart');
+
+        await checkAllUpdates(true);
+
+        assert.strictEqual(persistStub.called, false);
+        assert.strictEqual(restartStub.called, false);
+        assert.strictEqual(
+            outputLines.includes('BoxLang UpdateManager: skipping LSP update check because BOXLANG_LSP_PORT is set'),
+            true
+        );
     });
 });

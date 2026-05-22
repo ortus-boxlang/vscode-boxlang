@@ -1006,6 +1006,18 @@
                 "title": "BoxLang: Output Version Info"
             },
             {
+                "command": "boxlang.ui.createBxlintConfig",
+                "title": "BoxLang: Create .bxlint.json"
+            },
+            {
+                "command": "boxlang.ui.createFormatterConfig",
+                "title": "BoxLang: Create .bxformat.json"
+            },
+            {
+                "command": "boxlang.ui.convertCFFormatConfig",
+                "title": "BoxLang: Convert .cfformat.json to .bxformat.json"
+            },
+            {
                 "command": "boxlang.runServerFromLocation",
                 "title": "BoxLang: Run MiniServer Here"
             },
@@ -1413,6 +1425,14 @@
                 {
                     "command": "boxlang.dumpVariableFromPanel",
                     "when": "false"
+                },
+                {
+                    "command": "boxlang.ui.createFormatterConfig",
+                    "when": "boxlang.supportsCreateFormatterConfig"
+                },
+                {
+                    "command": "boxlang.ui.convertCFFormatConfig",
+                    "when": "boxlang.supportsConvertCFFormatConfig"
                 },
                 {
                     "command": "boxlang.migrateVSCodeSettings"

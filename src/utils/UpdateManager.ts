@@ -24,6 +24,10 @@ type Component = "runtime" | "miniserver" | "lsp" | "debugger";
 type UpdateMode = "auto" | "prompt" | "manual";
 type UpdateTiming = "now" | "restart";
 
+function isExternallyManagedLSP(): boolean {
+    return Boolean(process.env.BOXLANG_LSP_PORT);
+}
+
 /**
  * Check all four components for updates in parallel.
  * Respects per-component cooldowns unless force=true.
@@ -51,6 +55,11 @@ export async function resetAllCooldowns(): Promise<void> {
 async function checkComponentUpdate(component: Component, force: boolean): Promise<void> {
     const context = getExtensionContext();
     const cooldownKey = COOLDOWN_KEYS[component];
+
+    if (component === "lsp" && isExternallyManagedLSP()) {
+        boxlangOutputChannel.appendLine("BoxLang UpdateManager: skipping LSP update check because BOXLANG_LSP_PORT is set");
+        return;
+    }
 
     if (!force && !process.env.BOXLANG_IGNORE_UPDATE_COOLDOWN) {
         const lastCheck = context.globalState.get<number>(cooldownKey, 0);
@@ -312,6 +321,11 @@ async function applyRuntimeUpdate(version: string, timing: UpdateTiming): Promis
     await vscode.workspace.getConfiguration("boxlang").update("boxlangVersion", version, vscode.ConfigurationTarget.Global);
 
     if (timing === "now") {
+        if (isExternallyManagedLSP()) {
+            boxlangOutputChannel.appendLine("BoxLang UpdateManager: skipping LSP restart for runtime update because BOXLANG_LSP_PORT is set");
+            return;
+        }
+
         boxlangOutputChannel.appendLine("BoxLang UpdateManager: Restarting LSP to apply runtime update");
         await LSP.restart();
     }
@@ -365,6 +379,11 @@ async function applyMiniServerUpdate(version: string, timing: UpdateTiming): Pro
 }
 
 async function applyLSPUpdate(version: string, timing: UpdateTiming): Promise<void> {
+    if (isExternallyManagedLSP()) {
+        boxlangOutputChannel.appendLine(`BoxLang UpdateManager: skipping LSP update to bx-lsp@${version} because BOXLANG_LSP_PORT is set`);
+        return;
+    }
+
     const latestSpec = `bx-lsp@${version}`;
     boxlangOutputChannel.appendLine(`BoxLang UpdateManager: Setting LSP version to ${latestSpec}`);
     await ExtensionConfig.updateBoxlangLSPVersion(latestSpec);

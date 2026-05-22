@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import net from "net";
 import path from "path";
 import * as vscode from "vscode";
-import { LanguageClient, ServerOptions } from "vscode-languageclient/node";
+import { CloseAction, ErrorAction, LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { getExtensionContext } from "../context";
 import { startLSPProcess } from "./BoxLang";
 import { runCommandBox } from "./CommandBox";
@@ -15,6 +15,10 @@ import { ensureBoxLangVersion } from "./versionManager";
 
 let client: LanguageClient | undefined;
 let lspProcess: ChildProcessWithoutNullStreams | null = null;
+let isUsingExternalLSP = false;
+let lspStartAttempt = 0;
+let lspSocketSequence = 0;
+const advertisedServerCommands = new Set<string>();
 
 // Error message constants — centralized for future i18n
 const MSG_LSP_VERSION_NOT_CONFIGURED = "boxlang.lsp.lspVersion is not configured. Please set a valid LSP version (e.g., bx-lsp@1.6.0+7).";
@@ -24,6 +28,84 @@ const MSG_LSP_INSTALLATION_INVALID = "The BoxLang Language Server installation i
 const LSP_STOP_TIMEOUT_MS = 10000;
 const LSP_PROCESS_EXIT_GRACE_MS = 1000;
 const LSP_FORCE_KILL_TIMEOUT_MS = 1000;
+const CREATE_FORMATTER_CONFIG_COMMAND = "boxlang.createFormatterConfig";
+const CREATE_FORMATTER_CONFIG_CONTEXT_KEY = "boxlang.supportsCreateFormatterConfig";
+const CONVERT_CFFORMAT_CONFIG_COMMAND = "boxlang.convertCFFormatConfig";
+const CONVERT_CFFORMAT_CONFIG_CONTEXT_KEY = "boxlang.supportsConvertCFFormatConfig";
+
+function logLanguageServer(message: string) {
+    boxlangOutputChannel.appendLine(`[LSP ${new Date().toISOString()}] ${message}`);
+}
+
+function describeLanguageClientState(state: unknown) {
+    switch (state) {
+        case 1:
+            return "stopped";
+        case 2:
+            return "running";
+        case 3:
+            return "starting";
+        default:
+            return String(state ?? "unknown");
+    }
+}
+
+function attachSocketLogging(socket: net.Socket, label: string) {
+    logLanguageServer(`${label}: socket created`);
+
+    socket.on("connect", () => {
+        logLanguageServer(
+            `${label}: socket connected local=${socket.localAddress ?? "unknown"}:${socket.localPort ?? "unknown"}`
+            + ` remote=${socket.remoteAddress ?? "unknown"}:${socket.remotePort ?? "unknown"}`
+        );
+    });
+
+    socket.on("ready", () => {
+        logLanguageServer(`${label}: socket ready`);
+    });
+
+    socket.on("end", () => {
+        logLanguageServer(`${label}: socket ended bytesRead=${socket.bytesRead} bytesWritten=${socket.bytesWritten}`);
+    });
+
+    socket.on("close", (hadError) => {
+        logLanguageServer(`${label}: socket closed hadError=${hadError} bytesRead=${socket.bytesRead} bytesWritten=${socket.bytesWritten}`);
+    });
+
+    socket.on("error", (error) => {
+        logLanguageServer(`${label}: socket error ${formatError(error)}`);
+    });
+}
+
+async function updateAdvertisedServerCommands(nextClient?: LanguageClient) {
+    advertisedServerCommands.clear();
+
+    const advertisedCommands = nextClient?.initializeResult?.capabilities.executeCommandProvider?.commands ?? [];
+
+    for (const commandId of advertisedCommands) {
+        advertisedServerCommands.add(commandId);
+    }
+
+    if (typeof vscode.commands?.executeCommand !== "function") {
+        return;
+    }
+
+    try {
+        await vscode.commands.executeCommand(
+            "setContext",
+            CREATE_FORMATTER_CONFIG_CONTEXT_KEY,
+            advertisedServerCommands.has(CREATE_FORMATTER_CONFIG_COMMAND)
+        );
+
+        await vscode.commands.executeCommand(
+            "setContext",
+            CONVERT_CFFORMAT_CONFIG_CONTEXT_KEY,
+            advertisedServerCommands.has(CONVERT_CFFORMAT_CONFIG_COMMAND)
+        );
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`Unable to update language server command contexts: ${formatError(error)}`);
+    }
+}
 
 function getLSPConfigurationPayload() {
     const boxlangSettings = vscode.workspace.getConfiguration().get<Record<string, unknown>>("boxlang") ?? {};
@@ -38,22 +120,40 @@ function getLSPConfigurationPayload() {
 }
 
 export async function restart() {
+    logLanguageServer(`restart() called clientPresent=${Boolean(client)} external=${Boolean(process.env.BOXLANG_LSP_PORT)}`);
     await stop();
     startLSP();
 }
 
 export async function stop() {
     if (!client) {
+        logLanguageServer("stop() called with no active client");
+        isUsingExternalLSP = false;
+        await updateAdvertisedServerCommands();
         return;
     }
 
     const activeClient = client;
     const processToStop = lspProcess;
+    const isExternalLSP = isUsingExternalLSP;
+
+    logLanguageServer(
+        `stop() called external=${isExternalLSP} clientState=${describeLanguageClientState((activeClient as LanguageClient & { state?: number }).state)}`
+        + ` processPresent=${Boolean(processToStop)}`
+    );
 
     client = undefined;
     lspProcess = null;
+    isUsingExternalLSP = false;
+    await updateAdvertisedServerCommands();
 
-    boxlangOutputChannel.appendLine("Shutting down the language server");
+    if (isExternalLSP) {
+        logLanguageServer("Disconnecting from externally managed language server");
+        activeClient.dispose();
+        return;
+    }
+
+    logLanguageServer("Shutting down the language server");
     let stoppedGracefully = false;
 
     try {
@@ -141,44 +241,113 @@ function formatError(error: unknown): string {
 
 
 export function startLSP() {
+    isUsingExternalLSP = Boolean(process.env.BOXLANG_LSP_PORT);
+    const startAttemptId = ++lspStartAttempt;
+    logLanguageServer(
+        `startLSP() called attempt=${startAttemptId} external=${isUsingExternalLSP}`
+        + ` port=${process.env.BOXLANG_LSP_PORT ?? "managed"} existingClient=${Boolean(client)}`
+    );
+
+    const clientOptions: LanguageClientOptions = {
+        documentSelector: [
+            { scheme: "file", language: "boxlang" },
+            { scheme: "file", language: "cfml" }
+        ]
+    };
+
+    if (isUsingExternalLSP) {
+        clientOptions.errorHandler = {
+            error: (error) => {
+                boxlangOutputChannel.appendLine(`External language server connection error: ${formatError(error)}`);
+                return { action: ErrorAction.Continue };
+            },
+            closed: () => {
+                boxlangOutputChannel.appendLine("External language server connection closed; automatic restart is disabled");
+                return { action: CloseAction.DoNotRestart };
+            }
+        };
+    }
+
     const nextClient = new LanguageClient(
         "boxlang",
         "BoxLang Language Support",
         getLSPServerConfig(),
-        {
-            documentSelector: [
-                { scheme: "file", language: "boxlang" },
-                { scheme: "file", language: "cfml" }
-            ]
-        },
+        clientOptions,
         true
     );
 
     client = nextClient;
+    void updateAdvertisedServerCommands();
 
-    nextClient.start().then(() => {
-        boxlangOutputChannel.appendLine("The language server was succesfully started");
-        nextClient.sendNotification("workspace/didChangeConfiguration", getLSPConfigurationPayload());
+    const onDidChangeState = (nextClient as LanguageClient & {
+        onDidChangeState?: vscode.Event<{ oldState: number; newState: number }>;
+    }).onDidChangeState;
+
+    if (onDidChangeState) {
+        onDidChangeState((event) => {
+            logLanguageServer(
+                `client state changed attempt=${startAttemptId} ${describeLanguageClientState(event.oldState)} -> ${describeLanguageClientState(event.newState)}`
+            );
+        });
+    }
+
+    nextClient.start().then(async () => {
+        await updateAdvertisedServerCommands(nextClient);
+        logLanguageServer(`client.start() resolved attempt=${startAttemptId}`);
+
+        try {
+            await nextClient.sendNotification("workspace/didChangeConfiguration", getLSPConfigurationPayload());
+            logLanguageServer(`Sent initial workspace/didChangeConfiguration notification attempt=${startAttemptId}`);
+        } catch (error) {
+            logLanguageServer(`Failed to send initial workspace/didChangeConfiguration attempt=${startAttemptId}: ${formatError(error)}`);
+        }
+    }).catch(error => {
+        logLanguageServer(`client.start() rejected attempt=${startAttemptId}: ${formatError(error)}`);
     });
 
     return nextClient;
+}
+
+export function getLanguageClient() {
+    return client;
+}
+
+export function supportsServerCommand(commandId: string) {
+    return advertisedServerCommands.has(commandId);
 }
 
 export function notifyConfigurationChanged() {
     const activeClient = client;
 
     if (!activeClient) {
+        logLanguageServer("notifyConfigurationChanged() skipped because no client is active");
         return;
     }
 
-    activeClient.sendNotification("workspace/didChangeConfiguration", getLSPConfigurationPayload());
+    logLanguageServer(
+        `notifyConfigurationChanged() sending notification clientState=${describeLanguageClientState((activeClient as LanguageClient & { state?: number }).state)}`
+    );
+
+    void activeClient.sendNotification("workspace/didChangeConfiguration", getLSPConfigurationPayload())
+        .then(() => {
+            logLanguageServer("notifyConfigurationChanged() completed");
+        })
+        .catch(error => {
+            logLanguageServer(`notifyConfigurationChanged() failed: ${formatError(error)}`);
+        });
 }
 
 
 export function getLSPServerConfig(): ServerOptions {
     if (process.env.BOXLANG_LSP_PORT) {
         return () => {
-            let socket = net.connect(Number.parseInt(process.env.BOXLANG_LSP_PORT), "127.0.0.1");
+            const socketId = ++lspSocketSequence;
+            const port = Number.parseInt(process.env.BOXLANG_LSP_PORT, 10);
+
+            logLanguageServer(`Creating external LSP socket connection socketId=${socketId} host=127.0.0.1 port=${port}`);
+
+            let socket = net.connect(port, "127.0.0.1");
+            attachSocketLogging(socket, `external socketId=${socketId}`);
             let result = {
                 writer: socket,
                 reader: socket
@@ -191,8 +360,12 @@ export function getLSPServerConfig(): ServerOptions {
     return async () => {
         const [proc, port] = await startLanguageServerProcess();
         lspProcess = proc;
+        const socketId = ++lspSocketSequence;
+
+        logLanguageServer(`Creating managed LSP socket connection socketId=${socketId} pid=${proc.pid} host=127.0.0.1 port=${port}`);
 
         let socket = net.connect(port, "127.0.0.1");
+        attachSocketLogging(socket, `managed socketId=${socketId}`);
         return {
             writer: socket,
             reader: socket
