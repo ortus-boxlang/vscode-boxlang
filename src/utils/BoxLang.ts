@@ -41,12 +41,19 @@ export async function setupVSCodeBoxLangHome(context: ExtensionContext): Promise
 export async function startLSPProcess(
     boxlangHome: string,
     lspModulePath: string,
-    boxlangVersionPath: string
+    boxlangVersionPath: string,
+    timeoutMs = 30000
 ): Promise<Array<any>> {
     return new Promise((resolve, reject) => {
         const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+
+        if (!javaExecutable) {
+            reject(new Error("Java executable not found. Please install Java or set the 'boxlang.java.javaHome' setting."));
+            return;
+        }
+
         const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
-        const jvmArgs = ExtensionConfig.boxlangLSPJVMArgs.length ? ExtensionConfig.boxlangLSPJVMArgs.split( " " ) : [];
+        const jvmArgs = (ExtensionConfig.boxlangLSPJVMArgs || "").length ? (ExtensionConfig.boxlangLSPJVMArgs || "").split( " " ) : [];
         const lsp = trackedSpawn(javaExecutable, [ maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
             env: {
                 BOXLANG_HOME: boxlangHome,
@@ -57,12 +64,17 @@ export async function startLSPProcess(
         });
         let stdout = '';
         let found = false;
+        const MAX_STDOUT_BUFFER = 1024 * 100; // 100KB cap
 
-        lsp.stdout.on("data", data => {
+        const onData = (data) => {
             stdout += data;
 
             if (found) {
                 return;
+            }
+
+            if (stdout.length > MAX_STDOUT_BUFFER) {
+                stdout = stdout.slice(-MAX_STDOUT_BUFFER);
             }
 
             const matches = /Listening on port: (\d+)/mi.exec(stdout);
@@ -72,12 +84,56 @@ export async function startLSPProcess(
             }
 
             found = true;
+            cleanup();
             resolve([lsp, matches[1]]);
-        });
+        };
 
-        lsp.stderr.on("data", data => {
+        const onStderr = (data) => {
             boxlangOutputChannel.appendLine(data + "");
-        });
+        };
+
+        const onError = (err) => {
+            if (!found) {
+                cleanup();
+                reject(new Error(`LSP process failed to start: ${err.message}`));
+            }
+        };
+
+        const onExit = (code) => {
+            if (!found) {
+                cleanup();
+                reject(new Error(`LSP process exited with code ${code} before opening port`));
+            }
+        };
+
+        const onClose = () => {
+            if (!found) {
+                cleanup();
+                reject(new Error("LSP process closed before opening port"));
+            }
+        };
+
+        const timeoutId = setTimeout(() => {
+            if (!found) {
+                cleanup();
+                reject(new Error(`LSP process failed to start within ${timeoutMs}ms`));
+            }
+        }, timeoutMs);
+
+        function cleanup() {
+            clearTimeout(timeoutId);
+            lsp.stdout.off("data", onData);
+            lsp.stderr.off("data", onStderr);
+            lsp.off("error", onError);
+            lsp.off("exit", onExit);
+            lsp.off("close", onClose);
+        }
+
+        lsp.stdout.on("data", onData);
+        lsp.stderr.on("data", onStderr);
+        lsp.on("error", onError);
+        lsp.on("exit", onExit);
+        lsp.on("close", onClose);
     });
 }
 
@@ -298,8 +354,14 @@ export class BoxLangWithHome {
 
         return new Promise((resolve, reject) => {
             const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+
+            if (!javaExecutable) {
+                reject(new Error("Java executable not found. Please install Java or set the 'boxlang.java.javaHome' setting."));
+                return;
+            }
+
             const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
-            const jvmArgs = ExtensionConfig.boxlangLSPJVMArgs.length ? ExtensionConfig.boxlangLSPJVMArgs.split( " " ) : [];
+            const jvmArgs = (ExtensionConfig.boxlangLSPJVMArgs || "").length ? (ExtensionConfig.boxlangLSPJVMArgs || "").split( " " ) : [];
             const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
                 env: {
                     ...process.env,
@@ -312,7 +374,7 @@ export class BoxLangWithHome {
             let stdout = '';
             let found = false;
 
-            lsp.stdout.on("data", data => {
+            const onData = (data) => {
                 stdout += data;
 
                 if (found) {
@@ -326,20 +388,50 @@ export class BoxLangWithHome {
                 }
 
                 found = true;
+                cleanup();
                 resolve([lsp, matches[1]]);
-            });
+            };
 
-            lsp.on("close", () => {
+            const onClose = () => {
                 boxlangOutputChannel.appendLine( "BoxLang language server closed" );
-            });
+                if (!found) {
+                    cleanup();
+                    reject(new Error("BoxLang language server closed before opening port"));
+                }
+            };
 
-            lsp.on("exit", ( code ) => {
+            const onExit = (code) => {
                 boxlangOutputChannel.appendLine( "BoxLang language server exited with code: " + code );
-            });
+                if (!found) {
+                    cleanup();
+                    reject(new Error(`BoxLang language server exited with code ${code} before opening port`));
+                }
+            };
 
-            lsp.stderr.on("data", data => {
+            const onError = (err) => {
+                if (!found) {
+                    cleanup();
+                    reject(new Error(`BoxLang language server failed to start: ${err.message}`));
+                }
+            };
+
+            const onStderr = (data) => {
                 boxlangOutputChannel.appendLine(data + "");
-            });
+            };
+
+            function cleanup() {
+                lsp.stdout.off("data", onData);
+                lsp.off("close", onClose);
+                lsp.off("exit", onExit);
+                lsp.off("error", onError);
+                lsp.stderr.off("data", onStderr);
+            }
+
+            lsp.stdout.on("data", onData);
+            lsp.on("close", onClose);
+            lsp.on("exit", onExit);
+            lsp.on("error", onError);
+            lsp.stderr.on("data", onStderr);
         })
     }
 
@@ -427,6 +519,12 @@ export class BoxLang {
         boxlangOutputChannel.appendLine("Starting the LSP");
         return new Promise((resolve, reject) => {
             const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
+
+            if (!javaExecutable) {
+                reject(new Error("Java executable not found. Please install Java or set the 'boxlang.java.javaHome' setting."));
+                return;
+            }
+
             const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
             const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
                 env: {
@@ -440,7 +538,7 @@ export class BoxLang {
             let stdout = '';
             let found = false;
 
-            lsp.stdout.on("data", data => {
+            const onData = (data) => {
                 stdout += data;
 
                 if (found) {
@@ -454,12 +552,48 @@ export class BoxLang {
                 }
 
                 found = true;
+                cleanup();
                 resolve([lsp, matches[1]]);
-            });
+            };
 
-            lsp.stderr.on("data", data => {
+            const onStderr = (data) => {
                 boxlangOutputChannel.appendLine(data + "");
-            });
+            };
+
+            const onError = (err) => {
+                if (!found) {
+                    cleanup();
+                    reject(new Error(`BoxLang language server failed to start: ${err.message}`));
+                }
+            };
+
+            const onExit = (code) => {
+                if (!found) {
+                    cleanup();
+                    reject(new Error(`BoxLang language server exited with code ${code} before opening port`));
+                }
+            };
+
+            const onClose = () => {
+                if (!found) {
+                    cleanup();
+                    reject(new Error("BoxLang language server closed before opening port"));
+                }
+            };
+
+            function cleanup() {
+                lsp.stdout.off("data", onData);
+                lsp.stderr.off("data", onStderr);
+                lsp.off("error", onError);
+                lsp.off("exit", onExit);
+                lsp.off("close", onClose);
+            }
+
+            lsp.stdout.on("data", onData);
+            lsp.stderr.on("data", onStderr);
+            lsp.on("error", onError);
+            lsp.on("exit", onExit);
+            lsp.on("close", onClose);
         })
     }
 

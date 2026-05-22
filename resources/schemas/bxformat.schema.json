@@ -35,6 +35,32 @@
 			"default": false,
 			"description": "Use single quotes instead of double quotes for strings"
 		},
+		"preserveStringQuotes": {
+			"type": "boolean",
+			"default": false,
+			"description": "Preserve original quote style in source instead of normalizing"
+		},
+		"alignConsecutiveAssignments": {
+			"type": "boolean",
+			"default": true,
+			"description": "Vertically align consecutive assignment-like separators"
+		},
+		"alignConsecutiveProperties": {
+			"type": "boolean",
+			"default": true,
+			"description": "Vertically align consecutive property declarations"
+		},
+		"cfFormatCompatibility": {
+			"type": "boolean",
+			"default": false,
+			"description": "Compatibility mode set by cfformat conversion path"
+		},
+		"sourceType": {
+			"type": ["string", "null"],
+			"default": null,
+			"enum": ["BOXSCRIPT", "BOXTEMPLATE", "CFSCRIPT", "CFTEMPLATE", null],
+			"description": "Source type for the formatter: BOXSCRIPT, BOXTEMPLATE, CFSCRIPT, CFTEMPLATE, or null for auto-detect"
+		},
 		"bracketPadding": {
 			"type": "boolean",
 			"default": false,
@@ -241,6 +267,16 @@
 					"type": "object",
 					"description": "Configuration for function parameters",
 					"properties": {
+						"padding": {
+							"type": "boolean",
+							"default": true,
+							"description": "Add spaces inside non-empty parameter lists"
+						},
+						"empty_padding": {
+							"type": "boolean",
+							"default": false,
+							"description": "Add space inside empty parameter lists"
+						},
 						"comma_dangle": {
 							"type": "boolean",
 							"default": false,
@@ -281,6 +317,16 @@
 			"type": "object",
 			"description": "Configuration for function call arguments formatting",
 			"properties": {
+				"padding": {
+					"type": "boolean",
+					"default": true,
+					"description": "Add spaces inside non-empty call argument lists"
+				},
+				"empty_padding": {
+					"type": "boolean",
+					"default": false,
+					"description": "Add space inside empty argument lists"
+				},
 				"comma_dangle": {
 					"type": "boolean",
 					"default": false,
@@ -308,8 +354,8 @@
 				"style": {
 					"type": "string",
 					"default": "same-line",
-					"enum": ["same-line", "new-line"],
-					"description": "Opening brace placement: same-line (K&R) or new-line (Allman)"
+					"enum": ["same-line", "new-line", "preserve"],
+					"description": "Opening brace placement: same-line (K&R), new-line (Allman), or preserve original style"
 				},
 				"require_for_single_statement": {
 					"type": "boolean",
@@ -323,7 +369,7 @@
 						"style": {
 							"type": "string",
 							"default": "same-line",
-							"enum": ["same-line", "new-line"],
+							"enum": ["same-line", "new-line", "preserve"],
 							"description": "Else placement relative to closing brace"
 						}
 					},
@@ -341,6 +387,12 @@
 					"default": "end",
 					"enum": ["start", "end"],
 					"description": "Position of operators when breaking lines: start or end of line"
+				},
+				"comparison_style": {
+					"type": "string",
+					"default": "symbols",
+					"enum": ["symbols", "keywords", "preserve"],
+					"description": "Style for comparison operators: symbols (==, !=), keywords (eq, neq), or preserve original"
 				},
 				"ternary": {
 					"type": "object",

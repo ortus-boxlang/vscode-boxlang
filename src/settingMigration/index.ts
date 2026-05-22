@@ -4,8 +4,8 @@ import { ExtensionConfig } from "../utils/Configuration";
 
 const settingTargets = [
     { key: "globalValue", configurationTarget: ConfigurationTarget.Global },
-    { key: "workspaceFolderValue ", configurationTarget: ConfigurationTarget.WorkspaceFolder },
-    { key: "workspaceValue ", configurationTarget: ConfigurationTarget.Workspace },
+    { key: "workspaceFolderValue", configurationTarget: ConfigurationTarget.WorkspaceFolder },
+    { key: "workspaceValue", configurationTarget: ConfigurationTarget.Workspace },
 ]
 
 const settingMap = {
@@ -51,7 +51,8 @@ const settingMap = {
     "cfml.docBlock.extra": "boxlang.cfml.docBlock.extra",
     "cfml.engine.name": "boxlang.cfml.engine.name",
     "cfml.engine.version": "boxlang.cfml.engine.version",
-    "cfml.mappings": "boxlang.cfml.mappings"
+    "cfml.mappings": "boxlang.mappings",
+    "boxlang.cfml.mappings": "boxlang.mappings"
 };
 
 export async function migrateSettings(force: boolean) {
@@ -98,7 +99,7 @@ function getUnmatchedSettings() {
             const newSettingData = newSetting.inspect(newParts.name);
 
             for (let target of settingTargets) {
-                if (isSettingMismatched(oldSettingData[target.key], newSettingData[target.key])) {
+                if (isSettingMismatched(transformSettingValue(key, oldSettingData[target.key]), newSettingData[target.key])) {
                     return true;
                 }
             }
@@ -118,13 +119,37 @@ function updateSettings() {
             const newSettingData = newSetting.inspect(newParts.name);
 
             for (let target of settingTargets) {
-                if (!isSettingMismatched(oldSettingData[target.key], newSettingData[target.key])) {
+                const migratedValue = transformSettingValue(key, oldSettingData[target.key]);
+
+                if (!isSettingMismatched(migratedValue, newSettingData[target.key])) {
                     continue;
                 }
 
-                newSetting.update(newParts.name, oldSettingData[target.key], target.configurationTarget);
+                newSetting.update(newParts.name, migratedValue, target.configurationTarget);
             }
         });
+}
+
+function transformSettingValue(fullSetting: string, value: unknown) {
+    if ((fullSetting === "cfml.mappings" || fullSetting === "boxlang.cfml.mappings") && Array.isArray(value)) {
+        return value.reduce<Record<string, string>>((mappings, mapping) => {
+            if (!mapping || typeof mapping !== "object") {
+                return mappings;
+            }
+
+            const logicalPath = typeof mapping.logicalPath === "string" ? mapping.logicalPath : null;
+            const directoryPath = typeof mapping.directoryPath === "string" ? mapping.directoryPath : null;
+
+            if (!logicalPath || !directoryPath) {
+                return mappings;
+            }
+
+            mappings[logicalPath] = directoryPath;
+            return mappings;
+        }, {});
+    }
+
+    return value;
 }
 
 function parseSetting(fullSetting: string): { section: string, name: string } {

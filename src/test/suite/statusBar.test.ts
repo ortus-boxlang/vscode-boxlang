@@ -1,38 +1,9 @@
 import * as assert from 'assert';
 
-// Mock the VSCode module
-const vscode = {
-	window: {
-		createStatusBarItem: (id: string, alignment: number, priority: number) => ({
-			text: '',
-			tooltip: '',
-			command: '',
-			show: () => {},
-			hide: () => {},
-			dispose: () => {}
-		}),
-		showInformationMessage: (message: string) => {}
-	},
-	ExtensionMode: {
-		Test: 3
-	}
-};
-
-// Mock the vscode module for our imports
-const Module = require('module');
-const originalRequire = Module.prototype.require;
-Module.prototype.require = function(id: string) {
-	if (id === 'vscode') {
-		return vscode;
-	}
-	return originalRequire.apply(this, arguments);
-};
-
-import { registerStatusBar, setDefaultStatusText, setLoadingText } from '../../features/statusBar';
+// Use the global vscode mock loaded by runTestSimple.ts / runUnitTests.ts.
+const { registerStatusBar, setDefaultStatusText, setLoadingText } = require('../../features/statusBar');
 
 suite('StatusBar Test Suite', () => {
-	console.log('Start StatusBar tests.');
-
 	test('registerStatusBar creates and shows status bar item', async () => {
 		// Create a mock extension context
 		const mockSubscriptions: any[] = [];

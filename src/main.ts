@@ -39,10 +39,6 @@ import CFDocsService from "./utils/cfdocs/cfDocsService";
 import { APPLICATION_CFM_GLOB, isCfcFile } from "./utils/contextUtil";
 import { DocumentStateContext, getDocumentStateContext } from "./utils/documentUtil";
 
-
-import {
-    LanguageClient
-} from 'vscode-languageclient/node';
 import { setupChatIntegration } from "./chat/tools";
 import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
@@ -110,7 +106,9 @@ const CF_DOCUMENT_SELECTOR: DocumentSelector = [
 
 export let extensionContext: ExtensionContext;
 
-let client: LanguageClient;
+function logExtensionLifecycle(message: string) {
+    boxlangOutputChannel.appendLine(`[Extension ${new Date().toISOString()}] ${message}`);
+}
 
 /**
  * Gets a ConfigurationTarget enumerable based on a string representation
@@ -167,9 +165,11 @@ function shouldExcludeDocument(documentUri: Uri): boolean {
 export function activate(context: ExtensionContext): void {
     extensionContext = context;
 
-    setExtensionContext( context );
-    runSetup( context );
-    setupChatIntegration( context );
+    logExtensionLifecycle(`activate() called extensionPath=${context.extensionPath} externalLSPPort=${process.env.BOXLANG_LSP_PORT ?? "none"}`);
+
+    setExtensionContext(context);
+    runSetup(context);
+    setupChatIntegration(context);
 
     languages.setLanguageConfiguration(CFML_LANGUAGE_ID, {
         indentationRules: {
@@ -252,11 +252,14 @@ export function activate(context: ExtensionContext): void {
         }
     };
 
-    tasks.registerTaskProvider("boxlang", BoxLangTaskProvider );
+    tasks.registerTaskProvider("boxlang", BoxLangTaskProvider);
 
     context.subscriptions.push(commands.registerCommand("boxlang.showStatusBarCommandPicker", applyContext(extensionCommands.showStatusBarCommandPicker)));
     context.subscriptions.push(commands.registerCommand("boxlang.runBoxLangREPL", applyContext(extensionCommands.runBoxLangREPL)));
     context.subscriptions.push(commands.registerCommand("boxlang.hardResetWorkspaceHome", applyContext(extensionCommands.hardResetWorkspaceHome)));
+    context.subscriptions.push(commands.registerCommand("boxlang.ui.createBxlintConfig", extensionCommands.createBxlintConfig));
+    context.subscriptions.push(commands.registerCommand("boxlang.ui.createFormatterConfig", extensionCommands.createFormatterConfig));
+    context.subscriptions.push(commands.registerCommand("boxlang.ui.convertCFFormatConfig", extensionCommands.convertCFFormatConfig));
     context.subscriptions.push(commands.registerCommand("boxlang.restartLSP", applyContext(extensionCommands.restartLSP)));
     context.subscriptions.push(commands.registerCommand("boxlang.selectLSPVersion", applyContext(extensionCommands.selectLSPVersion)));
     context.subscriptions.push(commands.registerCommand("boxlang.selectDebuggerVersion", applyContext(extensionCommands.selectDebuggerVersion)));
@@ -479,31 +482,30 @@ export function activate(context: ExtensionContext): void {
     commands.executeCommand("boxlang.refreshWorkspaceDefinitionCache");
 
     context.subscriptions.push(workspace.onDidChangeConfiguration((e: ConfigurationChangeEvent) => {
-        if (e.affectsConfiguration("boxlang.lsp")) {
-            const settings = workspace.getConfiguration("boxlang.lsp");
-            client.sendNotification("workspace/didChangeConfiguration", { settings });
+        if (e.affectsConfiguration("boxlang")) {
+            LSP.notifyConfigurationChanged();
         }
     }));
 
     context.subscriptions.push(workspace.onDidChangeConfiguration((e: ConfigurationChangeEvent) => {
         if (e.affectsConfiguration("boxlang.java.javaHome")) {
             boxlangOutputChannel.appendLine("Switching to new JVM: " + workspace.getConfiguration("boxlang.java").get("javaHome"));
-            restartAllProcesses();
+            restartAllProcesses("configuration change: boxlang.java.javaHome");
         }
 
         if (e.affectsConfiguration("boxlang.lsp.maxHeapSize")) {
             boxlangOutputChannel.appendLine("Detected a change in LSP maxHeapSize configuration: " + workspace.getConfiguration("boxlang.lsp").get("maxHeapSize"));
-            restartAllProcesses();
+            restartAllProcesses("configuration change: boxlang.lsp.maxHeapSize");
         }
 
         if (e.affectsConfiguration("boxlang.lsp.lspVersion")) {
             boxlangOutputChannel.appendLine("Detected a change in LSP version configuration: " + workspace.getConfiguration("boxlang.lsp").get("lspVersion"));
-            restartAllProcesses();
+            restartAllProcesses("configuration change: boxlang.lsp.lspVersion");
         }
 
         if (e.affectsConfiguration("boxlang.boxLangHome")) {
             boxlangOutputChannel.appendLine("Switching to new BoxLang Home: " + workspace.getConfiguration("boxlang.boxLangHome").get("boxLangHome"));
-            restartAllProcesses();
+            restartAllProcesses("configuration change: boxlang.boxLangHome");
         }
     }));
 
@@ -516,26 +518,33 @@ export function activate(context: ExtensionContext): void {
  * This method is called when the extension is deactivated.
  */
 export function deactivate(): void {
+    logExtensionLifecycle("deactivate() called");
     LSP.stop();
 
     cleanupTrackedProcesses();
 }
 
-export function restartAllProcesses( refreshWorkspace = false) {
+export function restartAllProcesses(reason = "unspecified", refreshWorkspace = false) {
+    logExtensionLifecycle(`restartAllProcesses() called reason=${reason} refreshWorkspace=${refreshWorkspace}`);
     deactivate();
 
-    if( refreshWorkspace ){
-        setupWorkspace( extensionContext );
+    if (refreshWorkspace) {
+        logExtensionLifecycle("restartAllProcesses() refreshing workspace setup");
+        setupWorkspace(extensionContext);
     }
 
+    logExtensionLifecycle("restartAllProcesses() scheduling LSP.startLSP() in 5000ms");
     setTimeout(() => {
+        logExtensionLifecycle("restartAllProcesses() invoking LSP.startLSP()");
         LSP.startLSP();
     }, 5000);
 }
 
-async function runSetup( context: ExtensionContext ){
+async function runSetup(context: ExtensionContext) {
 
-    registerStatusBar( context );
+    logExtensionLifecycle("runSetup() started");
+
+    registerStatusBar(context);
 
     if (!fs.existsSync(context.globalStorageUri.fsPath)) {
         fs.mkdirSync(context.globalStorageUri.fsPath);
@@ -546,8 +555,8 @@ async function runSetup( context: ExtensionContext ){
         fs.mkdirSync(globalModulesPath);
     }
 
-    await setupLocalJavaInstall( context );
-    await setupWorkspace( context );
+    await setupLocalJavaInstall(context);
+    await setupWorkspace(context);
     setupConfiguration(context);
     setupVSCodeBoxLangHome(context);
     setupVersionManagement(context);
@@ -557,6 +566,7 @@ async function runSetup( context: ExtensionContext ){
     // Setup .bvmrc support after version management is ready
     await setupBvmrcSupport(context);
 
+    logExtensionLifecycle("runSetup() invoking migrateSettings(false)");
     migrateSettings(false);
 
     // Run update checks in the background after a short delay so LSP can start first
@@ -566,7 +576,8 @@ async function runSetup( context: ExtensionContext ){
         });
     }, 3000);
 
-    client = LSP.startLSP()
+    logExtensionLifecycle("runSetup() invoking LSP.startLSP()");
+    LSP.startLSP();
 
     try {
         setupServers(context);
@@ -575,5 +586,7 @@ async function runSetup( context: ExtensionContext ){
         boxlangOutputChannel.appendLine("Error setting up BoxLang servers");
         boxlangOutputChannel.appendLine(e.message);
     }
+
+    logExtensionLifecycle("runSetup() completed");
 }
 

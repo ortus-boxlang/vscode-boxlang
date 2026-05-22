@@ -241,7 +241,7 @@ export async function installLSPVersion(context: ExtensionContext) {
                         throw new Error(`LSP installation is missing box.json: ${boxJsonPath}`);
                     }
 
-                    ExtensionConfig.boxlangLSPVersion = versionSpec;
+                    await ExtensionConfig.updateBoxlangLSPVersion(versionSpec);
                     boxlangOutputChannel.appendLine(`BoxLang: LSP version set to ${versionSpec}`);
                     await restartLsp();
                 }
@@ -250,7 +250,7 @@ export async function installLSPVersion(context: ExtensionContext) {
             await vscode.window.withProgress(
                 { title: `BoxLang: Switching to LSP Version: ${result.versionSpec}`, location: ProgressLocation.Notification },
                 async () => {
-                    ExtensionConfig.boxlangLSPVersion = result.versionSpec;
+                    await ExtensionConfig.updateBoxlangLSPVersion(result.versionSpec);
                     boxlangOutputChannel.appendLine(`BoxLang: LSP version set to ${result.versionSpec}`);
                     await restartLsp();
                 }

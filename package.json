@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "1.18.0",
+    "version": "1.19.5",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -291,7 +291,7 @@
                     "type": "string",
                     "description": "The version of BoxLang you want to use for execution",
                     "scope": "resource",
-                    "default": "1.9.0"
+                    "default": "1.13.0"
                 },
                 "boxlang.miniserverjarpath": {
                     "type": "string",
@@ -308,11 +308,20 @@
                     "description": "The port to use for local development",
                     "scope": "window"
                 },
+                "boxlang.mappings": {
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "Workspace mapping overrides for the BoxLang language server. Keys are logical paths such as /models and values are path strings. These overrides take precedence over shared project mappings defined in boxlang.json.",
+                    "scope": "resource"
+                },
                 "boxlang.lsp.lspVersion": {
                     "type": "string",
                     "description": "Set the version of the language server to use",
                     "scope": "resource",
-                    "default": "bx-lsp@1.6.0+7"
+                    "default": "bx-lsp@1.10.0+9"
                 },
                 "boxlang.lsp.boxLangHome": {
                     "type": "string",
@@ -862,6 +871,7 @@
                 "boxlang.cfml.mappings": {
                     "type": "array",
                     "default": [],
+                    "deprecationMessage": "Deprecated. Use boxlang.mappings instead.",
                     "items": {
                         "type": "object",
                         "properties": {
@@ -994,6 +1004,18 @@
             {
                 "command": "boxlang.outputVersionInfo",
                 "title": "BoxLang: Output Version Info"
+            },
+            {
+                "command": "boxlang.ui.createBxlintConfig",
+                "title": "BoxLang: Create .bxlint.json"
+            },
+            {
+                "command": "boxlang.ui.createFormatterConfig",
+                "title": "BoxLang: Create .bxformat.json"
+            },
+            {
+                "command": "boxlang.ui.convertCFFormatConfig",
+                "title": "BoxLang: Convert .cfformat.json to .bxformat.json"
             },
             {
                 "command": "boxlang.runServerFromLocation",
@@ -1403,6 +1425,14 @@
                 {
                     "command": "boxlang.dumpVariableFromPanel",
                     "when": "false"
+                },
+                {
+                    "command": "boxlang.ui.createFormatterConfig",
+                    "when": "boxlang.supportsCreateFormatterConfig"
+                },
+                {
+                    "command": "boxlang.ui.convertCFFormatConfig",
+                    "when": "boxlang.supportsConvertCFFormatConfig"
                 },
                 {
                     "command": "boxlang.migrateVSCodeSettings"

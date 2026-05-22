@@ -28,7 +28,7 @@ export async function setupVersionManagement(_context: ExtensionContext): Promis
         await fs.access(BOXLANG_INSTALLATIONS);
     }
     catch (e) {
-        fs.mkdir(BOXLANG_INSTALLATIONS);
+        await fs.mkdir(BOXLANG_INSTALLATIONS);
     }
 }
 
@@ -88,9 +88,15 @@ export async function getConfiguredBoxLangJarPath(): Promise<string> {
 }
 
 
-export async function ensureBoxLangVersion(version: String): Promise<string> {
+export async function ensureBoxLangVersion(version: string): Promise<string> {
     boxlangOutputChannel.appendLine("Ensuring BoxLang version is installed: " + version);
     const boxlangVersionSring = version.startsWith("boxlang-") ? version : `boxlang-${version}`;
+
+    if (!version || boxlangVersionSring === "boxlang-") {
+        boxlangOutputChannel.appendLine("Invalid or empty BoxLang version specified, falling back to bundled JAR");
+        return ExtensionConfig.includedBoxLangJarPath;
+    }
+
     const downloadedVersions = await getDownloadedBoxLangVersions();
 
     const versionObj = downloadedVersions.find(v => v.name === boxlangVersionSring);

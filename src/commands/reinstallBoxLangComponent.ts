@@ -105,7 +105,7 @@ async function reinstallLSP(context: ExtensionContext): Promise<void> {
                 JSON.stringify({ versionSpec, createDate: new Date().toISOString() })
             );
 
-            ExtensionConfig.boxlangLSPVersion = versionSpec;
+            await ExtensionConfig.updateBoxlangLSPVersion(versionSpec);
             boxlangOutputChannel.appendLine(`BoxLang: LSP reinstalled: ${versionSpec}`);
 
             try {

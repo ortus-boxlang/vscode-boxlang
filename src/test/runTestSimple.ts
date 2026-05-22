@@ -1,4 +1,9 @@
 import * as path from 'path';
+import * as fs from 'fs';
+
+// Load VS Code mock BEFORE any test files so they share a consistent mock
+import './mocks/vscode';
+
 const Mocha = require('mocha');
 const { glob } = require('glob');
 
@@ -10,10 +15,14 @@ async function runTests() {
 	});
 
 	const testsRoot = path.resolve(__dirname, 'suite');
+	const sourceTestsRoot = path.resolve(__dirname, '../../src/test/suite');
 
 	try {
-		const files = await glob('**/*.test.js', { cwd: testsRoot });
-		
+		const sourceFiles = await glob('**/*.test.ts', { cwd: sourceTestsRoot });
+		const files = sourceFiles
+			.map((f: string) => f.replace(/\.ts$/, '.js'))
+			.filter((f: string) => fs.existsSync(path.resolve(testsRoot, f)));
+
 		// Add files to the test suite
 		files.forEach((f: string) => mocha.addFile(path.resolve(testsRoot, f)));
 
