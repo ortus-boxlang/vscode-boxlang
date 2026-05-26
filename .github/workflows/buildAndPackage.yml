@@ -55,7 +55,7 @@ jobs:
 
       - name: Download Java Dependencies
         run: |
-          npm i
+          npm ci
           npm run download-all
           npm run download:alpine
 
