@@ -110,6 +110,18 @@ function logExtensionLifecycle(message: string) {
     boxlangOutputChannel.appendLine(`[Extension ${new Date().toISOString()}] ${message}`);
 }
 
+async function stopExtensionServices(reason: string) {
+    logExtensionLifecycle(`stopExtensionServices() called reason=${reason}`);
+
+    try {
+        await LSP.shutdown(reason);
+    } catch (error) {
+        logExtensionLifecycle(`stopExtensionServices() failed reason=${reason}: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+        cleanupTrackedProcesses();
+    }
+}
+
 /**
  * Gets a ConfigurationTarget enumerable based on a string representation
  * @param target A string representing a configuration target
@@ -490,22 +502,22 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(workspace.onDidChangeConfiguration((e: ConfigurationChangeEvent) => {
         if (e.affectsConfiguration("boxlang.java.javaHome")) {
             boxlangOutputChannel.appendLine("Switching to new JVM: " + workspace.getConfiguration("boxlang.java").get("javaHome"));
-            restartAllProcesses("configuration change: boxlang.java.javaHome");
+            void restartAllProcesses("configuration change: boxlang.java.javaHome");
         }
 
         if (e.affectsConfiguration("boxlang.lsp.maxHeapSize")) {
             boxlangOutputChannel.appendLine("Detected a change in LSP maxHeapSize configuration: " + workspace.getConfiguration("boxlang.lsp").get("maxHeapSize"));
-            restartAllProcesses("configuration change: boxlang.lsp.maxHeapSize");
+            void restartAllProcesses("configuration change: boxlang.lsp.maxHeapSize");
         }
 
         if (e.affectsConfiguration("boxlang.lsp.lspVersion")) {
             boxlangOutputChannel.appendLine("Detected a change in LSP version configuration: " + workspace.getConfiguration("boxlang.lsp").get("lspVersion"));
-            restartAllProcesses("configuration change: boxlang.lsp.lspVersion");
+            void restartAllProcesses("configuration change: boxlang.lsp.lspVersion");
         }
 
         if (e.affectsConfiguration("boxlang.boxLangHome")) {
             boxlangOutputChannel.appendLine("Switching to new BoxLang Home: " + workspace.getConfiguration("boxlang.boxLangHome").get("boxLangHome"));
-            restartAllProcesses("configuration change: boxlang.boxLangHome");
+            void restartAllProcesses("configuration change: boxlang.boxLangHome");
         }
     }));
 
@@ -517,27 +529,27 @@ export function activate(context: ExtensionContext): void {
 /**
  * This method is called when the extension is deactivated.
  */
-export function deactivate(): void {
+export async function deactivate(): Promise<void> {
     logExtensionLifecycle("deactivate() called");
-    LSP.stop();
-
-    cleanupTrackedProcesses();
+    await stopExtensionServices("deactivate()");
 }
 
-export function restartAllProcesses(reason = "unspecified", refreshWorkspace = false) {
-    logExtensionLifecycle(`restartAllProcesses() called reason=${reason} refreshWorkspace=${refreshWorkspace}`);
-    deactivate();
+export async function restartAllProcesses(reason = "unspecified", refreshWorkspace = false): Promise<void> {
+    logExtensionLifecycle(`restartAllProcesses() requested reason=${reason} refreshWorkspace=${refreshWorkspace}`);
 
     if (refreshWorkspace) {
+        await stopExtensionServices(`restartAllProcesses(${reason})`);
         logExtensionLifecycle("restartAllProcesses() refreshing workspace setup");
-        setupWorkspace(extensionContext);
+        await setupWorkspace(extensionContext);
+    } else {
+        cleanupTrackedProcesses();
     }
 
-    logExtensionLifecycle("restartAllProcesses() scheduling LSP.startLSP() in 5000ms");
-    setTimeout(() => {
-        logExtensionLifecycle("restartAllProcesses() invoking LSP.startLSP()");
-        LSP.startLSP();
-    }, 5000);
+    try {
+        await LSP.requestRestart(reason);
+    } catch (error) {
+        logExtensionLifecycle(`restartAllProcesses() failed reason=${reason}: ${error instanceof Error ? error.message : String(error)}`);
+    }
 }
 
 async function runSetup(context: ExtensionContext) {

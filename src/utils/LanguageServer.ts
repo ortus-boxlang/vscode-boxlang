@@ -18,6 +18,13 @@ let lspProcess: ChildProcessWithoutNullStreams | null = null;
 let isUsingExternalLSP = false;
 let lspStartAttempt = 0;
 let lspSocketSequence = 0;
+let pendingRestartTimer: ReturnType<typeof setTimeout> | undefined;
+let resolvePendingRestartDelay: (() => void) | undefined;
+let lifecycleOperationChain: Promise<void> = Promise.resolve();
+let lifecycleOperationSequence = 0;
+const clientStartPromises = new WeakMap<LanguageClient, Promise<void>>();
+const externalClientSockets = new WeakMap<LanguageClient, net.Socket>();
+const intentionallyClosedClients = new WeakSet<LanguageClient>();
 const advertisedServerCommands = new Set<string>();
 
 // Error message constants — centralized for future i18n
@@ -25,6 +32,7 @@ const MSG_LSP_VERSION_NOT_CONFIGURED = "boxlang.lsp.lspVersion is not configured
 const MSG_LSP_INSTALL_INVALID = "BoxLang: The BoxLang Language Server installation is invalid. This may be related to outdated dependencies.";
 const MSG_LSP_ENSURE_FAILED = "Unable to ensure BoxLang Language Server module is installed";
 const MSG_LSP_INSTALLATION_INVALID = "The BoxLang Language Server installation is invalid.";
+const LSP_RESTART_DELAY_MS = 5000;
 const LSP_STOP_TIMEOUT_MS = 10000;
 const LSP_PROCESS_EXIT_GRACE_MS = 1000;
 const LSP_FORCE_KILL_TIMEOUT_MS = 1000;
@@ -119,10 +127,102 @@ function getLSPConfigurationPayload() {
     };
 }
 
-export async function restart() {
-    logLanguageServer(`restart() called clientPresent=${Boolean(client)} external=${Boolean(process.env.BOXLANG_LSP_PORT)}`);
-    await stop();
-    startLSP();
+function scheduleLifecycleOperation(description: string, operation: () => Promise<void>) {
+    const scheduledOperation = lifecycleOperationChain
+        .catch(error => {
+            logLanguageServer(`Recovered from earlier lifecycle failure before ${description}: ${formatError(error)}`);
+        })
+        .then(operation);
+
+    lifecycleOperationChain = scheduledOperation.catch(error => {
+        logLanguageServer(`${description} failed: ${formatError(error)}`);
+    });
+
+    return scheduledOperation;
+}
+
+function cancelPendingRestart(reason: string) {
+    if (!pendingRestartTimer) {
+        return;
+    }
+
+    clearTimeout(pendingRestartTimer);
+    pendingRestartTimer = undefined;
+
+    const resolve = resolvePendingRestartDelay;
+    resolvePendingRestartDelay = undefined;
+
+    logLanguageServer(`Canceled pending restart (${reason})`);
+    resolve?.();
+}
+
+async function waitForRestartDelay(delayMs: number, reason: string) {
+    if (delayMs <= 0) {
+        return;
+    }
+
+    logLanguageServer(`Scheduling LSP restart in ${delayMs}ms reason=${reason}`);
+
+    await new Promise<void>(resolve => {
+        resolvePendingRestartDelay = () => {
+            resolvePendingRestartDelay = undefined;
+            resolve();
+        };
+
+        pendingRestartTimer = setTimeout(() => {
+            pendingRestartTimer = undefined;
+            const finishDelay = resolvePendingRestartDelay;
+            resolvePendingRestartDelay = undefined;
+            finishDelay?.();
+        }, delayMs);
+    });
+}
+
+export function requestRestart(reason = "unspecified", delayMs = LSP_RESTART_DELAY_MS): Promise<void> {
+    const requestId = ++lifecycleOperationSequence;
+
+    logLanguageServer(`requestRestart() requested id=${requestId} reason=${reason} delayMs=${delayMs}`);
+    cancelPendingRestart(`superseded by restart request id=${requestId}`);
+
+    return scheduleLifecycleOperation(`requestRestart(${reason})`, async () => {
+        if (requestId !== lifecycleOperationSequence) {
+            logLanguageServer(`requestRestart() skipping stale request id=${requestId} before stop`);
+            return;
+        }
+
+        await stop();
+
+        if (requestId !== lifecycleOperationSequence) {
+            logLanguageServer(`requestRestart() skipping stale request id=${requestId} after stop`);
+            return;
+        }
+
+        await waitForRestartDelay(delayMs, reason);
+
+        if (requestId !== lifecycleOperationSequence) {
+            logLanguageServer(`requestRestart() skipping stale request id=${requestId} after delay`);
+            return;
+        }
+
+        logLanguageServer(`requestRestart() invoking startLSP() id=${requestId}`);
+        startLSP();
+    });
+}
+
+export function restart(reason = "unspecified") {
+    return requestRestart(reason, 0);
+}
+
+export function shutdown(reason = "unspecified"): Promise<void> {
+    const requestId = ++lifecycleOperationSequence;
+
+    logLanguageServer(`shutdown() requested id=${requestId} reason=${reason}`);
+    cancelPendingRestart(`shutdown requested: ${reason}`);
+
+    return scheduleLifecycleOperation(`shutdown(${reason})`, async () => {
+        logLanguageServer(`shutdown() stopping language server id=${requestId}`);
+        await stop();
+    });
 }
 
 export async function stop() {
@@ -149,7 +249,7 @@ export async function stop() {
 
     if (isExternalLSP) {
         logLanguageServer("Disconnecting from externally managed language server");
-        activeClient.dispose();
+        await disconnectExternalClient(activeClient);
         return;
     }
 
@@ -239,12 +339,66 @@ function formatError(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
+async function disconnectExternalClient(activeClient: LanguageClient) {
+    let socket = externalClientSockets.get(activeClient);
+
+    if (!socket) {
+        const startPromise = clientStartPromises.get(activeClient);
+
+        if (startPromise) {
+            logLanguageServer("disconnectExternalClient() waiting for external client start to settle before disconnect");
+            await startPromise.catch(() => undefined);
+            socket = externalClientSockets.get(activeClient);
+        }
+    }
+
+    if (!socket) {
+        logLanguageServer("disconnectExternalClient() no external socket was available to close");
+        return;
+    }
+
+    intentionallyClosedClients.add(activeClient);
+    externalClientSockets.delete(activeClient);
+
+    if (socket.destroyed) {
+        logLanguageServer("disconnectExternalClient() external socket was already destroyed");
+        return;
+    }
+
+    logLanguageServer("disconnectExternalClient() destroying external LSP socket");
+
+    await new Promise<void>(resolve => {
+        const timeoutId = setTimeout(() => {
+            cleanup();
+            resolve();
+        }, LSP_FORCE_KILL_TIMEOUT_MS);
+
+        const finish = () => {
+            cleanup();
+            resolve();
+        };
+
+        const cleanup = () => {
+            clearTimeout(timeoutId);
+            socket.off("close", finish);
+            socket.off("error", finish);
+        };
+
+        socket.once("close", finish);
+        socket.once("error", finish);
+        socket.destroy();
+    });
+}
+
 
 export function startLSP() {
+    const startRequestId = ++lifecycleOperationSequence;
+
+    cancelPendingRestart(`direct startLSP() call id=${startRequestId}`);
     isUsingExternalLSP = Boolean(process.env.BOXLANG_LSP_PORT);
     const startAttemptId = ++lspStartAttempt;
     logLanguageServer(
-        `startLSP() called attempt=${startAttemptId} external=${isUsingExternalLSP}`
+        `startLSP() called id=${startRequestId} attempt=${startAttemptId} external=${isUsingExternalLSP}`
         + ` port=${process.env.BOXLANG_LSP_PORT ?? "managed"} existingClient=${Boolean(client)}`
     );
 
@@ -255,23 +409,42 @@ export function startLSP() {
         ]
     };
 
+    let nextClient!: LanguageClient;
+
     if (isUsingExternalLSP) {
         clientOptions.errorHandler = {
             error: (error) => {
+                if (intentionallyClosedClients.has(nextClient)) {
+                    return { action: ErrorAction.Continue, handled: true };
+                }
+
                 boxlangOutputChannel.appendLine(`External language server connection error: ${formatError(error)}`);
                 return { action: ErrorAction.Continue };
             },
             closed: () => {
+                if (intentionallyClosedClients.has(nextClient)) {
+                    intentionallyClosedClients.delete(nextClient);
+                    boxlangOutputChannel.appendLine("External language server connection closed intentionally");
+                    return { action: CloseAction.DoNotRestart, handled: true };
+                }
+
                 boxlangOutputChannel.appendLine("External language server connection closed; automatic restart is disabled");
                 return { action: CloseAction.DoNotRestart };
             }
         };
     }
 
-    const nextClient = new LanguageClient(
+    nextClient = new LanguageClient(
         "boxlang",
         "BoxLang Language Support",
-        getLSPServerConfig(),
+        getLSPServerConfig(socket => {
+            externalClientSockets.set(nextClient, socket);
+            socket.once("close", () => {
+                if (externalClientSockets.get(nextClient) === socket) {
+                    externalClientSockets.delete(nextClient);
+                }
+            });
+        }),
         clientOptions,
         true
     );
@@ -291,7 +464,12 @@ export function startLSP() {
         });
     }
 
-    nextClient.start().then(async () => {
+    const startPromise = nextClient.start().then(async () => {
+        if (client !== nextClient) {
+            logLanguageServer(`client.start() resolved for stale client attempt=${startAttemptId}`);
+            return;
+        }
+
         await updateAdvertisedServerCommands(nextClient);
         logLanguageServer(`client.start() resolved attempt=${startAttemptId}`);
 
@@ -303,7 +481,11 @@ export function startLSP() {
         }
     }).catch(error => {
         logLanguageServer(`client.start() rejected attempt=${startAttemptId}: ${formatError(error)}`);
+    }).finally(() => {
+        clientStartPromises.delete(nextClient);
     });
+
+    clientStartPromises.set(nextClient, startPromise);
 
     return nextClient;
 }
@@ -338,7 +520,7 @@ export function notifyConfigurationChanged() {
 }
 
 
-export function getLSPServerConfig(): ServerOptions {
+export function getLSPServerConfig(onExternalSocket?: (socket: net.Socket) => void): ServerOptions {
     if (process.env.BOXLANG_LSP_PORT) {
         return () => {
             const socketId = ++lspSocketSequence;
@@ -348,6 +530,7 @@ export function getLSPServerConfig(): ServerOptions {
 
             let socket = net.connect(port, "127.0.0.1");
             attachSocketLogging(socket, `external socketId=${socketId}`);
+            onExternalSocket?.(socket);
             let result = {
                 writer: socket,
                 reader: socket
