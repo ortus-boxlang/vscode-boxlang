@@ -2,51 +2,191 @@
 
 ## [Unreleased]
 
+- Add BoxLang AGENTS.md and skill definitions for AI-assisted development
+- Bump internal default versions (BoxLang, LSP)
+
+## [1.19.9] - 2026-05-29
+
+- Improve language server lifecycle handling
+
+## [1.19.8] - 2026-05-27
+
+- Fix: update vsce publish command to use scoped package
+
+## [1.19.7] - 2026-05-26
+
+- Switch CI to use `npm ci` for reproducible builds
+
+## [1.19.6] - 2026-05-22
+
 - BLIDE-289 add command palette workflows to create `.bxlint.json`, create `.bxformat.json`, and convert existing CFFormat configs with workspace selection and overwrite prompts
 - BLIDE-289 improve externally managed LSP connections by avoiding update-driven restarts, suppressing duplicate command registration, and adding better startup diagnostics
-- Bump default BoxLang Version
-- Bump default LSP Version
+
+## [1.19.5] - 2026-05-19
+
+## [1.19.4] - 2026-05-19
+
+- Refactor LSP version handling to use async update method; update related tests
+
+## [1.19.3] - 2026-05-15
+
+- Improve error messages for Java executable and LSP version validation; enhance `.bvmrc` version format checks
+- Add buffer cap for stdout in LSP process to handle large output
+- Add timeout handling to LSP process startup; reject promise if process is silent
+- Add validation for Java executable in LSP process; reject promise if not configured
+- Refactor LSP process event handling; add cleanup function to remove listeners
+- Enhance error handling in LanguageServer with dedicated InvalidLSPInstallationError for unconfigured LSP version
+- Add unit tests for BoxLang, LanguageServer, and versionManager; enhance LSP error handling
+
+## [1.19.2] - 2026-05-05
+
+- Fix: Add missing properties to `.bxformat.json` schema
+
+## [1.19.1] - 2026-04-29
+
+- Update mapping setting location and migration strategy
+
+## [1.19.0] - 2026-04-29
+
 - Add project mapping configuration and migrate legacy mapping settings to `boxlang.mappings`
-- Add missing properties to the `.bxformat.json` schema
-- Improve Java executable and LSP version validation with clearer configuration errors
-- Improve LSP install and startup reliability with async updates, listener cleanup, output buffering, and timeout handling
+- Update release workflow
 
 ## [1.18.0] - 2026-04-27
 
-- BLIDE-278 fix LSP workspace setting configuration
-- BLIDE-276 improve auto update of main componenets
-- BLIDE-275 update lsp, debugger, and miniserver install commands
-- BLIDE-274 merge install and select boxlang version commands
+- BLIDE-278 improve LSP workspace setting configuration
+- BLIDE-276 improve auto update of main components
+- BLIDE-275 update LSP, debugger, and MiniServer install commands
+- BLIDE-274 merge install and select BoxLang version commands
+- Add dump context menu item
+
+## [1.17.4] - 2026-04-29
+
+- Fix tests and add project mapping config
+
+## [1.17.3] - 2026-04-27
+
+- Add dump context menu item
+
+## [1.17.2] - 2026-04-07
+
+- BLIDE-278 improve LSP updating and workspace setting
+
+## [1.17.1] - 2026-04-02
+
+- BLIDE-276 improve auto update of main components
+- BLIDE-275 update LSP, debugger, and MiniServer install commands
+
+## [1.17.0] - 2026-04-01
+
+- BLIDE-274 merge install and select BoxLang version commands
 
 ## [1.16.1] - 2026-03-20
 
+- Update release workflows for improved version management and synchronization
+
 ## [1.16.0] - 2026-03-19
 
-- Add schema for .bxformat.json
+- Add JSON schema for `.bxformat.json`
+
+## [1.15.3] - 2026-03-17
+
+- Enhance LSP and Debugger version management with configuration options and automatic updates
+
+## [1.15.2] - 2026-02-28
+
+- Add debugger management commands and configuration options
+
+## [1.15.1] - 2026-02-28
+
+- Add commands to install LSP and MiniServer versions; enhance version info output
+- Implement ModuleManager with unit tests and download manager
+
+## [1.15.0] - 2026-01-26
 
 ## [1.14.0] - 2026-01-24
 
 - Add Feature Audit tool UI
 - Bump internal BoxLang version to 1.9
+- Bump versions and update schemas
+
+## [1.13.10] - 2026-01-26
+
+- Update schemas
+
+## [1.13.9] - 2026-01-21
+
+- Bump BoxLang version in package.json
+
+## [1.13.8] - 2026-01-20
+
+- Bump runtime versions (BoxLang and LSP)
+
+## [1.13.7] - 2025-11-26
+
+- Bump GitHub Actions dependencies (setup-node, upload-artifact, download-artifact, checkout)
+
+## [1.13.6] - 2025-11-03
+
+- Fix build
+
+## [1.13.5] - 2025-11-03
+
+- Fix build
+
+## [1.13.4] - 2025-11-03
+
+- Fix TypeScript errors
+
+## [1.13.3] - 2025-11-02
+
+- BLIDE-255 Add UI for feature audit tool
+
+## [1.13.2] - 2025-10-31
+
+## [1.13.1] - 2025-10-31
+
+- BLIDE-254 enhance version checking with new version check functionality
+- BLIDE-253 Fix REPL not opening when the default shell is PowerShell
+
+## [1.13.0] - 2025-10-16
+
+- Hotfix LSP version
 
 ## [1.12.1] - 2025-10-16
 
 - BLIDE-253 Fix REPL not opening when the default shell is PowerShell
-
-- BLIDE-254 add workspace setting to control boxlang version
-
-- BLIDE-253 Fix REPL not opening when the default shell is PowerShell
-
-- BLIDE-254 add workspace setting to control boxlang version
+- BLIDE-254 add workspace setting to control BoxLang version
 
 ## [1.12.0] - 2025-10-16
 
 - BLIDE-155 disable showing the output channel on startup
 - BLIDE-157 Fix LSP install on Mac
 - BLIDE-165 More mac LSP issues
-- BLIDE-144 Demphasize unused variables
+- BLIDE-144 De-emphasize unused variables
 - BLIDE-145 Detect unscoped variables in CFML
 - BLIDE-164 Add diagnostic rule configuration
+
+## [1.11.12] - 2025-10-16
+
+- Update changelog
+
+## [1.11.11] - 2025-10-16
+
+- Bump LSP and BoxLang versions
+
+## [1.11.10] - 2025-10-14
+
+- BLIDE-165 fix CommandBox on Mac
+
+## [1.11.9] - 2025-10-03
+
+- BLIDE-155 disable output channel on startup
+- BLIDE-157 implement defensive programming for LSP startup and fix Mac LSP install
+- Add .bvmrc support with status bar integration and BoxLang version override
+- Add CommandBox detection and installation
+- Add LSP modules configuration
+- Add automated testing infrastructure
+- Bump GitHub Actions dependencies (checkout, download-artifact, setup-node)
 
 ## [1.10.0] - 2025-09-16
 
@@ -89,7 +229,7 @@
 - BLIDE-95 Add rewrites flag for miniserver
 - BLIDE-96 Add LSP version info
 - BLIDE-97 Fix LSP host binding issues
-- 🎉 Bump BoxLang to 1.0.0! 🎉
+- Bump BoxLang to 1.0.0
 
 ## [1.3.18] - 2025-04-08
 
@@ -163,13 +303,48 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.18.0...HEAD
-[1.18.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.16.1...v1.18.0
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.10...HEAD
+[1.19.10]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.9...v1.19.10
+[1.19.9]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.8...v1.19.9
+[1.19.8]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.7...v1.19.8
+[1.19.7]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.6...v1.19.7
+[1.19.6]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.5...v1.19.6
+[1.19.5]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.4...v1.19.5
+[1.19.4]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.3...v1.19.4
+[1.19.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.2...v1.19.3
+[1.19.2]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.1...v1.19.2
+[1.19.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.0...v1.19.1
+[1.19.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.18.0...v1.19.0
+[1.18.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.17.3...v1.18.0
+[1.17.4]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.17.3...v1.17.4
+[1.17.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.17.2...v1.17.3
+[1.17.2]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.17.1...v1.17.2
+[1.17.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.17.0...v1.17.1
+[1.17.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.16.1...v1.17.0
 [1.16.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.16.0...v1.16.1
-[1.16.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.14.0...v1.16.0
-[1.14.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.1...v1.14.0
+[1.16.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.15.3...v1.16.0
+[1.15.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.15.2...v1.15.3
+[1.15.2]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.15.1...v1.15.2
+[1.15.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.15.0...v1.15.1
+[1.15.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.14.0...v1.15.0
+[1.14.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.13.10...v1.14.0
+[1.13.10]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.13.9...v1.13.10
+[1.13.9]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.13.8...v1.13.9
+[1.13.8]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.13.7...v1.13.8
+[1.13.7]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.13.6...v1.13.7
+[1.13.6]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.13.5...v1.13.6
+[1.13.5]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.13.4...v1.13.5
+[1.13.4]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.13.3...v1.13.4
+[1.13.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.13.2...v1.13.3
+[1.13.2]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.13.1...v1.13.2
+[1.13.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.13.0...v1.13.1
+[1.13.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.1...v1.13.0
 [1.12.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.12.0...v1.12.1
-[1.12.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.10.0...v1.12.0
+[1.12.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.11.12...v1.12.0
+[1.11.12]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.11.11...v1.11.12
+[1.11.11]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.11.10...v1.11.11
+[1.11.10]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.11.9...v1.11.10
+[1.11.9]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.10.0...v1.11.9
 [1.10.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.3...v1.10.0
 [1.7.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.2...v1.7.3
 [1.7.2]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.7.1...v1.7.2
