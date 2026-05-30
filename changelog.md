@@ -2,8 +2,19 @@
 
 ## [Unreleased]
 
-- Add BoxLang AGENTS.md and skill definitions for AI-assisted development
-- Bump internal default versions (BoxLang, LSP)
+
+## [1.19.12] - 2026-05-30
+
+- Improve language server startup coordination to prevent duplicate `startLSP()` calls and keep the VS Code client state aligned during reconnects and restarts
+
+## [1.19.11] - 2026-05-29
+
+- Refresh the changelog to align release notes with the repository's tagged versions
+
+## [1.19.10] - 2026-05-29
+
+- Adopt repository-wide AI agent convention files by adding `AGENTS.md` and `CLAUDE.md` and refreshing the shared assistant instructions
+- Add `skills-lock.json` and related repository updates for AI-assisted development workflows
 
 ## [1.19.9] - 2026-05-29
 
@@ -303,7 +314,9 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.10...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.12...HEAD
+[1.19.12]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.11...v1.19.12
+[1.19.11]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.10...v1.19.11
 [1.19.10]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.9...v1.19.10
 [1.19.9]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.8...v1.19.9
 [1.19.8]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.7...v1.19.8
