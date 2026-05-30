@@ -7,7 +7,7 @@ import {
     getConfiguredDebuggerVersionSpec,
     installDebuggerVersionSpec
 } from "../utils/DebuggerManager";
-import { startLSP, stop } from "../utils/LanguageServer";
+import { requestRestart } from "../utils/LanguageServer";
 import { ModuleManager } from "../utils/ModuleManager";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
 import { getDownloadedBoxLangVersions, installVersion } from "../utils/versionManager";
@@ -108,15 +108,7 @@ async function reinstallLSP(context: ExtensionContext): Promise<void> {
             await ExtensionConfig.updateBoxlangLSPVersion(versionSpec);
             boxlangOutputChannel.appendLine(`BoxLang: LSP reinstalled: ${versionSpec}`);
 
-            try {
-                await stop();
-            } catch (e) {
-                boxlangOutputChannel.appendLine("Unable to stop LSP during reinstall");
-                boxlangOutputChannel.appendLine(e);
-            }
-
-            await new Promise<void>((resolve) => setTimeout(resolve, 5000));
-            await startLSP();
+            await requestRestart("reinstallBoxLangComponent:LSP");
         }
     );
 

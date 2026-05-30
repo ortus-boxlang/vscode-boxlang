@@ -4,7 +4,7 @@ import semver from "semver";
 import vscode, { ExtensionContext, ProgressLocation } from "vscode";
 import { ExtensionConfig } from "../../utils/Configuration";
 import { ForgeBoxClient } from "../../utils/ForgeBoxClient";
-import { startLSP, stop } from "../../utils/LanguageServer";
+import { requestRestart } from "../../utils/LanguageServer";
 import { ModuleManager } from "../../utils/ModuleManager";
 import { boxlangOutputChannel } from "../../utils/OutputChannels";
 
@@ -196,18 +196,7 @@ async function pickLspVersion(
 }
 
 async function restartLsp(): Promise<void> {
-    try {
-        await stop();
-    } catch (e) {
-        boxlangOutputChannel.appendLine("Unable to stop LSP");
-        boxlangOutputChannel.appendLine(e);
-    }
-
-    await new Promise<void>((resolve) => {
-        setTimeout(() => resolve(), 5000);
-    });
-
-    await startLSP();
+    await requestRestart("installLSPVersion");
 }
 
 export async function installLSPVersion(context: ExtensionContext) {

@@ -13,3 +13,6 @@ dist/
 workbench
 resources/lsp
 resources/webviews/alpinejs.js
+
+## AI Skills
+.agents/skills/**
