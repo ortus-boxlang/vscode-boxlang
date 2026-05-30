@@ -392,6 +392,20 @@ async function disconnectExternalClient(activeClient: LanguageClient) {
 
 
 export function startLSP() {
+    const activeClient = client;
+
+    if (activeClient) {
+        const activeClientState = (activeClient as LanguageClient & { state?: number }).state;
+
+        if (activeClientState === 2 || activeClientState === 3) {
+            logLanguageServer(`startLSP() ignored because client is already ${describeLanguageClientState(activeClientState)}`);
+            return activeClient;
+        }
+
+        logLanguageServer(`startLSP() discarding stale client state=${describeLanguageClientState(activeClientState)}`);
+        client = undefined;
+    }
+
     const startRequestId = ++lifecycleOperationSequence;
 
     cancelPendingRestart(`direct startLSP() call id=${startRequestId}`);
@@ -479,8 +493,15 @@ export function startLSP() {
         } catch (error) {
             logLanguageServer(`Failed to send initial workspace/didChangeConfiguration attempt=${startAttemptId}: ${formatError(error)}`);
         }
-    }).catch(error => {
+    }).catch(async error => {
         logLanguageServer(`client.start() rejected attempt=${startAttemptId}: ${formatError(error)}`);
+
+        if (client === nextClient) {
+            client = undefined;
+            lspProcess = null;
+            isUsingExternalLSP = false;
+            await updateAdvertisedServerCommands();
+        }
     }).finally(() => {
         clientStartPromises.delete(nextClient);
     });

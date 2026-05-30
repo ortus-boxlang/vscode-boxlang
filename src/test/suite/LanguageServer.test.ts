@@ -296,6 +296,17 @@ suite('LanguageServer Test Suite', () => {
         }
     });
 
+    test('startLSP should ignore duplicate starts while the client is still starting', async () => {
+        await setupManagedLspEnvironment();
+
+        const firstClient = startLSP();
+        const secondClient = startLSP();
+
+        assert.strictEqual(secondClient, firstClient);
+        await MockLanguageClient.instances[0].startPromise;
+        assert.strictEqual(MockLanguageClient.instances.length, 1);
+    });
+
     test('shutdown should cancel a pending delayed restart', async () => {
         await setupManagedLspEnvironment();
 
