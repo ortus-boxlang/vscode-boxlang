@@ -14,54 +14,60 @@ const mockLsp = {
     notifyConfigurationChanged: () => undefined
 };
 
-Module.prototype.require = function (id: string) {
-    const requester = this?.filename || '';
-    const fromMain = /[\\/]main\./.test(requester);
+function installMainRequireHook() {
+    Module.prototype.require = function (id: string) {
+        const requester = this?.filename || '';
+        const fromMain = /[\\/]main\./.test(requester);
 
-    if (fromMain && (id.endsWith('/utils/LanguageServer') || id === './utils/LanguageServer')) {
-        return mockLsp;
-    }
+        if (fromMain && (id.endsWith('/utils/LanguageServer') || id === './utils/LanguageServer')) {
+            return mockLsp;
+        }
 
-    if (fromMain && (id.endsWith('/utils/ProcessTracker') || id === './utils/ProcessTracker')) {
-        return {
-            cleanupTrackedProcesses: () => {
-                cleanupCallCount += 1;
-            }
-        };
-    }
-
-    if (fromMain && (id.endsWith('/utils/workspaceSetup') || id === './utils/workspaceSetup')) {
-        return {
-            setupWorkspace: async () => {
-                setupWorkspaceCallCount += 1;
-            }
-        };
-    }
-
-    if (fromMain && (id.endsWith('/utils/OutputChannels') || id === './utils/OutputChannels')) {
-        return {
-            boxlangOutputChannel: {
-                appendLine(message: string) {
-                    outputLines.push(String(message));
+        if (fromMain && (id.endsWith('/utils/ProcessTracker') || id === './utils/ProcessTracker')) {
+            return {
+                cleanupTrackedProcesses: () => {
+                    cleanupCallCount += 1;
                 }
-            }
-        };
-    }
+            };
+        }
 
-    if (fromMain && (id.endsWith('/views/ServerHomesView') || id === './views/ServerHomesView')) {
-        return { boxlangServerHomeTreeDataProvider: () => ({}) };
-    }
+        if (fromMain && (id.endsWith('/utils/workspaceSetup') || id === './utils/workspaceSetup')) {
+            return {
+                setupWorkspace: async () => {
+                    setupWorkspaceCallCount += 1;
+                }
+            };
+        }
 
-    if (fromMain && (id.endsWith('/views/ServerView') || id === './views/ServerView')) {
-        return { boxlangServerTreeDataProvider: () => ({}) };
-    }
+        if (fromMain && (id.endsWith('/utils/OutputChannels') || id === './utils/OutputChannels')) {
+            return {
+                boxlangOutputChannel: {
+                    appendLine(message: string) {
+                        outputLines.push(String(message));
+                    }
+                }
+            };
+        }
 
-    if (fromMain && id.startsWith('./')) {
-        return {};
-    }
+        if (fromMain && (id.endsWith('/views/ServerHomesView') || id === './views/ServerHomesView')) {
+            return { boxlangServerHomeTreeDataProvider: () => ({}) };
+        }
 
-    return originalRequire.apply(this, arguments);
-};
+        if (fromMain && (id.endsWith('/views/ServerView') || id === './views/ServerView')) {
+            return { boxlangServerTreeDataProvider: () => ({}) };
+        }
+
+        if (fromMain && id.startsWith('./')) {
+            return {};
+        }
+
+        return originalRequire.apply(this, arguments);
+    };
+}
+
+function loadMainModule() {
+    return Module._load(require.resolve('../../main'), module, false);
+}
 
 suite('Main lifecycle test suite', () => {
     setup(() => {
@@ -72,10 +78,12 @@ suite('Main lifecycle test suite', () => {
         mockLsp.shutdown = async () => undefined;
         mockLsp.startLSP = () => undefined;
         mockLsp.notifyConfigurationChanged = () => undefined;
+        installMainRequireHook();
         delete require.cache[require.resolve('../../main')];
     });
 
     teardown(() => {
+        Module.prototype.require = originalRequire;
         delete require.cache[require.resolve('../../main')];
         sinon.restore();
     });
@@ -85,7 +93,7 @@ suite('Main lifecycle test suite', () => {
 
         mockLsp.requestRestart = requestRestartStub;
 
-        const main = require('../../main');
+        const main = loadMainModule();
         await main.restartAllProcesses('test restart');
 
         assert.strictEqual(cleanupCallCount, 1);
@@ -99,7 +107,7 @@ suite('Main lifecycle test suite', () => {
 
         mockLsp.shutdown = shutdownStub;
 
-        const main = require('../../main');
+        const main = loadMainModule();
         await main.deactivate();
 
         assert.strictEqual(cleanupCallCount, 1);

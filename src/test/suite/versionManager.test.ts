@@ -7,7 +7,7 @@ import * as sinon from 'sinon';
 // The global vscode mock (loaded by runTestSimple.ts / runUnitTests.ts) handles 'vscode'.
 const Module = require('module');
 const originalRequire = Module.prototype.require;
-Module.prototype.require = function(id: string) {
+Module.prototype.require = function (id: string) {
     if (id.endsWith('/Java') || id.endsWith('\\Java') || id === './Java') {
         return { getJavaInstallDir: () => '/mock/java' };
     }
