@@ -3,6 +3,7 @@ import * as sinon from 'sinon';
 
 const Module = require('module');
 const originalRequire = Module.prototype.require;
+const loadModule = Module._load;
 
 const outputLines: string[] = [];
 let cleanupCallCount = 0;
@@ -14,7 +15,7 @@ const mockLsp = {
     notifyConfigurationChanged: () => undefined
 };
 
-Module.prototype.require = function (id: string) {
+function mainLifecycleRequireHook(this: { filename?: string }, id: string) {
     const requester = this?.filename || '';
     const fromMain = /[\\/]main\./.test(requester);
 
@@ -61,7 +62,19 @@ Module.prototype.require = function (id: string) {
     }
 
     return originalRequire.apply(this, arguments);
-};
+}
+
+function installMainLifecycleRequireHook() {
+    Module.prototype.require = mainLifecycleRequireHook;
+}
+
+function loadMainModule() {
+    installMainLifecycleRequireHook();
+    delete require.cache[require.resolve('../../main')];
+    return loadModule('../../main', module, false);
+}
+
+installMainLifecycleRequireHook();
 
 suite('Main lifecycle test suite', () => {
     setup(() => {
@@ -72,6 +85,7 @@ suite('Main lifecycle test suite', () => {
         mockLsp.shutdown = async () => undefined;
         mockLsp.startLSP = () => undefined;
         mockLsp.notifyConfigurationChanged = () => undefined;
+        installMainLifecycleRequireHook();
         delete require.cache[require.resolve('../../main')];
     });
 
@@ -85,7 +99,7 @@ suite('Main lifecycle test suite', () => {
 
         mockLsp.requestRestart = requestRestartStub;
 
-        const main = require('../../main');
+        const main = loadMainModule();
         await main.restartAllProcesses('test restart');
 
         assert.strictEqual(cleanupCallCount, 1);
@@ -99,7 +113,7 @@ suite('Main lifecycle test suite', () => {
 
         mockLsp.shutdown = shutdownStub;
 
-        const main = require('../../main');
+        const main = loadMainModule();
         await main.deactivate();
 
         assert.strictEqual(cleanupCallCount, 1);
