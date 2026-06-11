@@ -22,6 +22,7 @@ let pendingRestartTimer: ReturnType<typeof setTimeout> | undefined;
 let resolvePendingRestartDelay: (() => void) | undefined;
 let lifecycleOperationChain: Promise<void> = Promise.resolve();
 let lifecycleOperationSequence = 0;
+let queuedStartPromise: Promise<LanguageClient | undefined> | undefined;
 const clientStartPromises = new WeakMap<LanguageClient, Promise<void>>();
 const externalClientSockets = new WeakMap<LanguageClient, net.Socket>();
 const intentionallyClosedClients = new WeakSet<LanguageClient>();
@@ -36,6 +37,7 @@ const LSP_RESTART_DELAY_MS = 5000;
 const LSP_STOP_TIMEOUT_MS = 10000;
 const LSP_PROCESS_EXIT_GRACE_MS = 1000;
 const LSP_FORCE_KILL_TIMEOUT_MS = 1000;
+const MANAGED_LSP_PID_FILE = "managed-lsp.pid";
 const CREATE_FORMATTER_CONFIG_COMMAND = "boxlang.createFormatterConfig";
 const CREATE_FORMATTER_CONFIG_CONTEXT_KEY = "boxlang.supportsCreateFormatterConfig";
 const CONVERT_CFFORMAT_CONFIG_COMMAND = "boxlang.convertCFFormatConfig";
@@ -127,18 +129,27 @@ function getLSPConfigurationPayload() {
     };
 }
 
-function scheduleLifecycleOperation(description: string, operation: () => Promise<void>) {
+function scheduleLifecycleOperation<T>(description: string, operation: () => Promise<T>) {
     const scheduledOperation = lifecycleOperationChain
         .catch(error => {
             logLanguageServer(`Recovered from earlier lifecycle failure before ${description}: ${formatError(error)}`);
         })
         .then(operation);
 
-    lifecycleOperationChain = scheduledOperation.catch(error => {
+    lifecycleOperationChain = scheduledOperation.then(() => undefined, error => {
         logLanguageServer(`${description} failed: ${formatError(error)}`);
     });
 
     return scheduledOperation;
+}
+
+function cancelQueuedStart(reason: string) {
+    if (!queuedStartPromise) {
+        return;
+    }
+
+    logLanguageServer(`Canceling queued start (${reason})`);
+    queuedStartPromise = undefined;
 }
 
 function cancelPendingRestart(reason: string) {
@@ -183,6 +194,7 @@ export function requestRestart(reason = "unspecified", delayMs = LSP_RESTART_DEL
 
     logLanguageServer(`requestRestart() requested id=${requestId} reason=${reason} delayMs=${delayMs}`);
     cancelPendingRestart(`superseded by restart request id=${requestId}`);
+    cancelQueuedStart(`superseded by restart request id=${requestId}`);
 
     return scheduleLifecycleOperation(`requestRestart(${reason})`, async () => {
         if (requestId !== lifecycleOperationSequence) {
@@ -205,7 +217,7 @@ export function requestRestart(reason = "unspecified", delayMs = LSP_RESTART_DEL
         }
 
         logLanguageServer(`requestRestart() invoking startLSP() id=${requestId}`);
-        startLSP();
+        startLSPNow(requestId, `restart:${reason}`);
     });
 }
 
@@ -218,6 +230,7 @@ export function shutdown(reason = "unspecified"): Promise<void> {
 
     logLanguageServer(`shutdown() requested id=${requestId} reason=${reason}`);
     cancelPendingRestart(`shutdown requested: ${reason}`);
+    cancelQueuedStart(`shutdown requested: ${reason}`);
 
     return scheduleLifecycleOperation(`shutdown(${reason})`, async () => {
         logLanguageServer(`shutdown() stopping language server id=${requestId}`);
@@ -236,6 +249,7 @@ export async function stop() {
     const activeClient = client;
     const processToStop = lspProcess;
     const isExternalLSP = isUsingExternalLSP;
+    intentionallyClosedClients.add(activeClient);
 
     logLanguageServer(
         `stop() called external=${isExternalLSP} clientState=${describeLanguageClientState((activeClient as LanguageClient & { state?: number }).state)}`
@@ -261,19 +275,20 @@ export async function stop() {
         stoppedGracefully = true;
     } catch (error) {
         boxlangOutputChannel.appendLine(`Language server stop failed after ${LSP_STOP_TIMEOUT_MS}ms: ${formatError(error)}`);
-    } finally {
-        activeClient.dispose();
     }
 
     if (!processToStop) {
+        await forgetManagedLSPProcess();
         return;
     }
 
     if (stoppedGracefully && await waitForProcessExit(processToStop, LSP_PROCESS_EXIT_GRACE_MS)) {
+        await forgetManagedLSPProcess(processToStop);
         return;
     }
 
     await terminateLSPProcess(processToStop, stoppedGracefully ? "" : " after a shutdown failure");
+    await forgetManagedLSPProcess(processToStop);
 }
 
 async function terminateLSPProcess(process: ChildProcessWithoutNullStreams, reason = ""): Promise<void> {
@@ -332,11 +347,85 @@ function waitForProcessExit(process: ChildProcessWithoutNullStreams, timeoutMs: 
 
         process.once("exit", onExit);
         process.once("close", onExit);
+
+        if (!isProcessActive(process)) {
+            onExit();
+        }
     });
 }
 
 function formatError(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+function getManagedLSPPidFilePath() {
+    return path.join(getExtensionContext().globalStorageUri.fsPath, MANAGED_LSP_PID_FILE);
+}
+
+async function rememberManagedLSPProcess(process: ChildProcessWithoutNullStreams) {
+    if (!process.pid) {
+        return;
+    }
+
+    try {
+        await fs.mkdir(path.dirname(getManagedLSPPidFilePath()), { recursive: true });
+        await fs.writeFile(getManagedLSPPidFilePath(), String(process.pid));
+    } catch (error) {
+        logLanguageServer(`Unable to persist managed LSP pid=${process.pid}: ${formatError(error)}`);
+    }
+}
+
+async function forgetManagedLSPProcess(processToForget?: ChildProcessWithoutNullStreams | null) {
+    try {
+        const pidText = await fs.readFile(getManagedLSPPidFilePath(), "utf8");
+        const pid = Number.parseInt(pidText.trim(), 10);
+
+        if (!processToForget?.pid || pid === processToForget.pid) {
+            await fs.rm(getManagedLSPPidFilePath(), { force: true });
+        }
+    } catch (error: any) {
+        if (error?.code !== "ENOENT") {
+            logLanguageServer(`Unable to remove managed LSP pid file: ${formatError(error)}`);
+        }
+    }
+}
+
+async function cleanupStaleManagedLSPProcess() {
+    let pid: number;
+
+    try {
+        const pidText = await fs.readFile(getManagedLSPPidFilePath(), "utf8");
+        pid = Number.parseInt(pidText.trim(), 10);
+    } catch (error: any) {
+        if (error?.code !== "ENOENT") {
+            logLanguageServer(`Unable to read managed LSP pid file: ${formatError(error)}`);
+            await forgetManagedLSPProcess();
+        }
+        return;
+    }
+
+    if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) {
+        await forgetManagedLSPProcess();
+        return;
+    }
+
+    try {
+        process.kill(pid, 0);
+    } catch {
+        await forgetManagedLSPProcess();
+        return;
+    }
+
+    logLanguageServer(`Cleaning up stale managed LSP process pid=${pid}`);
+
+    try {
+        process.kill(pid);
+    } catch (error) {
+        logLanguageServer(`Failed to signal stale managed LSP process pid=${pid}: ${formatError(error)}`);
+        return;
+    }
+
+    await forgetManagedLSPProcess();
 }
 
 async function disconnectExternalClient(activeClient: LanguageClient) {
@@ -391,7 +480,46 @@ async function disconnectExternalClient(activeClient: LanguageClient) {
 }
 
 
-export function startLSP() {
+export function startLSP(reason = "direct start"): Promise<LanguageClient | undefined> {
+    const activeClient = client;
+
+    if (activeClient) {
+        const activeClientState = (activeClient as LanguageClient & { state?: number }).state;
+
+        if (activeClientState === 2 || activeClientState === 3) {
+            logLanguageServer(`startLSP() ignored because client is already ${describeLanguageClientState(activeClientState)}`);
+            return Promise.resolve(activeClient);
+        }
+    }
+
+    if (queuedStartPromise) {
+        logLanguageServer(`startLSP() coalesced with queued start reason=${reason}`);
+        return queuedStartPromise;
+    }
+
+    const requestId = ++lifecycleOperationSequence;
+
+    logLanguageServer(`startLSP() requested id=${requestId} reason=${reason}`);
+    cancelPendingRestart(`direct startLSP() call id=${requestId}`);
+
+    const startPromise = scheduleLifecycleOperation(`startLSP(${reason})`, async () => {
+        if (requestId !== lifecycleOperationSequence) {
+            logLanguageServer(`startLSP() skipping stale request id=${requestId}`);
+            return client;
+        }
+
+        return startLSPNow(requestId, reason);
+    }).finally(() => {
+        if (queuedStartPromise === startPromise) {
+            queuedStartPromise = undefined;
+        }
+    });
+
+    queuedStartPromise = startPromise;
+    return startPromise;
+}
+
+function startLSPNow(startRequestId: number, reason: string) {
     const activeClient = client;
 
     if (activeClient) {
@@ -405,14 +533,11 @@ export function startLSP() {
         logLanguageServer(`startLSP() discarding stale client state=${describeLanguageClientState(activeClientState)}`);
         client = undefined;
     }
-
-    const startRequestId = ++lifecycleOperationSequence;
-
-    cancelPendingRestart(`direct startLSP() call id=${startRequestId}`);
-    isUsingExternalLSP = Boolean(process.env.BOXLANG_LSP_PORT);
+    const nextIsUsingExternalLSP = Boolean(process.env.BOXLANG_LSP_PORT);
+    isUsingExternalLSP = nextIsUsingExternalLSP;
     const startAttemptId = ++lspStartAttempt;
     logLanguageServer(
-        `startLSP() called id=${startRequestId} attempt=${startAttemptId} external=${isUsingExternalLSP}`
+        `startLSP() called id=${startRequestId} attempt=${startAttemptId} reason=${reason} external=${nextIsUsingExternalLSP}`
         + ` port=${process.env.BOXLANG_LSP_PORT ?? "managed"} existingClient=${Boolean(client)}`
     );
 
@@ -425,28 +550,32 @@ export function startLSP() {
 
     let nextClient!: LanguageClient;
 
-    if (isUsingExternalLSP) {
-        clientOptions.errorHandler = {
-            error: (error) => {
-                if (intentionallyClosedClients.has(nextClient)) {
-                    return { action: ErrorAction.Continue, handled: true };
-                }
+    clientOptions.errorHandler = {
+        error: (error) => {
+            if (intentionallyClosedClients.has(nextClient)) {
+                logLanguageServer(`Language server connection error during intentional shutdown: ${formatError(error)}`);
+                return { action: ErrorAction.Continue, handled: true };
+            }
 
-                boxlangOutputChannel.appendLine(`External language server connection error: ${formatError(error)}`);
-                return { action: ErrorAction.Continue };
-            },
-            closed: () => {
-                if (intentionallyClosedClients.has(nextClient)) {
-                    intentionallyClosedClients.delete(nextClient);
-                    boxlangOutputChannel.appendLine("External language server connection closed intentionally");
-                    return { action: CloseAction.DoNotRestart, handled: true };
-                }
+            boxlangOutputChannel.appendLine(`Language server connection error: ${formatError(error)}`);
+            return { action: ErrorAction.Continue };
+        },
+        closed: () => {
+            if (intentionallyClosedClients.has(nextClient)) {
+                intentionallyClosedClients.delete(nextClient);
+                boxlangOutputChannel.appendLine("Language server connection closed intentionally");
+                return { action: CloseAction.DoNotRestart, handled: true };
+            }
 
+            if (nextIsUsingExternalLSP) {
                 boxlangOutputChannel.appendLine("External language server connection closed; automatic restart is disabled");
                 return { action: CloseAction.DoNotRestart };
             }
-        };
-    }
+
+            boxlangOutputChannel.appendLine("Language server connection closed unexpectedly; automatic restart is disabled");
+            return { action: CloseAction.DoNotRestart };
+        }
+    };
 
     nextClient = new LanguageClient(
         "boxlang",
@@ -625,11 +754,17 @@ async function startLanguageServerProcess() {
 
     await ensureBoxLangModules(lspBoxLangHome);
 
-    return startLSPProcess(
+    await cleanupStaleManagedLSPProcess();
+
+    const startedProcess = await startLSPProcess(
         lspBoxLangHome,
         lspModulePath,
         boxlangVersionPath
     );
+
+    await rememberManagedLSPProcess(startedProcess[0]);
+
+    return startedProcess;
 }
 
 /**

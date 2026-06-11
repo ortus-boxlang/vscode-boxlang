@@ -589,7 +589,7 @@ async function runSetup(context: ExtensionContext) {
     }, 3000);
 
     logExtensionLifecycle("runSetup() invoking LSP.startLSP()");
-    LSP.startLSP();
+    void LSP.startLSP("activation");
 
     try {
         setupServers(context);
