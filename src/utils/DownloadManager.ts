@@ -66,7 +66,7 @@ export class DownloadManager {
                     }
                 });
 
-                const totalSize = parseInt(response.headers["content-length"] || "0", 10);
+                const totalSize = parseInt(String(response.headers["content-length"] || "0"), 10);
                 let downloadedSize = 0;
 
                 // Ensure directory exists
@@ -105,7 +105,7 @@ export class DownloadManager {
                     if (fs.existsSync(destPath)) {
                         await fs.promises.unlink(destPath);
                     }
-                } catch {}
+                } catch { }
 
                 if (attempt < maxRetries) {
                     // Exponential backoff

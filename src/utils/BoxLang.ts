@@ -53,8 +53,8 @@ export async function startLSPProcess(
         }
 
         const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
-        const jvmArgs = (ExtensionConfig.boxlangLSPJVMArgs || "").length ? (ExtensionConfig.boxlangLSPJVMArgs || "").split( " " ) : [];
-        const lsp = trackedSpawn(javaExecutable, [ maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
+        const jvmArgs = (ExtensionConfig.boxlangLSPJVMArgs || "").length ? (ExtensionConfig.boxlangLSPJVMArgs || "").split(" ") : [];
+        const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
             env: {
                 BOXLANG_HOME: boxlangHome,
                 BOXLANG_MODULESDIRECTORY: lspModulePath,
@@ -65,6 +65,31 @@ export async function startLSPProcess(
         let stdout = '';
         let found = false;
         const MAX_STDOUT_BUFFER = 1024 * 100; // 100KB cap
+
+        // Persistent listeners that stay active for the lifetime of the LSP process.
+        // These ensure crash diagnostics are captured in the output channel.
+        const onPersistentStderr = (data) => {
+            boxlangOutputChannel.appendLine(`[LSP stdErr] ${data}`);
+        };
+        const onPersistentStdout = (data) => {
+            boxlangOutputChannel.appendLine(`[LSP stdOut] ${data}`);
+        };
+        const onPersistentExit = (code, signal) => {
+            boxlangOutputChannel.appendLine(
+                `[LSP crash] Process (pid ${lsp.pid}) exited with code=${code} signal=${signal ?? "none"}`
+            );
+            if (code !== 0 && code !== null) {
+                boxlangOutputChannel.appendLine(
+                    `[LSP crash] Non-zero exit code — check stderr above for JVM stacktrace or BoxLang error details.`
+                );
+            }
+        };
+        const onPersistentClose = () => {
+            boxlangOutputChannel.appendLine(`[LSP crash] Process (pid ${lsp.pid}) closed.`);
+        };
+        const onPersistentError = (err) => {
+            boxlangOutputChannel.appendLine(`[LSP crash] Process error: ${err.message}`);
+        };
 
         const onData = (data) => {
             stdout += data;
@@ -84,7 +109,16 @@ export async function startLSPProcess(
             }
 
             found = true;
-            cleanup();
+            cleanupStartupListeners();
+
+            // Keep stderr/stdout logging active for the lifetime of the LSP process
+            // so that crashes produce useful diagnostic output in the Output panel.
+            lsp.stderr.on("data", onPersistentStderr);
+            lsp.stdout.on("data", onPersistentStdout);
+            lsp.on("exit", onPersistentExit);
+            lsp.on("close", onPersistentClose);
+            lsp.on("error", onPersistentError);
+
             resolve([lsp, matches[1]]);
         };
 
@@ -94,33 +128,33 @@ export async function startLSPProcess(
 
         const onError = (err) => {
             if (!found) {
-                cleanup();
+                cleanupStartupListeners();
                 reject(new Error(`LSP process failed to start: ${err.message}`));
             }
         };
 
         const onExit = (code) => {
             if (!found) {
-                cleanup();
+                cleanupStartupListeners();
                 reject(new Error(`LSP process exited with code ${code} before opening port`));
             }
         };
 
         const onClose = () => {
             if (!found) {
-                cleanup();
+                cleanupStartupListeners();
                 reject(new Error("LSP process closed before opening port"));
             }
         };
 
         const timeoutId = setTimeout(() => {
             if (!found) {
-                cleanup();
+                cleanupStartupListeners();
                 reject(new Error(`LSP process failed to start within ${timeoutMs}ms`));
             }
         }, timeoutMs);
 
-        function cleanup() {
+        function cleanupStartupListeners() {
             clearTimeout(timeoutId);
             lsp.stdout.off("data", onData);
             lsp.stderr.off("data", onStderr);
@@ -190,7 +224,7 @@ function startDebuggerProcess(args: string[], env: NodeJS.ProcessEnv): Promise<s
                 return;
             }
 
-            const port = findPort( stdout );
+            const port = findPort(stdout);
 
             if (!port) {
                 return;
@@ -207,7 +241,7 @@ function startDebuggerProcess(args: string[], env: NodeJS.ProcessEnv): Promise<s
     });
 }
 
-function findPort(stdout: string){
+function findPort(stdout: string) {
     const match = /Listening on port: (\d+)/mi.exec(stdout);
 
     if (match) {
@@ -262,13 +296,13 @@ async function startConfiguredDebugger(boxlangHome: string): Promise<string> {
 export class BoxLangWithHome {
     boxlangHome: string;
 
-    constructor(boxlangHome: string | null ) {
+    constructor(boxlangHome: string | null) {
         this.boxlangHome = boxlangHome || BOXLANG_HOME;
     }
 
-    async shellExecution( args: string[] ): Promise<vscode.ShellExecution> {
+    async shellExecution(args: string[]): Promise<vscode.ShellExecution> {
         const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
-        return new vscode.ShellExecution(javaExecutable, ["ortus.boxlang.runtime.BoxRunner", ...args ], {
+        return new vscode.ShellExecution(javaExecutable, ["ortus.boxlang.runtime.BoxRunner", ...args], {
             env: {
                 ...process.env,
                 JAVA_HOME: ExtensionConfig.boxlangJavaHome,
@@ -278,10 +312,10 @@ export class BoxLangWithHome {
         });
     }
 
-    async featureAudit( args: string[] ): Promise<BoxLangResult> {
+    async featureAudit(args: string[]): Promise<BoxLangResult> {
         return new Promise(async (resolve, reject) => {
             const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
-            const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner", ...args ], {
+            const boxLang = trackedSpawn(javaExecutable, ["ortus.boxlang.runtime.BoxRunner", ...args], {
                 env: {
                     ...process.env,
                     JAVA_HOME: ExtensionConfig.boxlangJavaHome,
@@ -289,7 +323,7 @@ export class BoxLangWithHome {
                     CLASSPATH: (await getConfiguredBoxLangJarPath()) + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
                 }
             });
-             let stdout = '';
+            let stdout = '';
             let stderr = '';
 
             boxLang.stdout.on("data", data => stdout += data);
@@ -306,14 +340,14 @@ export class BoxLangWithHome {
         });
     }
 
-    async openREPL(){
-        let boxLangREPL = vscode.window.terminals.find( t => t.name == "BoxLang REPL" );
+    async openREPL() {
+        let boxLangREPL = vscode.window.terminals.find(t => t.name == "BoxLang REPL");
 
-        if( !boxLangREPL ){
+        if (!boxLangREPL) {
             boxLangREPL = vscode.window.createTerminal({
                 name: "BoxLang REPL",
                 shellPath: ExtensionConfig.boxlangJavaExecutable,
-                shellArgs: [ "ortus.boxlang.runtime.BoxRunner" ],
+                shellArgs: ["ortus.boxlang.runtime.BoxRunner"],
                 env: {
                     ...process.env,
                     JAVA_HOME: ExtensionConfig.boxlangJavaHome,
@@ -329,7 +363,7 @@ export class BoxLangWithHome {
     async getVersionOutput(): Promise<string> {
         const res = await runBoxLangWithHome(this.boxlangHome, "--version");
 
-        if( res.code != 0 ){
+        if (res.code != 0) {
             return res.stderr
         }
 
@@ -343,13 +377,13 @@ export class BoxLangWithHome {
     async startLSP(): Promise<Array<any>> {
         boxlangOutputChannel.appendLine("Starting the LSP");
 
-        try{
+        try {
 
-            fs.cpSync( LSP_MODULE_DIR, path.join( this.boxlangHome, "modules" ), { force: true, recursive: true } );
+            fs.cpSync(LSP_MODULE_DIR, path.join(this.boxlangHome, "modules"), { force: true, recursive: true });
         }
-        catch( e ){
-            boxlangOutputChannel.appendLine("Error copying LSP module" );
-            boxlangOutputChannel.appendLine( e );
+        catch (e) {
+            boxlangOutputChannel.appendLine("Error copying LSP module");
+            boxlangOutputChannel.appendLine(e);
         }
 
         return new Promise((resolve, reject) => {
@@ -361,7 +395,7 @@ export class BoxLangWithHome {
             }
 
             const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
-            const jvmArgs = (ExtensionConfig.boxlangLSPJVMArgs || "").length ? (ExtensionConfig.boxlangLSPJVMArgs || "").split( " " ) : [];
+            const jvmArgs = (ExtensionConfig.boxlangLSPJVMArgs || "").length ? (ExtensionConfig.boxlangLSPJVMArgs || "").split(" ") : [];
             const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
                 env: {
                     ...process.env,
@@ -393,7 +427,7 @@ export class BoxLangWithHome {
             };
 
             const onClose = () => {
-                boxlangOutputChannel.appendLine( "BoxLang language server closed" );
+                boxlangOutputChannel.appendLine("BoxLang language server closed");
                 if (!found) {
                     cleanup();
                     reject(new Error("BoxLang language server closed before opening port"));
@@ -401,7 +435,7 @@ export class BoxLangWithHome {
             };
 
             const onExit = (code) => {
-                boxlangOutputChannel.appendLine( "BoxLang language server exited with code: " + code );
+                boxlangOutputChannel.appendLine("BoxLang language server exited with code: " + code);
                 if (!found) {
                     cleanup();
                     reject(new Error(`BoxLang language server exited with code ${code} before opening port`));
@@ -604,7 +638,7 @@ export class BoxLang {
     static async getVersionOutput(): Promise<string> {
         const res = await runBoxLangWithHome(BOXLANG_HOME, "--version");
 
-        if( res.code != 0 ){
+        if (res.code != 0) {
             return res.stderr
         }
 
@@ -708,8 +742,8 @@ async function getMiniServerCLIArgs(server: BoxServerConfig, debugPort: number):
         cliArgs.push("--configPath", `${server.configFile}`);
     }
 
-    if( server.rewrites != null ){
-        cliArgs.push("--rewrites", server.rewrites );
+    if (server.rewrites != null) {
+        cliArgs.push("--rewrites", server.rewrites);
     }
 
     return cliArgs;
@@ -732,7 +766,7 @@ async function tryReadJarManifest(jarPath: string): Promise<string | null> {
                 resolved = true;
                 try {
                     zipfile.close();
-                } catch {}
+                } catch { }
                 resolve(value);
             };
 

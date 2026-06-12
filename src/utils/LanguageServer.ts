@@ -567,12 +567,57 @@ function startLSPNow(startRequestId: number, reason: string) {
                 return { action: CloseAction.DoNotRestart, handled: true };
             }
 
-            if (nextIsUsingExternalLSP) {
-                boxlangOutputChannel.appendLine("External language server connection closed; automatic restart is disabled");
-                return { action: CloseAction.DoNotRestart };
+            // Gather crash context from the exited process (if available)
+            const proc = nextIsUsingExternalLSP ? undefined : lspProcess;
+            const exitCode = proc?.exitCode;
+            const signalCode = proc?.signalCode;
+
+            const details = [
+                `[BoxLang LSP] Connection closed unexpectedly.`,
+                exitCode !== null && exitCode !== undefined ? `Exit code: ${exitCode}` : null,
+                signalCode ? `Signal: ${signalCode}` : null,
+            ].filter(Boolean).join('  ');
+
+            // Map common JVM signals to human-readable messages
+            let signalHint = '';
+            if (signalCode) {
+                const hints: Record<string, string> = {
+                    SIGSEGV: 'JVM segmentation fault (native memory corruption)',
+                    SIGKILL: 'Process killed by OS (possibly OOM or system resource limit)',
+                    SIGABRT: 'JVM runtime error or assertion failure (check hs_err_pid*.log)',
+                    SIGTERM: 'Process was terminated externally',
+                    SIGPIPE: 'Broken pipe — LSP socket connection lost',
+                    SIGBUS: 'JVM bus error (memory alignment/hardware issue)',
+                };
+                if (hints[signalCode]) {
+                    signalHint = `\n\nLikely cause: ${hints[signalCode]}`;
+                }
             }
 
-            boxlangOutputChannel.appendLine("Language server connection closed unexpectedly; automatic restart is disabled");
+            const exitCodeMsg = (exitCode !== null && exitCode !== undefined && exitCode !== 0)
+                ? `\n\nExit code ${exitCode} usually indicates the BoxLang runtime encountered a fatal error.`
+                : '';
+
+            boxlangOutputChannel.appendLine(details);
+            boxlangOutputChannel.appendLine(
+                `The LSP process has exited. Check the BoxLang output channel above for [LSP stdErr]/[LSP crash] messages,`
+                + ` and look for JVM crash logs (hs_err_pid*.log) in your workspace or home directory.`
+            );
+
+            if (!nextIsUsingExternalLSP) {
+                vscode.window.showErrorMessage(
+                    `BoxLang Language Server crashed unexpectedly.${exitCodeMsg}${signalHint}\n\nCheck the Output panel for details.`,
+                    'Restart LSP',
+                    'Show Output',
+                ).then((selection) => {
+                    if (selection === 'Restart LSP') {
+                        requestRestart('user requested after crash');
+                    } else if (selection === 'Show Output') {
+                        boxlangOutputChannel.show(true);
+                    }
+                });
+            }
+
             return { action: CloseAction.DoNotRestart };
         }
     };
@@ -694,6 +739,28 @@ export function getLSPServerConfig(onExternalSocket?: (socket: net.Socket) => vo
         const [proc, port] = await startLanguageServerProcess();
         lspProcess = proc;
         const socketId = ++lspSocketSequence;
+
+        // Attach persistent crash monitoring to the LSP process
+        const pid = proc.pid;
+        proc.once('exit', (code, signal) => {
+            const exitInfo = code !== null ? `exit code ${code}` : `signal ${signal}`;
+            boxlangOutputChannel.appendLine(
+                `[LSP Crash Monitor] Process (pid ${pid}) exited unexpectedly: ${exitInfo}. ` +
+                `Check output channel above for [LSP stdErr], [LSP crash], or JVM stacktrace messages.`
+            );
+            lspProcess = null;
+        });
+        proc.once('close', () => {
+            boxlangOutputChannel.appendLine(
+                `[LSP Crash Monitor] Process (pid ${pid}) closed. If this was unexpected, ` +
+                `the language server has crashed and needs to be restarted.`
+            );
+        });
+        proc.on('error', (err) => {
+            boxlangOutputChannel.appendLine(
+                `[LSP Crash Monitor] Process (pid ${pid}) error: ${err.message}`
+            );
+        });
 
         logLanguageServer(`Creating managed LSP socket connection socketId=${socketId} pid=${proc.pid} host=127.0.0.1 port=${port}`);
 

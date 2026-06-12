@@ -6,6 +6,7 @@ import * as tar from "tar";
 import vscode, { ExtensionContext, ProgressLocation } from "vscode";
 import { ExtensionConfig } from "../utils/Configuration";
 import * as LSP from "../utils/LanguageServer";
+import { findJavaHome } from "../utils/JavaHomeFinder";
 
 
 // pulled from https://api.adoptium.net/v3/types/operating_systems
@@ -68,9 +69,12 @@ export async function downloadJava(context: ExtensionContext) {
 
                 const extractedPath = await extractArchive(javaInstallDir, filePath);
 
-                const settingPath = os == "windows"
-                    ? path.join(extractedPath)
-                    : path.join(extractedPath, "Contents", "Home");
+                // Find the actual Java home by locating bin/java in the extracted archive
+                const settingPath = await findJavaHome(extractedPath);
+
+                if (!settingPath) {
+                    throw new Error(`Could not find bin/java executable in extracted archive at ${extractedPath}`);
+                }
 
                 ExtensionConfig.boxlangJavaHome = settingPath;
             }

@@ -22,7 +22,7 @@ async function run(): Promise<void> {
 
     try {
         // Find test files - only include our utility tests
-        const testPattern = '**/+(ForgeBoxClient|DownloadManager|ModuleManager|Configuration).test.js';
+        const testPattern = '**/+(ForgeBoxClient|DownloadManager|ModuleManager|Configuration|JavaHomeFinder).test.js';
         const files = await glob(testPattern, {
             cwd: path.join(testsRoot, 'out', 'test', 'suite'),
             absolute: true
