@@ -172,6 +172,7 @@ suite('LanguageServer Test Suite', () => {
     async function setupManagedLspEnvironment() {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-language-server-'));
         const globalStoragePath = path.join(tempDir, 'globalStorage');
+        const workspaceStoragePath = path.join(tempDir, 'workspaceStorage');
         const versionSpec = 'bx-lsp@1.9.0+8';
         const lspModuleDir = path.join(globalStoragePath, 'lspVersions', versionSpec, 'bx-lsp');
         const lspHome = path.join(tempDir, 'lsp-home');
@@ -180,7 +181,8 @@ suite('LanguageServer Test Suite', () => {
         await fs.writeFile(path.join(lspModuleDir, 'box.json'), JSON.stringify({ boxlang: { minimumVersion: '1.13.0-snapshot' } }));
 
         mockExtensionContext = {
-            globalStorageUri: { fsPath: globalStoragePath }
+            globalStorageUri: { fsPath: globalStoragePath },
+            storageUri: { fsPath: workspaceStoragePath }
         };
 
         lspServer = net.createServer((socket) => {
@@ -195,6 +197,8 @@ suite('LanguageServer Test Suite', () => {
         sinon.stub(ExtensionConfig, 'boxlangLSPBoxLangHome').get(() => lspHome);
         sinon.stub(ExtensionConfig, 'boxLangLSPBoxLangVersion').get(() => '1.13.0-snapshot');
         sinon.stub(ExtensionConfig, 'boxlangLSPModules').get(() => '');
+
+        return { globalStoragePath, workspaceStoragePath };
     }
 
     setup(() => {
@@ -250,6 +254,23 @@ suite('LanguageServer Test Suite', () => {
         await assert.rejects(
             serverOptions(),
             (err: any) => err.name === 'InvalidLSPInstallationError' && /boxlang\.lsp\.lspVersion is not configured/.test(err.message)
+        );
+    });
+
+    test('startLSP should not terminate a managed LSP owned by another workspace', async () => {
+        const { globalStoragePath, workspaceStoragePath } = await setupManagedLspEnvironment();
+        await fs.mkdir(globalStoragePath, { recursive: true });
+        await fs.writeFile(path.join(globalStoragePath, 'managed-lsp.pid'), '4242');
+        processKillStub.withArgs(4242, 0).returns(true);
+
+        await startLSP();
+        await MockLanguageClient.instances[0].startPromise;
+
+        sinon.assert.neverCalledWith(processKillStub, 4242, 0);
+        sinon.assert.neverCalledWith(processKillStub, 4242);
+        assert.strictEqual(
+            await fs.readFile(path.join(workspaceStoragePath, 'managed-lsp.pid'), 'utf8'),
+            String(fakeLspProcess.pid)
         );
     });
 

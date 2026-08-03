@@ -4,6 +4,7 @@
 
 - Add BoxLang AGENTS.md and skill definitions for AI-assisted development
 - Bump internal default versions (BoxLang, LSP)
+- BLIDE-297 fix LSP crashes
 
 ## [1.19.9] - 2026-05-29
 

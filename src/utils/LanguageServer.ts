@@ -359,7 +359,7 @@ function formatError(error: unknown): string {
 }
 
 function getManagedLSPPidFilePath() {
-    return path.join(getExtensionContext().globalStorageUri.fsPath, MANAGED_LSP_PID_FILE);
+    return path.join(getExtensionContext().storageUri.fsPath, MANAGED_LSP_PID_FILE);
 }
 
 async function rememberManagedLSPProcess(process: ChildProcessWithoutNullStreams) {
