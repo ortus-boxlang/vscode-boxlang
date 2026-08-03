@@ -1511,8 +1511,8 @@
         "@vscode/chat-extension-utils": "^0.0.0-alpha.5",
         "alpinejs": "^3.15.1",
         "async_hooks": "^1.0.0",
-        "aws-sdk": "^2.1692.0",
-        "axios": "^1.7.9",
+        "aws-sdk": "^2.1693.0",
+        "axios": "^1.15.2",
         "browserify": "^17.0.0",
         "browserify-fs": "^1.0.0",
         "buffer": "^6.0.3",
@@ -1525,16 +1525,16 @@
         "net-browserify": "^0.2.4",
         "portfinder": "^1.0.32",
         "request": "~2.88.2",
-        "semver": "~7.5.3",
-        "tar": "^7.4.3",
+        "semver": "~7.8.1",
+        "tar": "^7.5.11",
         "tls-browserify": "^0.2.2",
         "trie-prefix-tree": "1.5.1",
-        "vite": "^7.1.12",
+        "vite": "^7.3.2",
         "vscode-css-languageservice": "~6.2.12",
         "vscode-debugadapter": "^1.51.0",
         "vscode-html-languageservice": "2.1.11-next.11",
         "vscode-languageclient": "^9.0.1",
-        "yauzl": "^3.2.0"
+        "yauzl": "^3.2.1"
     },
     "devDependencies": {
         "@types/findup-sync": "~4.0.2",
@@ -1543,7 +1543,7 @@
         "@types/mocha": "^10.0.10",
         "@types/node": "^20.19.0",
         "@types/request": "~2.48.7",
-        "@types/semver": "~7.3.9",
+        "@types/semver": "~7.7.1",
         "@types/sinon": "^17.0.3",
         "@types/trie-prefix-tree": "~1.5.0",
         "@types/vscode": "^1.100.0",
@@ -1556,7 +1556,7 @@
         "eslint-plugin-import": "^2.29.0",
         "eslint-plugin-n": "^15.7.0",
         "eslint-plugin-promise": "^6.1.1",
-        "glob": "^11.0.3",
+        "glob": "^11.1.0",
         "html-webpack-plugin": "^5.6.4",
         "mocha": "^11.7.2",
         "process": "^0.11.10",
@@ -1565,7 +1565,7 @@
         "ts-loader": "^9.2.2",
         "typescript": "^5.3.3",
         "vscode": "^1.1.37",
-        "webpack": "^5.38.1",
+        "webpack": "^5.107.2",
         "webpack-cli": "^5.1.4"
     }
 }
