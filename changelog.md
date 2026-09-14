@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-291 Fix comments sometimes reflecting the wrong syntax in CFCs
+
 ## [1.22.2] - 2026-09-14
 
 ## [1.22.1] - 2026-09-14
