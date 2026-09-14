@@ -323,8 +323,8 @@ export class DownloadManager {
             const keyMatches = response.data.matchAll(/<Key>([^<]+)<\/Key>/g);
             const dateMatches = response.data.matchAll(/<LastModified>([^<]+)<\/LastModified>/g);
 
-            const keys = Array.from(keyMatches).map(m => m[1]);
-            const dates = Array.from(dateMatches).map(m => m[1]);
+            const keys = Array.from(keyMatches).map((m: any) => m[1]);
+            const dates = Array.from(dateMatches).map((m: any) => m[1]);
 
             for (let i = 0; i < keys.length; i++) {
                 const key = keys[i];
