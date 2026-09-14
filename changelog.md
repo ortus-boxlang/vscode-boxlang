@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-09-14
+
 - Add BoxLang AGENTS.md and skill definitions for AI-assisted development
 - Bump internal default versions (BoxLang, LSP)
 - BLIDE-297 fix LSP crashes
@@ -321,7 +323,8 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.20.1...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.22.0...HEAD
+[1.22.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.20.1...v1.22.0
 [1.20.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.20.0...v1.20.1
 [1.20.0]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.12...v1.20.0
 [1.19.12]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.19.11...v1.19.12
