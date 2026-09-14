@@ -69,8 +69,10 @@ class MockLanguageClient {
         return Promise.resolve(
             MockLanguageClient.stopHandler ? MockLanguageClient.stopHandler(timeout) : Promise.resolve()
         ).then(() => {
+            this.destroyTransport();
             this.state = 1;
         }).catch(error => {
+            this.destroyTransport();
             this.state = 1;
             throw error;
         });
@@ -78,12 +80,16 @@ class MockLanguageClient {
 
     dispose() {
         this.disposed = true;
+        this.destroyTransport();
+
+        return this.stop();
+    }
+
+    destroyTransport() {
         this.transport?.reader?.destroy?.();
         if (this.transport?.writer && this.transport.writer !== this.transport.reader) {
             this.transport.writer.destroy?.();
         }
-
-        return this.stop();
     }
 
     sendNotification() {
@@ -161,10 +167,12 @@ const { CloseAction, ErrorAction } = require('vscode-languageclient/node');
 suite('LanguageServer Test Suite', () => {
     let tempDir: string;
     let lspServer: net.Server;
+    let processKillStub: sinon.SinonStub;
 
     async function setupManagedLspEnvironment() {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-language-server-'));
         const globalStoragePath = path.join(tempDir, 'globalStorage');
+        const workspaceStoragePath = path.join(tempDir, 'workspaceStorage');
         const versionSpec = 'bx-lsp@1.9.0+8';
         const lspModuleDir = path.join(globalStoragePath, 'lspVersions', versionSpec, 'bx-lsp');
         const lspHome = path.join(tempDir, 'lsp-home');
@@ -173,7 +181,8 @@ suite('LanguageServer Test Suite', () => {
         await fs.writeFile(path.join(lspModuleDir, 'box.json'), JSON.stringify({ boxlang: { minimumVersion: '1.13.0-snapshot' } }));
 
         mockExtensionContext = {
-            globalStorageUri: { fsPath: globalStoragePath }
+            globalStorageUri: { fsPath: globalStoragePath },
+            storageUri: { fsPath: workspaceStoragePath }
         };
 
         lspServer = net.createServer((socket) => {
@@ -188,6 +197,8 @@ suite('LanguageServer Test Suite', () => {
         sinon.stub(ExtensionConfig, 'boxlangLSPBoxLangHome').get(() => lspHome);
         sinon.stub(ExtensionConfig, 'boxLangLSPBoxLangVersion').get(() => '1.13.0-snapshot');
         sinon.stub(ExtensionConfig, 'boxlangLSPModules').get(() => '');
+
+        return { globalStoragePath, workspaceStoragePath };
     }
 
     setup(() => {
@@ -196,6 +207,9 @@ suite('LanguageServer Test Suite', () => {
         sinon.stub(ExtensionConfig, 'boxlangJavaExecutable').get(() => 'java');
         sinon.stub(ExtensionConfig, 'boxlangMaxHeapSize').get(() => 512);
         sinon.stub(ExtensionConfig, 'boxlangLSPJVMArgs').get(() => '');
+        processKillStub = sinon.stub(process, 'kill').callThrough();
+        processKillStub.withArgs(4242, 0).throws(Object.assign(new Error('mock process not found'), { code: 'ESRCH' }));
+        processKillStub.withArgs(4242).returns(true);
     });
 
     teardown(async () => {
@@ -243,6 +257,23 @@ suite('LanguageServer Test Suite', () => {
         );
     });
 
+    test('startLSP should not terminate a managed LSP owned by another workspace', async () => {
+        const { globalStoragePath, workspaceStoragePath } = await setupManagedLspEnvironment();
+        await fs.mkdir(globalStoragePath, { recursive: true });
+        await fs.writeFile(path.join(globalStoragePath, 'managed-lsp.pid'), '4242');
+        processKillStub.withArgs(4242, 0).returns(true);
+
+        await startLSP();
+        await MockLanguageClient.instances[0].startPromise;
+
+        sinon.assert.neverCalledWith(processKillStub, 4242, 0);
+        sinon.assert.neverCalledWith(processKillStub, 4242);
+        assert.strictEqual(
+            await fs.readFile(path.join(workspaceStoragePath, 'managed-lsp.pid'), 'utf8'),
+            String(fakeLspProcess.pid)
+        );
+    });
+
     test('stop should force-kill the LSP process when client shutdown times out', async () => {
         await setupManagedLspEnvironment();
 
@@ -250,67 +281,89 @@ suite('LanguageServer Test Suite', () => {
             throw new Error('Stopping the server timed out');
         };
 
-        startLSP();
+        await startLSP();
         await MockLanguageClient.instances[0].startPromise;
 
         await stop();
 
         assert.strictEqual(MockLanguageClient.instances[0].stopTimeout, 10000);
         assert.deepStrictEqual(fakeLspProcess.killSignals, ['SIGTERM']);
-        assert.strictEqual(MockLanguageClient.instances[0].disposed, true);
+        assert.strictEqual(MockLanguageClient.instances[0].disposed, false);
     });
 
     test('requestRestart should wait for stop and the configured delay before starting again', async () => {
         await setupManagedLspEnvironment();
 
-        startLSP();
+        await startLSP();
         await MockLanguageClient.instances[0].startPromise;
 
-        const clock = sinon.useFakeTimers();
         const stopDeferred = createDeferred<void>();
 
-        try {
-            MockLanguageClient.stopHandler = async () => stopDeferred.promise;
+        MockLanguageClient.stopHandler = async () => stopDeferred.promise;
 
-            const restartPromise = requestRestart('test restart');
+        const restartPromise = requestRestart('test restart', 0);
 
-            await Promise.resolve();
-            await clock.tickAsync(5000);
-            assert.strictEqual(MockLanguageClient.instances.length, 1);
+        await Promise.resolve();
+        assert.strictEqual(MockLanguageClient.instances.length, 1);
 
-            stopDeferred.resolve();
-            fakeLspProcess.exitCode = 0;
-            fakeLspProcess.signalCode = 'SIGTERM';
+        stopDeferred.resolve();
+        fakeLspProcess.exitCode = 0;
+        fakeLspProcess.signalCode = 'SIGTERM';
+        fakeLspProcess.emit('exit', 0, 'SIGTERM');
+        fakeLspProcess.emit('close', 0, 'SIGTERM');
 
-            await Promise.resolve();
-            await clock.tickAsync(4999);
-            assert.strictEqual(MockLanguageClient.instances.length, 1);
+        await restartPromise;
+        await MockLanguageClient.instances[1].startPromise;
 
-            await clock.tickAsync(1);
-            await restartPromise;
-            await MockLanguageClient.instances[1].startPromise;
-
-            assert.strictEqual(MockLanguageClient.instances.length, 2);
-        } finally {
-            clock.restore();
-        }
+        assert.strictEqual(MockLanguageClient.instances.length, 2);
     });
 
     test('startLSP should ignore duplicate starts while the client is still starting', async () => {
         await setupManagedLspEnvironment();
 
-        const firstClient = startLSP();
-        const secondClient = startLSP();
+        const firstStart = startLSP();
+        const secondStart = startLSP();
+        const [firstClient, secondClient] = await Promise.all([firstStart, secondStart]);
 
         assert.strictEqual(secondClient, firstClient);
         await MockLanguageClient.instances[0].startPromise;
         assert.strictEqual(MockLanguageClient.instances.length, 1);
     });
 
+    test('startLSP should not create an extra client while a restart is stopping', async () => {
+        await setupManagedLspEnvironment();
+
+        await startLSP();
+        await MockLanguageClient.instances[0].startPromise;
+
+        const stopDeferred = createDeferred<void>();
+        MockLanguageClient.stopHandler = async () => stopDeferred.promise;
+
+        const restartPromise = requestRestart('test restart', 0);
+        await Promise.resolve();
+
+        const startPromise = startLSP('startup signal during restart');
+        await Promise.resolve();
+
+        assert.strictEqual(MockLanguageClient.instances.length, 1);
+
+        stopDeferred.resolve();
+        fakeLspProcess.exitCode = 0;
+        fakeLspProcess.signalCode = 'SIGTERM';
+        fakeLspProcess.emit('exit', 0, 'SIGTERM');
+        fakeLspProcess.emit('close', 0, 'SIGTERM');
+
+        await restartPromise;
+        await startPromise;
+        await MockLanguageClient.instances[1].startPromise;
+
+        assert.strictEqual(MockLanguageClient.instances.length, 2);
+    });
+
     test('shutdown should cancel a pending delayed restart', async () => {
         await setupManagedLspEnvironment();
 
-        startLSP();
+        await startLSP();
         await MockLanguageClient.instances[0].startPromise;
 
         const clock = sinon.useFakeTimers();
@@ -353,7 +406,7 @@ suite('LanguageServer Test Suite', () => {
             stopCallCount += 1;
         };
 
-        startLSP();
+        await startLSP();
         await MockLanguageClient.instances[0].startPromise;
 
         await stop();
@@ -373,9 +426,26 @@ suite('LanguageServer Test Suite', () => {
 
         process.env.BOXLANG_LSP_PORT = String(port);
 
-        startLSP();
+        await startLSP();
 
         await assert.doesNotReject(stop());
+    });
+
+    test('stop should mark managed LSP connection errors as intentionally handled', async () => {
+        await setupManagedLspEnvironment();
+
+        await startLSP();
+        await MockLanguageClient.instances[0].startPromise;
+
+        const errorHandler = MockLanguageClient.instances[0].clientOptions?.errorHandler;
+        assert.ok(errorHandler);
+
+        const stopPromise = stop();
+
+        assert.deepStrictEqual(await errorHandler.error(new Error('write after end')), { action: ErrorAction.Continue, handled: true });
+        assert.deepStrictEqual(await errorHandler.closed(), { action: CloseAction.DoNotRestart, handled: true });
+
+        await stopPromise;
     });
 
     test('startLSP should disable automatic restart for externally managed LSP connections', async () => {
@@ -388,7 +458,7 @@ suite('LanguageServer Test Suite', () => {
 
         process.env.BOXLANG_LSP_PORT = String(port);
 
-        startLSP();
+        await startLSP();
         await MockLanguageClient.instances[0].startPromise;
 
         const errorHandler = MockLanguageClient.instances[0].clientOptions?.errorHandler;

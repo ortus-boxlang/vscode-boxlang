@@ -22,14 +22,14 @@ function createMockProcess() {
     return mockProcess;
 }
 
-Module.prototype.require = function(id: string) {
+Module.prototype.require = function (id: string) {
     if (id.endsWith('/ProcessTracker') || id === './ProcessTracker') {
         return {
             trackedSpawn: (...args: any[]) => {
                 const proc = createMockProcess();
                 return proc;
             },
-            cleanupTrackedProcesses: () => {}
+            cleanupTrackedProcesses: () => { }
         };
     }
     return originalRequire.apply(this, arguments);
@@ -120,11 +120,15 @@ suite('BoxLang LSP Process Test Suite', () => {
         }, 10);
 
         const [proc] = await promise;
-        assert.strictEqual(proc.stdout.listenerCount('data'), 0, 'stdout data listener should be removed');
-        assert.strictEqual(proc.stderr.listenerCount('data'), 0, 'stderr data listener should be removed');
-        assert.strictEqual(proc.listenerCount('error'), 0, 'error listener should be removed');
-        assert.strictEqual(proc.listenerCount('exit'), 0, 'exit listener should be removed');
-        assert.strictEqual(proc.listenerCount('close'), 0, 'close listener should be removed');
+        // After resolve, the persistent crash-monitoring listeners remain active so
+        // that unexpected LSP crashes produce diagnostic output.  There must be
+        // exactly 1 listener per event (the persistent one); the startup listener
+        // must have been removed.
+        assert.strictEqual(proc.stdout.listenerCount('data'), 1, 'stdout should have 1 persistent data listener');
+        assert.strictEqual(proc.stderr.listenerCount('data'), 1, 'stderr should have 1 persistent data listener');
+        assert.strictEqual(proc.listenerCount('error'), 1, 'should have 1 persistent error listener');
+        assert.strictEqual(proc.listenerCount('exit'), 1, 'should have 1 persistent exit listener');
+        assert.strictEqual(proc.listenerCount('close'), 1, 'should have 1 persistent close listener');
     });
 
     test('should clean up event listeners after rejecting on exit', async () => {

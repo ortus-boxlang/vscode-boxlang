@@ -66,14 +66,7 @@ export class DownloadManager {
                     }
                 });
 
-                const contentLengthHeader = response.headers["content-length"];
-                const totalSize = Array.isArray(contentLengthHeader)
-                    ? Number.parseInt(contentLengthHeader[0] || "0", 10)
-                    : typeof contentLengthHeader === "string"
-                        ? Number.parseInt(contentLengthHeader, 10)
-                        : typeof contentLengthHeader === "number"
-                            ? contentLengthHeader
-                            : 0;
+                const totalSize = parseInt(String(response.headers["content-length"] || "0"), 10);
                 let downloadedSize = 0;
 
                 // Ensure directory exists
@@ -112,7 +105,7 @@ export class DownloadManager {
                     if (fs.existsSync(destPath)) {
                         await fs.promises.unlink(destPath);
                     }
-                } catch {}
+                } catch { }
 
                 if (attempt < maxRetries) {
                     // Exponential backoff

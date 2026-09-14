@@ -1,4 +1,3 @@
-
 import { spawn } from "child_process";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
 import { ExtensionConfig } from "./Configuration";
@@ -6,6 +5,7 @@ import axios from "axios";
 import extract from "extract-zip";
 import fs from "fs";
 import fsp from "fs/promises";
+import { findJavaHome } from "./JavaHomeFinder";
 import path from "path";
 import * as tar from "tar";
 import vscode, { ExtensionContext, ProgressLocation } from "vscode";
@@ -41,7 +41,7 @@ const archMap = {
     "x64": "x64"
 };
 
-export function getJavaInstallDir(){
+export function getJavaInstallDir() {
     return JAVA_INSTALL_DIR;
 }
 
@@ -68,7 +68,7 @@ export function detectJavaVerison(refresh = false) {
         boxLang.on("exit", code => {
             const matches = /(\d+)\.\d+\.\d+/g.exec(stdout);
 
-            if ( !matches || !matches.length) {
+            if (!matches || !matches.length) {
                 boxlangOutputChannel.appendLine("No java executable was found on the path");
                 javaIsOkay = false;
                 resolve(javaIsOkay);
@@ -88,16 +88,16 @@ export function detectJavaVerison(refresh = false) {
     });
 }
 
-export async function setupLocalJavaInstall( context: ExtensionContext ){
+export async function setupLocalJavaInstall(context: ExtensionContext) {
     JAVA_INSTALL_DIR = path.join(context.globalStorageUri.fsPath, "java_install");
 
     // Create the java install directory if it doesn't exist
-    try{
+    try {
         await fsp.access(JAVA_INSTALL_DIR);
         boxlangOutputChannel.appendLine("Java install directory already exists - skipping download");
         return;
     }
-    catch( e ){
+    catch (e) {
         boxlangOutputChannel.appendLine("Java install directory does not exist - downloading java");
         await fsp.mkdir(JAVA_INSTALL_DIR);
     }
@@ -108,16 +108,19 @@ export async function setupLocalJavaInstall( context: ExtensionContext ){
 
     const extractedPath = await extractArchive(JAVA_INSTALL_DIR, filePath);
 
-    const settingPath = osMap[process.platform] == "windows"
-        ? path.join(extractedPath)
-        : path.join(extractedPath, "Contents", "Home");
+    // Use findJavaHome to scan the extracted archive for the correct Java home
+    const settingPath = await findJavaHome(extractedPath);
+    if (!settingPath) {
+        boxlangOutputChannel.appendLine(`ERROR: Could not find bin/java executable in extracted archive at ${extractedPath}`);
+        return;
+    }
 
     // copy contents of setting path to JAVA_INSTALL_DIR
     const files = fs.readdirSync(settingPath);
-    for( const file of files ){
+    for (const file of files) {
         const src = path.join(settingPath, file);
         const dest = path.join(JAVA_INSTALL_DIR, file);
-        await fsp.cp(src, dest, { recursive: true } );
+        await fsp.cp(src, dest, { recursive: true });
     }
 
     //clean up extractedPath
@@ -177,7 +180,7 @@ export async function downloadJava(context: ExtensionContext) {
 
 }
 
-async function getSpecificDownloadLink(){
+async function getSpecificDownloadLink() {
     return getDownloadLink(osMap[process.platform], archMap[process.arch]);
 }
 
