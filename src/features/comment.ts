@@ -1,7 +1,6 @@
 import { CharacterPair, LanguageConfiguration, Position, TextDocument, TextEditor, commands, languages, window } from "vscode";
-import { BL_LANGUAGE_ID, CFML_LANGUAGE_ID } from "../main";
+import { isScriptComponent } from "../entities/component";
 import { isCfcFile, isColdFusionFile, isInCfScript, isScriptFile, isTemplateFile } from "../utils/contextUtil";
-import { getComponent, hasComponent } from "./cachedEntities";
 
 export enum CommentType {
     Line,
@@ -34,7 +33,7 @@ export const commentRules: CommentRules = {
  */
 function isTagComment(document: TextDocument, startPosition: Position): boolean {
     if (isColdFusionFile(document.uri)) {
-        const docIsScript: boolean = (isCfcFile(document) && hasComponent(document.uri) && getComponent(document.uri).isScript);
+        const docIsScript: boolean = (isCfcFile(document) && isScriptComponent(document));
 
         return !docIsScript && !isInCfScript(document, startPosition);
     }
@@ -88,9 +87,11 @@ export function toggleComment(commentType: CommentType): (editor: TextEditor) =>
                 }
             };
         }
-        languages.setLanguageConfiguration(CFML_LANGUAGE_ID, languageConfig);
-        languages.setLanguageConfiguration(BL_LANGUAGE_ID, languageConfig);
-        const command: string = getCommentCommand(commentType);
-        commands.executeCommand(command);
+        const configuration = languages.setLanguageConfiguration(editor.document.languageId, languageConfig);
+        try {
+            await commands.executeCommand(getCommentCommand(commentType));
+        } finally {
+            configuration.dispose();
+        }
     };
 }
