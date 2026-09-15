@@ -188,6 +188,7 @@ async function runBoxLangWithHome(boxlangHome, ...args: string[]): Promise<BoxLa
         // TODO: throw error
         boxLang.stderr.on("data", data => stderr += data);
 
+        boxLang.on("error", reject);
         boxLang.on("exit", code => {
             resolve({
                 code,
@@ -368,6 +369,16 @@ export class BoxLangWithHome {
         }
 
         return res.stdout;
+    }
+
+    async supportsCheck(): Promise<boolean | undefined> {
+        const result = await runBoxLangWithHome(this.boxlangHome, "--help");
+
+        if (result.code !== 0) {
+            return undefined;
+        }
+
+        return /^\s*check\s+.*syntax errors/im.test(result.stdout);
     }
 
     async startDebugger(): Promise<string> {

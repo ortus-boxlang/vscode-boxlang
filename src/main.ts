@@ -45,7 +45,7 @@ import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTr
 import { DumpManager } from "./debug/DumpManager";
 import { registerStatusBar } from "./features/statusBar";
 import { migrateSettings } from "./settingMigration";
-import { BoxLangTaskProvider } from "./tasks/BoxLangTaskProvider";
+import { BoxLangTaskProvider, runBoxLangCheck } from "./tasks/BoxLangTaskProvider";
 import { setupVSCodeBoxLangHome } from "./utils/BoxLang";
 import { setupCommandBox } from "./utils/CommandBox";
 import { setupConfiguration } from "./utils/Configuration";
@@ -335,6 +335,8 @@ export function activate(context: ExtensionContext): void {
     context.subscriptions.push(languages.registerColorProvider(DOCUMENT_SELECTOR, new CFMLDocumentColorProvider()));
 
     context.subscriptions.push(workspace.onDidSaveTextDocument((document: TextDocument) => {
+        void runBoxLangCheck(document);
+
         const documentUri = document.uri;
 
         if (shouldExcludeDocument(documentUri)) {

@@ -42,6 +42,23 @@ class MockRange {
     constructor(startLine: number, startCharacter: number, endLine: number, endCharacter: number) {}
 }
 
+class MockTask {
+    definition: any;
+    scope: any;
+    name: string;
+    source: string;
+    execution: any;
+    presentationOptions: any = {};
+
+    constructor(definition: any, scope: any, name: string, source: string, execution: any) {
+        this.definition = definition;
+        this.scope = scope;
+        this.name = name;
+        this.source = source;
+        this.execution = execution;
+    }
+}
+
 // Create a mock vscode module
 const mockVSCode = {
     ConfigurationTarget: {
@@ -65,6 +82,19 @@ const mockVSCode = {
     CompletionItem: MockCompletionItem,
     Position: MockPosition,
     Range: MockRange,
+    Task: MockTask,
+    TaskScope: {
+        Workspace: "workspace"
+    },
+    TaskRevealKind: {
+        Always: 1
+    },
+    TaskPanelKind: {
+        Dedicated: 2
+    },
+    tasks: {
+        executeTask: async (task: any) => ({ task, terminate: () => {} })
+    },
     Uri: {
         file: (path: string) => ({ fsPath: path, path }),
         parse: (uri: string) => ({ fsPath: uri, path: uri })

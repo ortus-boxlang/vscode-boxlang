@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-321 Add `boxlang check`
+
 ## [1.22.3] - 2026-09-14
 
 - BLIDE-291 Fix comments sometimes reflecting the wrong syntax in CFCs

@@ -293,6 +293,12 @@
                     "scope": "resource",
                     "default": "1.13.0"
                 },
+                "boxlang.check.enable": {
+                    "type": "boolean",
+                    "description": "Run the BoxLang syntax checker when supported source files are saved. Requires BoxLang 1.17.0 or later.",
+                    "scope": "resource",
+                    "default": true
+                },
                 "boxlang.miniserverjarpath": {
                     "type": "string",
                     "description": "The path to the miniserver jar you want to use for execution",
