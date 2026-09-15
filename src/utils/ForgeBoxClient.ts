@@ -13,15 +13,15 @@ export interface ForgeBoxEntry {
     versions: ForgeBoxVersion[];
     downloads: number;
     isActive: boolean;
-    createDate: string;
-    modifyDate: string;
+    createDate?: string;
+    modifyDate?: string;
 }
 
 export interface ForgeBoxVersion {
     version: string;
     downloadURL: string;
     isActive: boolean;
-    createDate: string;
+    createDate?: string;
     modifyDate?: string;
 }
 

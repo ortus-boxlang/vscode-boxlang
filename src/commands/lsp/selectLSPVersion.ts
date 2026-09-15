@@ -5,6 +5,7 @@ import vscode, { ExtensionContext, ProgressLocation } from "vscode";
 import { ExtensionConfig } from "../../utils/Configuration";
 import { ForgeBoxClient } from "../../utils/ForgeBoxClient";
 import { requestRestart } from "../../utils/LanguageServer";
+import { parseDate } from "../../utils/dateUtil";
 import { ModuleManager } from "../../utils/ModuleManager";
 import { boxlangOutputChannel } from "../../utils/OutputChannels";
 
@@ -87,7 +88,11 @@ async function getInstalledVersionData(lspVersionsParentDir: string): Promise<Ma
         let installDate: Date;
         try {
             const versionJson = JSON.parse((await fs.readFile(path.join(fullPath, "version.json"))) + "");
-            installDate = new Date(versionJson.createDate);
+            const parsedDate = parseDate(versionJson.createDate);
+            if (!parsedDate) {
+                throw new Error("Invalid install date");
+            }
+            installDate = parsedDate;
         } catch {
             // Fall back to directory mtime for installs predating version.json
             const stat = await fs.stat(fullPath);
@@ -125,12 +130,18 @@ async function fetchLspData(context: ExtensionContext): Promise<{
     if (metadata.latestVersion?.version) {
         versionSet.add(metadata.latestVersion.version);
         const v = metadata.latestVersion;
-        remoteCreateDates.set(`bx-lsp@${v.version}`, new Date(v.modifyDate ?? v.createDate));
+        const remoteDate = parseDate(v.modifyDate) ?? parseDate(v.createDate);
+        if (remoteDate) {
+            remoteCreateDates.set(`bx-lsp@${v.version}`, remoteDate);
+        }
     }
     for (const v of metadata.versions || []) {
         if (v?.version) {
             versionSet.add(v.version);
-            remoteCreateDates.set(`bx-lsp@${v.version}`, new Date(v.modifyDate ?? v.createDate));
+            const remoteDate = parseDate(v.modifyDate) ?? parseDate(v.createDate);
+            if (remoteDate) {
+                remoteCreateDates.set(`bx-lsp@${v.version}`, remoteDate);
+            }
         }
     }
 

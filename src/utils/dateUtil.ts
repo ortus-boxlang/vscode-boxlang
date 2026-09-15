@@ -50,3 +50,18 @@ function getCurrentTimeFormatted(includeMilliseconds: boolean = false): string {
 export function getCurrentDateTimeFormatted(): string {
   return getCurrentDateFormatted() + " " + getCurrentTimeFormatted();
 }
+
+/**
+ * Parses a date value and returns undefined when the value is missing or invalid.
+ *
+ * @param value - Date value to parse
+ * @return Parsed date or undefined
+ */
+export function parseDate(value?: string | null): Date | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
