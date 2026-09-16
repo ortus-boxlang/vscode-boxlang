@@ -30,7 +30,7 @@ export async function runBoxLangCheck(document: vscode.TextDocument): Promise<vo
         return;
     }
 
-    if (!vscode.workspace.getConfiguration("boxlang", document.uri).get<boolean>("check.enable", true)) {
+    if (!vscode.workspace.getConfiguration("boxlang", document.uri).get<boolean>("check.enable", false)) {
         return;
     }
 

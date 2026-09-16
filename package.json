@@ -297,7 +297,7 @@
                     "type": "boolean",
                     "description": "Run the BoxLang syntax checker when supported source files are saved. Requires BoxLang 1.17.0 or later.",
                     "scope": "resource",
-                    "default": true
+                    "default": false
                 },
                 "boxlang.miniserverjarpath": {
                     "type": "string",
