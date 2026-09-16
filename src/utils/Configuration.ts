@@ -228,11 +228,7 @@ export const ExtensionConfig = {
     },
 
     set boxlangDebuggerModuleVersion(version: string) {
-        const target = (workspace.workspaceFolders && workspace.workspaceFolders.length > 0)
-            ? ConfigurationTarget.Workspace
-            : ConfigurationTarget.Global;
-
-        workspace.getConfiguration("boxlang.debugger").update("moduleVersion", version, target);
+        workspace.getConfiguration("boxlang.debugger").update("moduleVersion", version, ConfigurationTarget.Global);
     },
 
     get boxlangDebuggerModuleVersion() {

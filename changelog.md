@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- BLIDE-325 Fix debugger version tracking
 - BLIDE-322 Fix problem interacting with ForgeBox API
 - BLIDE-321 Add `boxlang check`
 

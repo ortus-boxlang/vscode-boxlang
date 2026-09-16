@@ -6,6 +6,9 @@ const Module = require('module');
 const originalRequire = Module.prototype.require;
 
 let mockBvmrcVersion: string | null = null;
+let mockDebuggerVersion = '1.0.0-snapshot';
+let mockDebuggerLatestVersion = '1.1.0';
+let debuggerVersionUpdate: ((version: string) => void) | undefined;
 const outputLines: string[] = [];
 const stateStore = new Map<string, unknown>();
 
@@ -26,11 +29,18 @@ const mockExtensionConfig = {
     boxlangMiniServerVersionUpdateMode: 'manual' as 'auto' | 'prompt' | 'manual',
     boxlangLSPVersionUpdateMode: 'auto' as 'auto' | 'prompt' | 'manual',
     boxlangDebuggerVersionUpdateMode: 'manual' as 'auto' | 'prompt' | 'manual',
+    boxlangDebuggerMode: 'legacy',
     boxlangUpdatesPreRelease: false,
     boxlangVersion: '1.13.0-snapshot',
     boxlangMiniServerJarPath: '/mock/boxlang-miniserver-1.0.0.jar',
     boxlangLSPVersion: 'bx-lsp@1.9.0+8',
-    boxlangDebuggerModuleVersion: '1.0.0-snapshot',
+    get boxlangDebuggerModuleVersion() {
+        return mockDebuggerVersion;
+    },
+    set boxlangDebuggerModuleVersion(version: string) {
+        mockDebuggerVersion = version;
+        debuggerVersionUpdate?.(version);
+    },
     boxlangDebuggerModuleName: 'bx-debugger',
     async updateBoxlangLSPVersion(_versionSpec: string): Promise<void> {
         return;
@@ -55,8 +65,8 @@ class MockForgeBoxClient {
         }
 
         return {
-            latestVersion: { version: '1.0.0-snapshot' },
-            versions: [{ version: '1.0.0-snapshot' }]
+            latestVersion: { version: mockDebuggerLatestVersion },
+            versions: [{ version: mockDebuggerLatestVersion }]
         };
     }
 }
@@ -156,6 +166,9 @@ suite('UpdateManager Test Suite', () => {
         outputLines.length = 0;
         stateStore.clear();
         mockBvmrcVersion = null;
+        mockDebuggerVersion = '1.0.0-snapshot';
+        mockDebuggerLatestVersion = '1.1.0';
+        debuggerVersionUpdate = undefined;
         delete process.env.BOXLANG_LSP_PORT;
         mockLatestMetadata = {
             latestVersion: { version: '1.10.0+9' },
@@ -166,6 +179,7 @@ suite('UpdateManager Test Suite', () => {
         mockExtensionConfig.boxlangMiniServerVersionUpdateMode = 'manual';
         mockExtensionConfig.boxlangLSPVersionUpdateMode = 'auto';
         mockExtensionConfig.boxlangDebuggerVersionUpdateMode = 'manual';
+        mockExtensionConfig.boxlangDebuggerMode = 'legacy';
         mockExtensionConfig.boxlangUpdatesPreRelease = false;
         mockExtensionConfig.boxlangLSPVersion = 'bx-lsp@1.9.0+8';
     });
@@ -244,6 +258,44 @@ suite('UpdateManager Test Suite', () => {
         assert.strictEqual(persistStub.callCount, 2);
         assert.strictEqual(restartStub.callCount, 2);
         assert.strictEqual(errorStub.calledOnce, true);
+    });
+
+    test('automatic debugger updates write global settings even in legacy mode', async () => {
+        const originalGetConfiguration = vscode.workspace.getConfiguration;
+        const originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+        const configurationUpdates: Array<{ key: string; value: unknown; target: unknown }> = [];
+
+        vscode.workspace.workspaceFolders = [{ uri: { fsPath: '/mock/workspace' } }];
+        vscode.workspace.getConfiguration = (section: string) => ({
+            get: () => undefined,
+            has: () => false,
+            inspect: () => undefined,
+            update: (key: string, value: unknown, target: unknown) => {
+                configurationUpdates.push({ key: `${section}.${key}`, value, target });
+                return Promise.resolve();
+            }
+        });
+
+        const { ExtensionConfig: actualExtensionConfig } = require('../../utils/Configuration');
+        debuggerVersionUpdate = version => {
+            actualExtensionConfig.boxlangDebuggerModuleVersion = version;
+        };
+        mockExtensionConfig.boxlangLSPVersionUpdateMode = 'manual';
+        mockExtensionConfig.boxlangDebuggerVersionUpdateMode = 'auto';
+
+        try {
+            await checkAllUpdates(true);
+        } finally {
+            debuggerVersionUpdate = undefined;
+            vscode.workspace.getConfiguration = originalGetConfiguration;
+            vscode.workspace.workspaceFolders = originalWorkspaceFolders;
+        }
+
+        assert.deepStrictEqual(configurationUpdates, [{
+            key: 'boxlang.debugger.moduleVersion',
+            value: '1.1.0',
+            target: vscode.ConfigurationTarget.Global
+        }]);
     });
 
     test('checkAllUpdates should skip LSP updates when BOXLANG_LSP_PORT is set', async () => {
