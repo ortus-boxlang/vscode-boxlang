@@ -87,8 +87,10 @@ suite('Main lifecycle test suite', () => {
         sinon.restore();
     });
 
-    test('restartAllProcesses delegates restart scheduling to LanguageServer after cleanup', async () => {
-        const requestRestartStub = sinon.stub().resolves();
+    test('restartAllProcesses passes tracked-process cleanup to LanguageServer', async () => {
+        const requestRestartStub = sinon.stub().callsFake(async (_reason: string, _delay: number, beforeStart?: () => void) => {
+            beforeStart?.();
+        });
 
         mockLsp.requestRestart = requestRestartStub;
 
@@ -97,7 +99,7 @@ suite('Main lifecycle test suite', () => {
 
         assert.strictEqual(cleanupCallCount, 1);
         assert.strictEqual(requestRestartStub.callCount, 1);
-        assert.deepStrictEqual(requestRestartStub.firstCall.args, ['test restart']);
+        assert.strictEqual(requestRestartStub.firstCall.args[0], 'test restart');
         assert.strictEqual(setupWorkspaceCallCount, 0);
     });
 

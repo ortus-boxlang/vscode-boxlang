@@ -2,6 +2,7 @@ import { ChildProcessWithoutNullStreams } from "child_process";
 import fs from "fs/promises";
 import net from "net";
 import path from "path";
+import { setTimeout as wait } from "timers/promises";
 import * as vscode from "vscode";
 import { CloseAction, ErrorAction, LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { getExtensionContext } from "../context";
@@ -24,9 +25,13 @@ let lifecycleOperationChain: Promise<void> = Promise.resolve();
 let lifecycleOperationSequence = 0;
 let queuedStartPromise: Promise<LanguageClient | undefined> | undefined;
 const clientStartPromises = new WeakMap<LanguageClient, Promise<void>>();
-const externalClientSockets = new WeakMap<LanguageClient, net.Socket>();
+const clientStartControllers = new WeakMap<LanguageClient, AbortController>();
+const clientSockets = new WeakMap<LanguageClient, net.Socket>();
+const managedClientProcesses = new WeakMap<LanguageClient, ChildProcessWithoutNullStreams>();
 const intentionallyClosedClients = new WeakSet<LanguageClient>();
+const intentionallyStoppedProcesses = new WeakSet<ChildProcessWithoutNullStreams>();
 const advertisedServerCommands = new Set<string>();
+let automaticRestartTimes: number[] = [];
 
 // Error message constants — centralized for future i18n
 const MSG_LSP_VERSION_NOT_CONFIGURED = "boxlang.lsp.lspVersion is not configured. Please set a valid LSP version (e.g., bx-lsp@1.6.0+7).";
@@ -37,11 +42,22 @@ const LSP_RESTART_DELAY_MS = 5000;
 const LSP_STOP_TIMEOUT_MS = 10000;
 const LSP_PROCESS_EXIT_GRACE_MS = 1000;
 const LSP_FORCE_KILL_TIMEOUT_MS = 1000;
+const LSP_SOCKET_CONNECT_TIMEOUT_MS = 5000;
+const LSP_SOCKET_RETRY_DELAYS_MS = [100, 250, 500, 1000];
+const LSP_AUTOMATIC_RESTART_LIMIT = 3;
+const LSP_AUTOMATIC_RESTART_WINDOW_MS = 3 * 60 * 1000;
 const MANAGED_LSP_PID_FILE = "managed-lsp.pid";
 const CREATE_FORMATTER_CONFIG_COMMAND = "boxlang.createFormatterConfig";
 const CREATE_FORMATTER_CONFIG_CONTEXT_KEY = "boxlang.supportsCreateFormatterConfig";
 const CONVERT_CFFORMAT_CONFIG_COMMAND = "boxlang.convertCFFormatConfig";
 const CONVERT_CFFORMAT_CONFIG_CONTEXT_KEY = "boxlang.supportsConvertCFFormatConfig";
+
+class BoxLangLanguageClient extends LanguageClient {
+    error(message: string, data?: any, showNotification: boolean | 'force' = true): void {
+        // The library's start() error path bypasses errorHandler.handled.
+        super.error(message, data, intentionallyClosedClients.has(this) ? false : showNotification);
+    }
+}
 
 function logLanguageServer(message: string) {
     boxlangOutputChannel.appendLine(`[LSP ${new Date().toISOString()}] ${message}`);
@@ -85,6 +101,109 @@ function attachSocketLogging(socket: net.Socket, label: string) {
     socket.on("error", (error) => {
         logLanguageServer(`${label}: socket error ${formatError(error)}`);
     });
+}
+
+function connectSocket(port: number, label: string, onSocket?: (socket: net.Socket) => void, signal?: AbortSignal): Promise<net.Socket> {
+    return new Promise((resolve, reject) => {
+        signal?.throwIfAborted();
+        const socket = net.connect({ port, host: "127.0.0.1", signal });
+        attachSocketLogging(socket, label);
+        onSocket?.(socket);
+
+        let settled = false;
+        let connected = false;
+        const timeoutId = setTimeout(() => {
+            finish(new Error(`Timed out connecting to 127.0.0.1:${port}`));
+        }, LSP_SOCKET_CONNECT_TIMEOUT_MS);
+
+        const cleanup = () => {
+            clearTimeout(timeoutId);
+            socket.off("connect", onConnect);
+            socket.off("error", onError);
+            socket.off("close", onClose);
+        };
+
+        const finish = (error?: Error) => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            cleanup();
+
+            if (error) {
+                socket.destroy();
+                reject(error);
+            } else {
+                resolve(socket);
+            }
+        };
+
+        const onConnect = () => {
+            connected = true;
+            finish();
+        };
+        const onError = (error: Error) => finish(error);
+        const onClose = () => {
+            if (!connected) {
+                finish(new Error("Socket closed before connecting"));
+            }
+        };
+
+        socket.once("connect", onConnect);
+        socket.once("error", onError);
+        socket.once("close", onClose);
+    });
+}
+
+async function connectToLSP(
+    port: number,
+    label: string,
+    onSocket?: (socket: net.Socket) => void,
+    shouldAbort?: () => boolean,
+    maxAttempts = LSP_SOCKET_RETRY_DELAYS_MS.length + 1,
+    signal?: AbortSignal
+): Promise<net.Socket> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        signal?.throwIfAborted();
+        if (shouldAbort?.()) {
+            throw new Error(`${label}: connection canceled`);
+        }
+
+        try {
+            logLanguageServer(`${label}: connecting attempt=${attempt} port=${port}`);
+            return await connectSocket(port, `${label} attempt=${attempt}`, onSocket, signal);
+        } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            logLanguageServer(`${label}: connection attempt=${attempt} failed: ${lastError.message}`);
+
+            signal?.throwIfAborted();
+            if (shouldAbort?.()) {
+                throw lastError;
+            }
+
+            const retryDelay = LSP_SOCKET_RETRY_DELAYS_MS[attempt - 1];
+            if (retryDelay !== undefined) {
+                await wait(retryDelay, undefined, { signal });
+            }
+        }
+    }
+
+    throw lastError ?? new Error(`Unable to connect to language server on port ${port}`);
+}
+
+function canAutomaticallyRestart(): boolean {
+    const cutoff = Date.now() - LSP_AUTOMATIC_RESTART_WINDOW_MS;
+    automaticRestartTimes = automaticRestartTimes.filter(timestamp => timestamp >= cutoff);
+
+    if (automaticRestartTimes.length >= LSP_AUTOMATIC_RESTART_LIMIT) {
+        return false;
+    }
+
+    automaticRestartTimes.push(Date.now());
+    return true;
 }
 
 async function updateAdvertisedServerCommands(nextClient?: LanguageClient) {
@@ -189,12 +308,37 @@ async function waitForRestartDelay(delayMs: number, reason: string) {
     });
 }
 
-export function requestRestart(reason = "unspecified", delayMs = LSP_RESTART_DELAY_MS): Promise<void> {
+function cancelStartingClient() {
+    if (!client || client.state !== 3) {
+        return;
+    }
+
+    // client.stop() cannot stop initialization. Abort the JVM launch (if still
+    // pending) and close the transport so client.start() releases the queue.
+    intentionallyClosedClients.add(client);
+    const process = managedClientProcesses.get(client);
+    if (process) {
+        intentionallyStoppedProcesses.add(process);
+    }
+    clientStartControllers.get(client)?.abort();
+    clientSockets.get(client)?.destroy();
+}
+
+export function requestRestart(
+    reason = "unspecified",
+    delayMs = LSP_RESTART_DELAY_MS,
+    beforeStart?: () => void | Promise<void>
+): Promise<void> {
+    if (!reason.startsWith("automatic recovery")) {
+        automaticRestartTimes = [];
+    }
+
     const requestId = ++lifecycleOperationSequence;
 
     logLanguageServer(`requestRestart() requested id=${requestId} reason=${reason} delayMs=${delayMs}`);
     cancelPendingRestart(`superseded by restart request id=${requestId}`);
     cancelQueuedStart(`superseded by restart request id=${requestId}`);
+    cancelStartingClient();
 
     return scheduleLifecycleOperation(`requestRestart(${reason})`, async () => {
         if (requestId !== lifecycleOperationSequence) {
@@ -203,6 +347,13 @@ export function requestRestart(reason = "unspecified", delayMs = LSP_RESTART_DEL
         }
 
         await stop();
+
+        if (requestId !== lifecycleOperationSequence) {
+            logLanguageServer(`requestRestart() skipping stale request id=${requestId} before cleanup`);
+            return;
+        }
+
+        await beforeStart?.();
 
         if (requestId !== lifecycleOperationSequence) {
             logLanguageServer(`requestRestart() skipping stale request id=${requestId} after stop`);
@@ -217,7 +368,7 @@ export function requestRestart(reason = "unspecified", delayMs = LSP_RESTART_DEL
         }
 
         logLanguageServer(`requestRestart() invoking startLSP() id=${requestId}`);
-        startLSPNow(requestId, `restart:${reason}`);
+        await startLSPNow(requestId, `restart:${reason}`);
     });
 }
 
@@ -231,6 +382,7 @@ export function shutdown(reason = "unspecified"): Promise<void> {
     logLanguageServer(`shutdown() requested id=${requestId} reason=${reason}`);
     cancelPendingRestart(`shutdown requested: ${reason}`);
     cancelQueuedStart(`shutdown requested: ${reason}`);
+    cancelStartingClient();
 
     return scheduleLifecycleOperation(`shutdown(${reason})`, async () => {
         logLanguageServer(`shutdown() stopping language server id=${requestId}`);
@@ -239,17 +391,30 @@ export function shutdown(reason = "unspecified"): Promise<void> {
 }
 
 export async function stop() {
+    cancelStartingClient();
     if (!client) {
-        logLanguageServer("stop() called with no active client");
+        const processToStop = lspProcess;
+        lspProcess = null;
         isUsingExternalLSP = false;
+        logLanguageServer(`stop() called with no active client processPresent=${Boolean(processToStop)}`);
         await updateAdvertisedServerCommands();
+
+        if (processToStop) {
+            intentionallyStoppedProcesses.add(processToStop);
+            await terminateLSPProcess(processToStop, " without an active client");
+        }
+
+        await forgetManagedLSPProcess(processToStop);
         return;
     }
 
     const activeClient = client;
-    const processToStop = lspProcess;
+    const processToStop = lspProcess ?? managedClientProcesses.get(activeClient) ?? null;
     const isExternalLSP = isUsingExternalLSP;
     intentionallyClosedClients.add(activeClient);
+    if (processToStop) {
+        intentionallyStoppedProcesses.add(processToStop);
+    }
 
     logLanguageServer(
         `stop() called external=${isExternalLSP} clientState=${describeLanguageClientState((activeClient as LanguageClient & { state?: number }).state)}`
@@ -429,7 +594,7 @@ async function cleanupStaleManagedLSPProcess() {
 }
 
 async function disconnectExternalClient(activeClient: LanguageClient) {
-    let socket = externalClientSockets.get(activeClient);
+    let socket = clientSockets.get(activeClient);
 
     if (!socket) {
         const startPromise = clientStartPromises.get(activeClient);
@@ -437,7 +602,7 @@ async function disconnectExternalClient(activeClient: LanguageClient) {
         if (startPromise) {
             logLanguageServer("disconnectExternalClient() waiting for external client start to settle before disconnect");
             await startPromise.catch(() => undefined);
-            socket = externalClientSockets.get(activeClient);
+            socket = clientSockets.get(activeClient);
         }
     }
 
@@ -447,7 +612,7 @@ async function disconnectExternalClient(activeClient: LanguageClient) {
     }
 
     intentionallyClosedClients.add(activeClient);
-    externalClientSockets.delete(activeClient);
+    clientSockets.delete(activeClient);
 
     if (socket.destroyed) {
         logLanguageServer("disconnectExternalClient() external socket was already destroyed");
@@ -481,6 +646,10 @@ async function disconnectExternalClient(activeClient: LanguageClient) {
 
 
 export function startLSP(reason = "direct start"): Promise<LanguageClient | undefined> {
+    if (!reason.startsWith("restart:automatic recovery")) {
+        automaticRestartTimes = [];
+    }
+
     const activeClient = client;
 
     if (activeClient) {
@@ -488,7 +657,8 @@ export function startLSP(reason = "direct start"): Promise<LanguageClient | unde
 
         if (activeClientState === 2 || activeClientState === 3) {
             logLanguageServer(`startLSP() ignored because client is already ${describeLanguageClientState(activeClientState)}`);
-            return Promise.resolve(activeClient);
+            const pendingStart = clientStartPromises.get(activeClient);
+            return pendingStart ? pendingStart.then(() => activeClient) : Promise.resolve(activeClient);
         }
     }
 
@@ -519,7 +689,7 @@ export function startLSP(reason = "direct start"): Promise<LanguageClient | unde
     return startPromise;
 }
 
-function startLSPNow(startRequestId: number, reason: string) {
+async function startLSPNow(startRequestId: number, reason: string): Promise<LanguageClient | undefined> {
     const activeClient = client;
 
     if (activeClient) {
@@ -527,12 +697,17 @@ function startLSPNow(startRequestId: number, reason: string) {
 
         if (activeClientState === 2 || activeClientState === 3) {
             logLanguageServer(`startLSP() ignored because client is already ${describeLanguageClientState(activeClientState)}`);
+            const pendingStart = clientStartPromises.get(activeClient);
+            if (pendingStart) {
+                await pendingStart;
+            }
             return activeClient;
         }
 
         logLanguageServer(`startLSP() discarding stale client state=${describeLanguageClientState(activeClientState)}`);
-        client = undefined;
+        await stop();
     }
+
     const nextIsUsingExternalLSP = Boolean(process.env.BOXLANG_LSP_PORT);
     isUsingExternalLSP = nextIsUsingExternalLSP;
     const startAttemptId = ++lspStartAttempt;
@@ -542,6 +717,13 @@ function startLSPNow(startRequestId: number, reason: string) {
     );
 
     const clientOptions: LanguageClientOptions = {
+        // Reuse the extension-owned channel; failed/stopped clients do not
+        // reliably dispose channels they created themselves.
+        // ponytail: v9.0.1 also retains notebook constructor listeners; upgrade upstream rather than patch private internals.
+        outputChannel: boxlangOutputChannel,
+        // Our lifecycle manager owns failure reporting, cleanup and retries.
+        // Rethrow rather than letting the library toast and stop a starting client.
+        initializationFailedHandler: error => { throw error; },
         documentSelector: [
             { scheme: "file", language: "boxlang" },
             { scheme: "file", language: "cfml" }
@@ -550,6 +732,38 @@ function startLSPNow(startRequestId: number, reason: string) {
 
     let nextClient!: LanguageClient;
 
+    const showCrashActions = (exitCode: number | null | undefined, signalCode: NodeJS.Signals | null | undefined) => {
+        const hints: Record<string, string> = {
+            SIGSEGV: 'JVM segmentation fault (native memory corruption)',
+            SIGKILL: 'Process killed by OS (possibly OOM or system resource limit)',
+            SIGABRT: 'JVM runtime error or assertion failure (check hs_err_pid*.log)',
+            SIGTERM: 'Process was terminated externally',
+            SIGPIPE: 'Broken pipe — LSP socket connection lost',
+            SIGBUS: 'JVM bus error (memory alignment/hardware issue)',
+        };
+        const signalHint = signalCode && hints[signalCode] ? `\n\nLikely cause: ${hints[signalCode]}` : '';
+        const exitCodeMsg = exitCode !== null && exitCode !== undefined && exitCode !== 0
+            ? `\n\nExit code ${exitCode} usually indicates the BoxLang runtime encountered a fatal error.`
+            : '';
+
+        void vscode.window.showErrorMessage(
+            `BoxLang Language Server crashed unexpectedly.${exitCodeMsg}${signalHint}\n\nCheck the Output panel for details.`,
+            'Restart LSP',
+            'Show Output',
+        ).then((selection) => {
+            if (selection === 'Restart LSP') {
+                automaticRestartTimes = [];
+                void requestRestart('user requested after crash').catch(error => {
+                    logLanguageServer(`User-requested restart failed: ${formatError(error)}`);
+                });
+            } else if (selection === 'Show Output') {
+                boxlangOutputChannel.show(true);
+            }
+        }, error => {
+            logLanguageServer(`Unable to show LSP crash actions: ${formatError(error)}`);
+        });
+    };
+
     clientOptions.errorHandler = {
         error: (error) => {
             if (intentionallyClosedClients.has(nextClient)) {
@@ -557,86 +771,92 @@ function startLSPNow(startRequestId: number, reason: string) {
                 return { action: ErrorAction.Continue, handled: true };
             }
 
-            boxlangOutputChannel.appendLine(`Language server connection error: ${formatError(error)}`);
-            return { action: ErrorAction.Continue };
+            logLanguageServer(`Language server connection error: ${formatError(error)}`);
+            return { action: ErrorAction.Continue, handled: true };
         },
-        closed: () => {
-            if (intentionallyClosedClients.has(nextClient)) {
-                intentionallyClosedClients.delete(nextClient);
-                boxlangOutputChannel.appendLine("Language server connection closed intentionally");
+        closed: async () => {
+            const intentional = intentionallyClosedClients.has(nextClient);
+            const closeSequence = lifecycleOperationSequence;
+            // The library disposes pending requests before calling us. Let start()
+            // propagate that rejection before it clears its internal start promise.
+            await clientStartPromises.get(nextClient)?.catch(() => undefined);
+            if (intentional || closeSequence !== lifecycleOperationSequence) {
+                logLanguageServer("Language server connection closed intentionally or superseded");
                 return { action: CloseAction.DoNotRestart, handled: true };
             }
 
-            // Gather crash context from the exited process (if available)
-            const proc = nextIsUsingExternalLSP ? undefined : lspProcess;
+            const proc = nextIsUsingExternalLSP ? undefined : managedClientProcesses.get(nextClient) ?? lspProcess;
             const exitCode = proc?.exitCode;
             const signalCode = proc?.signalCode;
 
-            const details = [
-                `[BoxLang LSP] Connection closed unexpectedly.`,
-                exitCode !== null && exitCode !== undefined ? `Exit code: ${exitCode}` : null,
-                signalCode ? `Signal: ${signalCode}` : null,
-            ].filter(Boolean).join('  ');
-
-            // Map common JVM signals to human-readable messages
-            let signalHint = '';
-            if (signalCode) {
-                const hints: Record<string, string> = {
-                    SIGSEGV: 'JVM segmentation fault (native memory corruption)',
-                    SIGKILL: 'Process killed by OS (possibly OOM or system resource limit)',
-                    SIGABRT: 'JVM runtime error or assertion failure (check hs_err_pid*.log)',
-                    SIGTERM: 'Process was terminated externally',
-                    SIGPIPE: 'Broken pipe — LSP socket connection lost',
-                    SIGBUS: 'JVM bus error (memory alignment/hardware issue)',
-                };
-                if (hints[signalCode]) {
-                    signalHint = `\n\nLikely cause: ${hints[signalCode]}`;
-                }
-            }
-
-            const exitCodeMsg = (exitCode !== null && exitCode !== undefined && exitCode !== 0)
-                ? `\n\nExit code ${exitCode} usually indicates the BoxLang runtime encountered a fatal error.`
-                : '';
-
-            boxlangOutputChannel.appendLine(details);
-            boxlangOutputChannel.appendLine(
-                `The LSP process has exited. Check the BoxLang output channel above for [LSP stdErr]/[LSP crash] messages,`
-                + ` and look for JVM crash logs (hs_err_pid*.log) in your workspace or home directory.`
+            logLanguageServer(
+                `Language server connection closed unexpectedly attempt=${startAttemptId}`
+                + ` processPid=${proc?.pid ?? "unknown"} exitCode=${exitCode ?? "unknown"} signal=${signalCode ?? "none"}`
+            );
+            logLanguageServer(
+                `The LSP process has exited or the socket was lost. Check [LSP stdErr]/[LSP crash] messages,`
+                + ` JVM crash logs (hs_err_pid*.log), and the startup log above.`
             );
 
-            if (!nextIsUsingExternalLSP) {
-                vscode.window.showErrorMessage(
-                    `BoxLang Language Server crashed unexpectedly.${exitCodeMsg}${signalHint}\n\nCheck the Output panel for details.`,
-                    'Restart LSP',
-                    'Show Output',
-                ).then((selection) => {
-                    if (selection === 'Restart LSP') {
-                        requestRestart('user requested after crash');
-                    } else if (selection === 'Show Output') {
-                        boxlangOutputChannel.show(true);
-                    }
-                });
+            if (nextIsUsingExternalLSP) {
+                logLanguageServer("External language server connection closed; automatic restart is disabled");
+                return { action: CloseAction.DoNotRestart, handled: false };
             }
 
-            return { action: CloseAction.DoNotRestart };
+            const recover = () => {
+                if (canAutomaticallyRestart()) {
+                    const recoveryAttempt = automaticRestartTimes.length;
+                    logLanguageServer(
+                        `Scheduling automatic LSP recovery attempt=${recoveryAttempt}/${LSP_AUTOMATIC_RESTART_LIMIT}`
+                    );
+                    const recovery = requestRestart(`automatic recovery after connection close #${recoveryAttempt}`);
+                    const recoveryRequestId = lifecycleOperationSequence;
+                    void recovery.catch(error => {
+                        logLanguageServer(`Automatic LSP recovery failed: ${formatError(error)}`);
+                        // A launch can fail without emitting closed(). Retry here
+                        // unless a newer restart or shutdown already superseded it.
+                        if (recoveryRequestId === lifecycleOperationSequence) {
+                            recover();
+                        }
+                    });
+                    return {
+                        action: CloseAction.DoNotRestart,
+                        handled: true,
+                        message: `BoxLang Language Server disconnected; recovery attempt ${recoveryAttempt}/${LSP_AUTOMATIC_RESTART_LIMIT} is scheduled.`
+                    };
+                }
+
+                logLanguageServer(
+                    `Automatic LSP recovery stopped after ${LSP_AUTOMATIC_RESTART_LIMIT} failures in ${LSP_AUTOMATIC_RESTART_WINDOW_MS / 60000} minutes`
+                );
+                showCrashActions(exitCode, signalCode);
+                return { action: CloseAction.DoNotRestart, handled: true };
+            };
+
+            return recover();
         }
     };
 
-    nextClient = new LanguageClient(
+    const startupCancellation = new AbortController();
+    nextClient = new BoxLangLanguageClient(
         "boxlang",
         "BoxLang Language Support",
         getLSPServerConfig(socket => {
-            externalClientSockets.set(nextClient, socket);
+            clientSockets.set(nextClient, socket);
             socket.once("close", () => {
-                if (externalClientSockets.get(nextClient) === socket) {
-                    externalClientSockets.delete(nextClient);
+                if (clientSockets.get(nextClient) === socket) {
+                    clientSockets.delete(nextClient);
                 }
             });
-        }),
+            if (intentionallyClosedClients.has(nextClient)) {
+                socket.destroy();
+            }
+        }, process => managedClientProcesses.set(nextClient, process), startupCancellation.signal),
         clientOptions,
         true
     );
 
+    clientStartControllers.set(nextClient, startupCancellation);
     client = nextClient;
     void updateAdvertisedServerCommands();
 
@@ -652,36 +872,56 @@ function startLSPNow(startRequestId: number, reason: string) {
         });
     }
 
-    const startPromise = nextClient.start().then(async () => {
-        if (client !== nextClient) {
-            logLanguageServer(`client.start() resolved for stale client attempt=${startAttemptId}`);
-            return;
-        }
+    const startPromise = Promise.resolve()
+        .then(() => nextClient.start())
+        .then(async () => {
+            if (client !== nextClient) {
+                logLanguageServer(`client.start() resolved for stale client attempt=${startAttemptId}`);
+                return;
+            }
 
-        await updateAdvertisedServerCommands(nextClient);
-        logLanguageServer(`client.start() resolved attempt=${startAttemptId}`);
+            await updateAdvertisedServerCommands(nextClient);
+            logLanguageServer(`client.start() resolved attempt=${startAttemptId}`);
 
-        try {
-            await nextClient.sendNotification("workspace/didChangeConfiguration", getLSPConfigurationPayload());
-            logLanguageServer(`Sent initial workspace/didChangeConfiguration notification attempt=${startAttemptId}`);
-        } catch (error) {
-            logLanguageServer(`Failed to send initial workspace/didChangeConfiguration attempt=${startAttemptId}: ${formatError(error)}`);
-        }
-    }).catch(async error => {
-        logLanguageServer(`client.start() rejected attempt=${startAttemptId}: ${formatError(error)}`);
+            try {
+                await nextClient.sendNotification("workspace/didChangeConfiguration", getLSPConfigurationPayload());
+                logLanguageServer(`Sent initial workspace/didChangeConfiguration notification attempt=${startAttemptId}`);
+            } catch (error) {
+                logLanguageServer(`Failed to send initial workspace/didChangeConfiguration attempt=${startAttemptId}: ${formatError(error)}`);
+            }
+        })
+        .catch(async error => {
+            logLanguageServer(`client.start() rejected attempt=${startAttemptId}: ${formatError(error)}`);
 
-        if (client === nextClient) {
-            client = undefined;
-            lspProcess = null;
-            isUsingExternalLSP = false;
-            await updateAdvertisedServerCommands();
-        }
-    }).finally(() => {
-        clientStartPromises.delete(nextClient);
-    });
+            const processToStop = managedClientProcesses.get(nextClient) ?? (client === nextClient ? lspProcess : null);
+            intentionallyClosedClients.add(nextClient);
+            // Pre-connection failures never reach the library's close cleanup.
+            nextClient.diagnostics?.dispose();
+            if (client === nextClient) {
+                client = undefined;
+                if (lspProcess === processToStop) {
+                    lspProcess = null;
+                }
+                isUsingExternalLSP = false;
+                await updateAdvertisedServerCommands();
+            }
+
+            if (processToStop) {
+                intentionallyStoppedProcesses.add(processToStop);
+                await terminateLSPProcess(processToStop, " after a startup failure");
+                await forgetManagedLSPProcess(processToStop);
+            }
+
+            throw error;
+        })
+        .finally(() => {
+            clientStartPromises.delete(nextClient);
+            clientStartControllers.delete(nextClient);
+        });
 
     clientStartPromises.set(nextClient, startPromise);
 
+    await startPromise;
     return nextClient;
 }
 
@@ -715,57 +955,78 @@ export function notifyConfigurationChanged() {
 }
 
 
-export function getLSPServerConfig(onExternalSocket?: (socket: net.Socket) => void): ServerOptions {
+export function getLSPServerConfig(
+    onSocket?: (socket: net.Socket) => void,
+    onManagedProcess?: (process: ChildProcessWithoutNullStreams) => void,
+    signal?: AbortSignal
+): ServerOptions {
     if (process.env.BOXLANG_LSP_PORT) {
-        return () => {
+        return async () => {
             const socketId = ++lspSocketSequence;
-            const port = Number.parseInt(process.env.BOXLANG_LSP_PORT, 10);
+            const port = Number.parseInt(process.env.BOXLANG_LSP_PORT!, 10);
+
+            if (!Number.isInteger(port) || port < 1 || port > 65535) {
+                throw new Error(`Invalid BOXLANG_LSP_PORT value: ${process.env.BOXLANG_LSP_PORT}`);
+            }
 
             logLanguageServer(`Creating external LSP socket connection socketId=${socketId} host=127.0.0.1 port=${port}`);
-
-            let socket = net.connect(port, "127.0.0.1");
-            attachSocketLogging(socket, `external socketId=${socketId}`);
-            onExternalSocket?.(socket);
-            let result = {
+            const socket = await connectToLSP(port, `external socketId=${socketId}`, onSocket, undefined, 1, signal);
+            return {
                 writer: socket,
                 reader: socket
             };
-
-            return Promise.resolve(result);
         };
     }
 
     return async () => {
-        const [proc, port] = await startLanguageServerProcess();
+        const [proc, port] = await startLanguageServerProcess(signal);
         lspProcess = proc;
-        const socketId = ++lspSocketSequence;
+        onManagedProcess?.(proc);
 
-        // Attach persistent crash monitoring to the LSP process
+        const numericPort = Number.parseInt(String(port), 10);
+        if (!Number.isInteger(numericPort) || numericPort < 1 || numericPort > 65535) {
+            throw new Error(`Language server announced an invalid port: ${port}`);
+        }
+
+        const socketId = ++lspSocketSequence;
+        let processExited = false;
+
+        // Attach process monitoring after the process is associated with this client.
         const pid = proc.pid;
         proc.once('exit', (code, signal) => {
+            processExited = true;
+            const intentional = intentionallyStoppedProcesses.has(proc);
             const exitInfo = code !== null ? `exit code ${code}` : `signal ${signal}`;
             boxlangOutputChannel.appendLine(
-                `[LSP Crash Monitor] Process (pid ${pid}) exited unexpectedly: ${exitInfo}. ` +
-                `Check output channel above for [LSP stdErr], [LSP crash], or JVM stacktrace messages.`
+                `[${intentional ? "LSP" : "LSP Crash Monitor"}] Process (pid ${pid}) exited ${intentional ? "intentionally" : "unexpectedly"}: ${exitInfo}.`
+                + (intentional ? "" : " Check [LSP stdErr], [LSP crash], or JVM crash logs above.")
             );
-            lspProcess = null;
+            if (lspProcess === proc) {
+                lspProcess = null;
+            }
         });
         proc.once('close', () => {
-            boxlangOutputChannel.appendLine(
-                `[LSP Crash Monitor] Process (pid ${pid}) closed. If this was unexpected, ` +
-                `the language server has crashed and needs to be restarted.`
-            );
+            if (!processExited) {
+                boxlangOutputChannel.appendLine(
+                    `[LSP Crash Monitor] Process (pid ${pid}) streams closed before exit; check [LSP stdErr] above.`
+                );
+            }
         });
-        proc.on('error', (err) => {
+        proc.once('error', (err) => {
             boxlangOutputChannel.appendLine(
                 `[LSP Crash Monitor] Process (pid ${pid}) error: ${err.message}`
             );
         });
 
-        logLanguageServer(`Creating managed LSP socket connection socketId=${socketId} pid=${proc.pid} host=127.0.0.1 port=${port}`);
-
-        let socket = net.connect(port, "127.0.0.1");
-        attachSocketLogging(socket, `managed socketId=${socketId}`);
+        logLanguageServer(`Creating managed LSP socket connection socketId=${socketId} pid=${proc.pid} host=127.0.0.1 port=${numericPort}`);
+        const socket = await connectToLSP(
+            numericPort,
+            `managed socketId=${socketId}`,
+            onSocket,
+            () => !isProcessActive(proc),
+            undefined,
+            signal
+        );
         return {
             writer: socket,
             reader: socket
@@ -784,7 +1045,8 @@ class InvalidLSPInstallationError extends Error {
  * Initiates the BoxLang Language Server process, ensuring that the necessary LSP module and BoxLang version are installed.
  * @returns A promise that resolves when the language server process has started. The promise returns an array where the first item is the child process and the second item is the port number.
  */
-async function startLanguageServerProcess() {
+async function startLanguageServerProcess(signal?: AbortSignal) {
+    signal?.throwIfAborted();
     let lspModulePath = null;
 
     try {
@@ -821,12 +1083,15 @@ async function startLanguageServerProcess() {
 
     await ensureBoxLangModules(lspBoxLangHome);
 
+    signal?.throwIfAborted();
     await cleanupStaleManagedLSPProcess();
 
     const startedProcess = await startLSPProcess(
         lspBoxLangHome,
         lspModulePath,
-        boxlangVersionPath
+        boxlangVersionPath,
+        undefined,
+        signal
     );
 
     await rememberManagedLSPProcess(startedProcess[0]);

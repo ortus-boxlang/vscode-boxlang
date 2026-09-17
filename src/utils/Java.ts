@@ -89,55 +89,61 @@ export function detectJavaVerison(refresh = false) {
 }
 
 export async function setupLocalJavaInstall(context: ExtensionContext) {
-    JAVA_INSTALL_DIR = path.join(context.globalStorageUri.fsPath, "java_install");
+    // Download Java may select a nested JDK inside java_install. Do not erase
+    // an explicitly configured installation while repairing the managed one.
+    if (vscode.workspace.getConfiguration("boxlang.java").get<string>("javaHome")) {
+        return;
+    }
 
-    const javaExe = process.platform === "win32" ? "java.exe" : "java";
-    const javaExePath = path.join(JAVA_INSTALL_DIR, "bin", javaExe);
+    JAVA_INSTALL_DIR = null;
+    const javaInstallDir = path.join(context.globalStorageUri.fsPath, "java_install");
+    const javaExecutable = path.join(
+        javaInstallDir,
+        "bin",
+        process.platform === "win32" ? "java.exe" : "java"
+    );
+    const accessMode = process.platform === "win32" ? fs.constants.F_OK : fs.constants.X_OK;
 
-    // Create the java install directory if it doesn't exist, or if it doesn't contain a valid java executable
     try {
-        await fsp.access(javaExePath);
-        boxlangOutputChannel.appendLine("Java executable already exists - skipping download");
+        await fsp.access(javaExecutable, accessMode);
+        JAVA_INSTALL_DIR = javaInstallDir;
+        boxlangOutputChannel.appendLine(`Java installation is ready: ${javaExecutable}`);
         return;
-    }
-    catch (e) {
-        boxlangOutputChannel.appendLine("Java executable does not exist - downloading java");
-        try {
-            await fsp.rm(JAVA_INSTALL_DIR, { recursive: true, force: true });
-        } catch (err) {}
-        await fsp.mkdir(JAVA_INSTALL_DIR, { recursive: true });
+    } catch {
+        boxlangOutputChannel.appendLine(`Java installation is missing or incomplete: ${javaExecutable}`);
     }
 
-    // download a java version if it doesn't exist
-    const link = await getSpecificDownloadLink();
-    const filePath = await downloadFile(JAVA_INSTALL_DIR, link);
+    try {
+        await fsp.rm(javaInstallDir, { recursive: true, force: true });
+        await fsp.mkdir(javaInstallDir, { recursive: true });
+        boxlangOutputChannel.appendLine("Downloading local Java 21 installation");
 
-    const extractedPath = await extractArchive(JAVA_INSTALL_DIR, filePath);
+        const link = await getSpecificDownloadLink();
+        const filePath = await downloadFile(javaInstallDir, link);
+        const extractedPath = await extractArchive(javaInstallDir, filePath);
 
-    // Use findJavaHome to scan the extracted archive for the correct Java home
-    const settingPath = await findJavaHome(extractedPath);
-    if (!settingPath) {
-        boxlangOutputChannel.appendLine(`ERROR: Could not find bin/java executable in extracted archive at ${extractedPath}`);
-        return;
-    }
-
-    // copy contents of setting path to JAVA_INSTALL_DIR
-    if (settingPath !== JAVA_INSTALL_DIR) {
-        const files = fs.readdirSync(settingPath);
-        for (const file of files) {
-            const src = path.join(settingPath, file);
-            const dest = path.join(JAVA_INSTALL_DIR, file);
-            await fsp.rename(src, dest);
+        const settingPath = await findJavaHome(extractedPath);
+        if (!settingPath) {
+            throw new Error(`Could not find bin/java executable in extracted archive at ${extractedPath}`);
         }
 
-        //clean up extractedPath
-        try { await fsp.rm(extractedPath, { recursive: true, force: true }); } catch (e) {}
+        // Copy the Java home contents into the stable installation path.
+        for (const file of fs.readdirSync(settingPath)) {
+            await fsp.cp(path.join(settingPath, file), path.join(javaInstallDir, file), { recursive: true });
+        }
+
+        await fsp.rm(extractedPath, { recursive: true, force: true });
+        await fsp.rm(filePath, { force: true });
+        await fsp.access(javaExecutable, accessMode);
+
+        JAVA_INSTALL_DIR = javaInstallDir;
+        boxlangOutputChannel.appendLine(`Java was downloaded and extracted successfully: ${javaExecutable}`);
+    } catch (error) {
+        await fsp.rm(javaInstallDir, { recursive: true, force: true }).catch(cleanupError => {
+            boxlangOutputChannel.appendLine(`Unable to remove incomplete Java installation: ${cleanupError}`);
+        });
+        boxlangOutputChannel.appendLine(`Local Java setup failed: ${error}. Falling back to ${ExtensionConfig.boxlangJavaExecutable}`);
     }
-
-    // clean up filePath
-    try { await fsp.rm(filePath, { force: true }); } catch (e) {}
-
-    boxlangOutputChannel.appendLine("Java was downloaded and extracted successfully - setting java home to " + settingPath);
 }
 
 export async function downloadJava(context: ExtensionContext) {

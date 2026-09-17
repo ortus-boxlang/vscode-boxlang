@@ -1,18 +1,11 @@
 import {
-    window
+    OutputChannel, window
 } from "vscode";
 
-type OutputChannelLike = {
-    append(value: string): void;
-    appendLine(value: string): void;
-    clear(): void;
-    show(preserveFocus?: boolean): void;
-    hide(): void;
-    dispose(): void;
-};
-
-function createNoopOutputChannel(): OutputChannelLike {
+function createNoopOutputChannel(): OutputChannel {
     return {
+        name: "BoxLang",
+        replace() {},
         append() {},
         appendLine() {},
         clear() {},
@@ -22,7 +15,7 @@ function createNoopOutputChannel(): OutputChannelLike {
     };
 }
 
-function createOutputChannel(): OutputChannelLike {
+function createOutputChannel(): OutputChannel {
     if (typeof window?.createOutputChannel === "function") {
         return window.createOutputChannel("BoxLang");
     }

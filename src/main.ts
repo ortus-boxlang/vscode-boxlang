@@ -180,7 +180,10 @@ export function activate(context: ExtensionContext): void {
     logExtensionLifecycle(`activate() called extensionPath=${context.extensionPath} externalLSPPort=${process.env.BOXLANG_LSP_PORT ?? "none"}`);
 
     setExtensionContext(context);
-    runSetup(context);
+    void runSetup(context).catch(error => {
+        logExtensionLifecycle(`runSetup() failed: ${error instanceof Error ? error.message : String(error)}`);
+        boxlangOutputChannel.appendLine("BoxLang setup failed. Check the output above and restart the extension after fixing the reported issue.");
+    });
     setupChatIntegration(context);
 
     languages.setLanguageConfiguration(CFML_LANGUAGE_ID, {
@@ -543,12 +546,13 @@ export async function restartAllProcesses(reason = "unspecified", refreshWorkspa
         await stopExtensionServices(`restartAllProcesses(${reason})`);
         logExtensionLifecycle("restartAllProcesses() refreshing workspace setup");
         await setupWorkspace(extensionContext);
-    } else {
-        cleanupTrackedProcesses();
     }
 
     try {
-        await LSP.requestRestart(reason);
+        // Stop the LSP first, then clean up the other tracked processes. Killing the
+        // LSP before its lifecycle manager runs turns a normal restart into ECONNRESET.
+        await LSP.requestRestart(reason, 5000, cleanupTrackedProcesses);
+
     } catch (error) {
         logExtensionLifecycle(`restartAllProcesses() failed reason=${reason}: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -591,7 +595,9 @@ async function runSetup(context: ExtensionContext) {
     }, 3000);
 
     logExtensionLifecycle("runSetup() invoking LSP.startLSP()");
-    void LSP.startLSP("activation");
+    void LSP.startLSP("activation").catch(error => {
+        logExtensionLifecycle(`LSP startup failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
 
     try {
         setupServers(context);

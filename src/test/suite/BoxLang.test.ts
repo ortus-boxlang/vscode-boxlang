@@ -10,6 +10,7 @@ const originalRequire = Module.prototype.require;
 
 // Track mock processes created by tests
 let lastMockProcess: any = null;
+let lastSpawnOptions: any = null;
 
 function createMockProcess() {
     const mockProcess = new EventEmitter() as any;
@@ -18,6 +19,12 @@ function createMockProcess() {
     mockProcess.pid = 12345 + Math.floor(Math.random() * 1000);
     mockProcess.killed = false;
     mockProcess.exitCode = null;
+    mockProcess.signalCode = null;
+    mockProcess.kill = () => {
+        mockProcess.killed = true;
+        mockProcess.exitCode = 0;
+        return true;
+    };
     lastMockProcess = mockProcess;
     return mockProcess;
 }
@@ -26,7 +33,13 @@ Module.prototype.require = function (id: string) {
     if (id.endsWith('/ProcessTracker') || id === './ProcessTracker') {
         return {
             trackedSpawn: (...args: any[]) => {
+                lastSpawnOptions = args[2];
                 const proc = createMockProcess();
+                // Model Node's native spawn({ signal, killSignal }) support.
+                lastSpawnOptions.signal?.addEventListener('abort', () => {
+                    proc.kill(lastSpawnOptions.killSignal);
+                    proc.emit('error', lastSpawnOptions.signal.reason);
+                }, { once: true });
                 return proc;
             },
             cleanupTrackedProcesses: () => { }
@@ -47,6 +60,7 @@ const { startLSPProcess, BoxLangWithHome, BoxLang } = require('../../utils/BoxLa
 
 suite('BoxLang LSP Process Test Suite', () => {
     setup(() => {
+        lastSpawnOptions = null;
         sinon.stub(ExtensionConfig, 'boxlangJavaExecutable').get(() => 'java');
         sinon.stub(ExtensionConfig, 'boxlangMaxHeapSize').get(() => 512);
         sinon.stub(ExtensionConfig, 'boxlangLSPJVMArgs').get(() => '');
@@ -92,6 +106,17 @@ suite('BoxLang LSP Process Test Suite', () => {
         const result = await promise;
         assert.strictEqual(result[0], lastMockProcess);
         assert.strictEqual(result[1], '8080');
+    });
+
+    test('should find the listening port when the banner is written to stderr', async () => {
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
+
+        setTimeout(() => {
+            lastMockProcess.stderr.emit('data', 'Listening on port: 8081\n');
+        }, 10);
+
+        const result = await promise;
+        assert.strictEqual(result[1], '8081');
     });
 
     test('should reject when javaExecutable is not configured', async () => {
@@ -150,7 +175,20 @@ suite('BoxLang LSP Process Test Suite', () => {
         assert.strictEqual(lastMockProcess.listenerCount('close'), 0, 'close listener should be removed');
     });
 
-    test('should reject with timeout when process is silent', async () => {
+    test('should preserve the host environment for the LSP process', async () => {
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
+
+        setTimeout(() => {
+            lastMockProcess.stdout.emit('data', 'Listening on port: 8080\\n');
+        }, 10);
+
+        await promise;
+        assert.strictEqual(lastSpawnOptions.env.PATH, process.env.PATH);
+        assert.strictEqual(lastSpawnOptions.env.BOXLANG_HOME, '/mock/home');
+        assert.strictEqual(lastSpawnOptions.env.CLASSPATH, '/mock/boxlang.jar');
+    });
+
+    test('should terminate the process when startup times out', async () => {
         const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar', 100);
 
         await assert.rejects(
@@ -163,6 +201,30 @@ suite('BoxLang LSP Process Test Suite', () => {
         assert.strictEqual(lastMockProcess.listenerCount('error'), 0, 'error listener should be removed');
         assert.strictEqual(lastMockProcess.listenerCount('exit'), 0, 'exit listener should be removed');
         assert.strictEqual(lastMockProcess.listenerCount('close'), 0, 'close listener should be removed');
+        assert.strictEqual(lastMockProcess.killed, true);
+    });
+
+    test('cancelling before the port banner terminates startup without waiting for its timeout', async () => {
+        const cancellation = new AbortController();
+        const startup = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar', 50, cancellation.signal);
+        cancellation.abort();
+
+        await assert.rejects(startup, /aborted/);
+        assert.strictEqual(lastMockProcess.killed, true);
+    });
+
+    test('startup timeout kills a process that ignores SIGTERM', async () => {
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar', 10);
+        lastMockProcess.kill = (signal: NodeJS.Signals) => {
+            if (signal === 'SIGKILL') {
+                lastMockProcess.signalCode = signal;
+                lastMockProcess.emit('exit', null, signal);
+            }
+            return true;
+        };
+
+        await assert.rejects(promise, /failed to start within 10ms/);
+        assert.strictEqual(lastMockProcess.signalCode, 'SIGKILL');
     });
 
     test('should still find port after large output if port is within last 100KB', async () => {

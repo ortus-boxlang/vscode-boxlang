@@ -42,9 +42,11 @@ export async function startLSPProcess(
     boxlangHome: string,
     lspModulePath: string,
     boxlangVersionPath: string,
-    timeoutMs = 30000
+    timeoutMs = 30000,
+    signal?: AbortSignal
 ): Promise<Array<any>> {
     return new Promise((resolve, reject) => {
+        signal?.throwIfAborted();
         const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
 
         if (!javaExecutable) {
@@ -53,9 +55,16 @@ export async function startLSPProcess(
         }
 
         const maxHeapSizeArg = `-Xmx${ExtensionConfig.boxlangMaxHeapSize}m`;
-        const jvmArgs = (ExtensionConfig.boxlangLSPJVMArgs || "").length ? (ExtensionConfig.boxlangLSPJVMArgs || "").split(" ") : [];
+        const jvmArgs = (ExtensionConfig.boxlangLSPJVMArgs || "").split(/\s+/).filter(Boolean);
+        const javaHome = path.isAbsolute(javaExecutable)
+            ? path.dirname(path.dirname(javaExecutable))
+            : process.env.JAVA_HOME;
         const lsp = trackedSpawn(javaExecutable, [maxHeapSizeArg, ...jvmArgs, "ortus.boxlang.runtime.BoxRunner", "module:bx-lsp"], {
+            signal,
+            killSignal: "SIGKILL",
             env: {
+                ...process.env,
+                ...(javaHome ? { JAVA_HOME: javaHome } : {}),
                 BOXLANG_HOME: boxlangHome,
                 BOXLANG_MODULESDIRECTORY: lspModulePath,
                 BOXLANG_DEBUGMODE: "true",
@@ -64,31 +73,77 @@ export async function startLSPProcess(
         });
         let stdout = '';
         let found = false;
+        let settled = false;
+        let processExited = false;
         const MAX_STDOUT_BUFFER = 1024 * 100; // 100KB cap
+        const startupStartedAt = Date.now();
 
-        // Persistent listeners that stay active for the lifetime of the LSP process.
-        // These ensure crash diagnostics are captured in the output channel.
+        boxlangOutputChannel.appendLine(
+            `[LSP startup] Spawning ${javaExecutable} heap=${maxHeapSizeArg} modulePath=${lspModulePath} runtime=${boxlangVersionPath}`
+        );
+
+        // Persistent listeners stay active for the lifetime of the LSP process so
+        // failures after startup still have useful diagnostics in the Output panel.
         const onPersistentStderr = (data) => {
-            boxlangOutputChannel.appendLine(`[LSP stdErr] ${data}`);
+            boxlangOutputChannel.appendLine(`[LSP stdErr] ${String(data).trimEnd()}`);
         };
         const onPersistentStdout = (data) => {
-            boxlangOutputChannel.appendLine(`[LSP stdOut] ${data}`);
+            boxlangOutputChannel.appendLine(`[LSP stdOut] ${String(data).trimEnd()}`);
         };
         const onPersistentExit = (code, signal) => {
+            processExited = true;
             boxlangOutputChannel.appendLine(
-                `[LSP crash] Process (pid ${lsp.pid}) exited with code=${code} signal=${signal ?? "none"}`
+                `[LSP process] pid=${lsp.pid} exited code=${code} signal=${signal ?? "none"}`
             );
             if (code !== 0 && code !== null) {
                 boxlangOutputChannel.appendLine(
-                    `[LSP crash] Non-zero exit code — check stderr above for JVM stacktrace or BoxLang error details.`
+                    `[LSP crash] Non-zero exit code — check [LSP stdErr] above for JVM stacktrace or BoxLang error details.`
                 );
             }
         };
         const onPersistentClose = () => {
-            boxlangOutputChannel.appendLine(`[LSP crash] Process (pid ${lsp.pid}) closed.`);
+            if (!processExited) {
+                boxlangOutputChannel.appendLine(`[LSP process] pid=${lsp.pid} streams closed before exit.`);
+            }
         };
         const onPersistentError = (err) => {
-            boxlangOutputChannel.appendLine(`[LSP crash] Process error: ${err.message}`);
+            boxlangOutputChannel.appendLine(`[LSP process] pid=${lsp.pid} error: ${err.message}`);
+        };
+
+        const cleanupStartupListeners = () => {
+            clearTimeout(timeoutId);
+            lsp.stdout.off("data", onData);
+            lsp.stderr.off("data", onStderr);
+            lsp.off("error", onError);
+            lsp.off("exit", onExit);
+            lsp.off("close", onClose);
+        };
+
+        const terminateFailedStartup = () => {
+            if (lsp.exitCode != null || lsp.signalCode != null) {
+                return;
+            }
+
+            try {
+                // Startup never completed; do not let JVM shutdown hooks leave an orphan.
+                lsp.kill("SIGKILL");
+                boxlangOutputChannel.appendLine(`[LSP startup] Sent SIGKILL to pid=${lsp.pid} after startup failure`);
+            } catch (error) {
+                boxlangOutputChannel.appendLine(`[LSP startup] Failed to terminate process pid=${lsp.pid}: ${error}`);
+            }
+        };
+
+        const failStartup = (error: Error, terminate = false) => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            cleanupStartupListeners();
+            if (terminate) {
+                terminateFailedStartup();
+            }
+            reject(error);
         };
 
         const onData = (data) => {
@@ -109,59 +164,42 @@ export async function startLSPProcess(
             }
 
             found = true;
+            settled = true;
             cleanupStartupListeners();
 
-            // Keep stderr/stdout logging active for the lifetime of the LSP process
-            // so that crashes produce useful diagnostic output in the Output panel.
             lsp.stderr.on("data", onPersistentStderr);
             lsp.stdout.on("data", onPersistentStdout);
             lsp.on("exit", onPersistentExit);
             lsp.on("close", onPersistentClose);
             lsp.on("error", onPersistentError);
 
+            boxlangOutputChannel.appendLine(
+                `[LSP startup] Process pid=${lsp.pid} announced port=${matches[1]} after ${Date.now() - startupStartedAt}ms`
+            );
             resolve([lsp, matches[1]]);
         };
 
         const onStderr = (data) => {
-            boxlangOutputChannel.appendLine(data + "");
+            boxlangOutputChannel.appendLine(`[LSP startup stderr] ${String(data).trimEnd()}`);
+            // Some JVM launchers write the listening banner to stderr.
+            onData(data);
         };
 
         const onError = (err) => {
-            if (!found) {
-                cleanupStartupListeners();
-                reject(new Error(`LSP process failed to start: ${err.message}`));
-            }
+            failStartup(new Error(`LSP process failed to start: ${err.message}`), true);
         };
 
         const onExit = (code) => {
-            if (!found) {
-                cleanupStartupListeners();
-                reject(new Error(`LSP process exited with code ${code} before opening port`));
-            }
+            failStartup(new Error(`LSP process exited with code ${code} before opening port`));
         };
 
         const onClose = () => {
-            if (!found) {
-                cleanupStartupListeners();
-                reject(new Error("LSP process closed before opening port"));
-            }
+            failStartup(new Error("LSP process closed before opening port"));
         };
 
         const timeoutId = setTimeout(() => {
-            if (!found) {
-                cleanupStartupListeners();
-                reject(new Error(`LSP process failed to start within ${timeoutMs}ms`));
-            }
+            failStartup(new Error(`LSP process failed to start within ${timeoutMs}ms`), true);
         }, timeoutMs);
-
-        function cleanupStartupListeners() {
-            clearTimeout(timeoutId);
-            lsp.stdout.off("data", onData);
-            lsp.stderr.off("data", onStderr);
-            lsp.off("error", onError);
-            lsp.off("exit", onExit);
-            lsp.off("close", onClose);
-        }
 
         lsp.stdout.on("data", onData);
         lsp.stderr.on("data", onStderr);

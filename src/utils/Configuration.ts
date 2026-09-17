@@ -81,23 +81,20 @@ export const ExtensionConfig = {
     },
 
     get boxlangJavaExecutable() {
-        const javaPath = path.join(this.boxlangJavaHome, "bin", "java");
+        const javaHome = this.boxlangJavaHome;
 
-        if (process.platform != "win32") {
-            return javaPath;
+        if (!javaHome) {
+            return process.platform === "win32" ? "java.exe" : "java";
         }
 
-        return javaPath + '.exe';
+        const javaPath = path.join(javaHome, "bin", "java");
+        return process.platform === "win32" ? javaPath + ".exe" : javaPath;
     },
 
     get boxlangJavaHome() {
         const javaPath = workspace.getConfiguration("boxlang.java").get<string>('javaHome');
 
-        if (!javaPath) {
-            return getConfiguredJavaInstallDir();
-        }
-
-        return javaPath;
+        return javaPath || getConfiguredJavaInstallDir() || process.env.JAVA_HOME || "";
     },
 
     get boxlangMiniServerJarPath() {
