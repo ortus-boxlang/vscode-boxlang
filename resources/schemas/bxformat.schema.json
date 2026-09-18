@@ -439,6 +439,11 @@
 			"type": "object",
 			"description": "Configuration for template/tag-based code formatting",
 			"properties": {
+				"enabled": {
+					"type": "boolean",
+					"default": false,
+					"description": "Enable or disable template/tag-based code formatting (.bxm or .cfm files)."
+				},
 				"component_prefix": {
 					"type": "string",
 					"default": "bx",
@@ -513,6 +518,13 @@
 					"maximum": 5,
 					"description": "Number of blank lines between class members"
 				},
+                "property_spacing":{
+					"type": "integer",
+					"default": 1,
+					"minimum": 0,
+					"maximum": 5,
+					"description": "Number of blank lines between property members"
+                },
 				"property_order": {
 					"type": "string",
 					"default": "preserve",
