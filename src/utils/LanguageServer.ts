@@ -10,7 +10,7 @@ import { runCommandBox } from "./CommandBox";
 import { ExtensionConfig } from "./Configuration";
 import { ModuleManager } from "./ModuleManager";
 import { boxlangOutputChannel } from "./OutputChannels";
-import { terminateProcess, waitForProcessExit } from "./ProcessTracker";
+import { isPidAlive, terminatePid, terminateProcess, waitForProcessExit } from "./ProcessTracker";
 import { ensureBoxLangVersion } from "./versionManager";
 
 
@@ -47,9 +47,11 @@ const MSG_LSP_ENSURE_FAILED = "Unable to ensure BoxLang Language Server module i
 const MSG_LSP_INSTALLATION_INVALID = "The BoxLang Language Server installation is invalid.";
 const LSP_RESTART_DELAY_MS = 5000;
 const LSP_STOP_TIMEOUT_MS = 10000;
-// How long shutdown() waits for a start that is still in flight before abandoning it. Kept short
-// so deactivation is not held up by a slow or hung startup.
-const LSP_SHUTDOWN_START_SETTLE_MS = 1000;
+/**
+ * How long a shutdown during extension deactivation waits for a start that is still in flight
+ * before abandoning it. Kept short so deactivation is not held up by a slow or hung startup.
+ */
+export const LSP_DEACTIVATE_START_SETTLE_MS = 1000;
 const LSP_PROCESS_EXIT_GRACE_MS = 1000;
 const LSP_FORCE_KILL_TIMEOUT_MS = 1000;
 const MANAGED_LSP_PID_FILE = "managed-lsp.pid";
@@ -240,7 +242,7 @@ export function restart(reason = "unspecified") {
     return requestRestart(reason, 0);
 }
 
-export function shutdown(reason = "unspecified"): Promise<void> {
+export function shutdown(reason = "unspecified", options: StopOptions = {}): Promise<void> {
     const requestId = ++lifecycleOperationSequence;
 
     logLanguageServer(`shutdown() requested id=${requestId} reason=${reason}`);
@@ -249,7 +251,7 @@ export function shutdown(reason = "unspecified"): Promise<void> {
 
     return scheduleLifecycleOperation(`shutdown(${reason})`, async () => {
         logLanguageServer(`shutdown() stopping language server id=${requestId}`);
-        await stop({ startSettleTimeoutMs: LSP_SHUTDOWN_START_SETTLE_MS });
+        await stop(options);
     });
 }
 
@@ -282,7 +284,12 @@ export async function stop(options: StopOptions = {}) {
         const startSettleTimeoutMs = options.startSettleTimeoutMs ?? LSP_STOP_TIMEOUT_MS;
         logLanguageServer(`stop() waiting up to ${startSettleTimeoutMs}ms for the in-flight client start to settle before stopping`);
 
-        if (!await waitForPromiseToSettle(startState.promise, startSettleTimeoutMs)) {
+        // A start that an earlier stop() already gave up on is not waited for again.
+        let settled = startState.abandoned
+            ? await waitForPromiseToSettle(startState.promise, 0)
+            : await waitForPromiseToSettle(startState.promise, startSettleTimeoutMs);
+
+        if (!settled) {
             // The start is slow or hung. Do not hold up the restart or shutdown any longer.
             // Abandon it: if it spawned a process, kill that now; if it has not spawned yet, the
             // abandoned flag stops it from spawning; and if it settles later, its own handlers
@@ -290,21 +297,39 @@ export async function stop(options: StopOptions = {}) {
             logLanguageServer(`stop() gave up waiting for the client start after ${startSettleTimeoutMs}ms; abandoning it`);
             startState.abandoned = true;
 
-            if (startState.process) {
-                if (await terminateProcess(startState.process, "LSP process", " because it was still starting when a stop arrived")) {
-                    await forgetManagedLSPProcess(startState.process);
+            if (isExternalLSP) {
+                destroyExternalSocket(activeClient);
+            } else if (startState.process) {
+                if (!await terminateProcess(startState.process, "LSP process", " because it was still starting when a stop arrived")) {
+                    // Do not release the client slot: a restart would boot a second JVM beside
+                    // this one. The pid file is kept so the next start can retry the kill.
+                    throw new Error(`LSP process (pid ${startState.process.pid}) is still running after termination attempts; not starting another one`);
                 }
+
+                await forgetManagedLSPProcess(startState.process);
             }
 
             // Killing the process makes the start fail quickly; give it a moment to settle.
-            await waitForPromiseToSettle(startState.promise, LSP_PROCESS_EXIT_GRACE_MS);
+            settled = await waitForPromiseToSettle(startState.promise, LSP_PROCESS_EXIT_GRACE_MS);
+        }
+
+        if (settled) {
+            // A start that failed rejects its promise only when its own teardown could not kill
+            // the process it spawned. That JVM is still alive, so this stop must fail as well.
+            const teardownFailure = await startState.promise.then(() => undefined, error => error);
+
+            if (teardownFailure) {
+                isUsingExternalLSP = false;
+                await updateAdvertisedServerCommands();
+                throw teardownFailure;
+            }
         }
     }
 
     if (startState?.abandoned && client === activeClient) {
-        // The start still has not settled. Release the client slot so the caller can move on;
-        // the start's own handlers finish the cleanup when it settles. The pid file is kept on
-        // purpose so the next start can kill a process we could not, via cleanupStaleManagedLSPProcess().
+        // The start still has not settled, but nothing it spawned is running any more and it can
+        // no longer spawn. Release the client slot so the caller can move on; the start's own
+        // handlers finish the cleanup when it settles.
         logLanguageServer("stop() releasing the abandoned client before its start settled");
         client = undefined;
         lspProcess = null;
@@ -398,45 +423,78 @@ function getManagedLSPPidFilePath() {
     return path.join(getExtensionContext().storageUri.fsPath, MANAGED_LSP_PID_FILE);
 }
 
-async function rememberManagedLSPProcess(process: ChildProcessWithoutNullStreams) {
+// All reads and writes of the pid file go through this chain so they happen in the order they
+// were requested. A spawn-time write that is still pending must not land after the teardown that
+// removes the file, and must not overwrite the pid of a later start.
+let pidFileOperations: Promise<void> = Promise.resolve();
+
+function queuePidFileOperation<T>(operation: () => Promise<T>): Promise<T> {
+    const result = pidFileOperations.then(operation, operation);
+    pidFileOperations = result.then(() => undefined, () => undefined);
+    return result;
+}
+
+function rememberManagedLSPProcess(process: ChildProcessWithoutNullStreams): Promise<void> {
     if (!process.pid) {
-        return;
+        return Promise.resolve();
     }
 
-    try {
-        await fs.mkdir(path.dirname(getManagedLSPPidFilePath()), { recursive: true });
-        await fs.writeFile(getManagedLSPPidFilePath(), String(process.pid));
-    } catch (error) {
-        logLanguageServer(`Unable to persist managed LSP pid=${process.pid}: ${formatError(error)}`);
-    }
+    return queuePidFileOperation(async () => {
+        try {
+            await fs.mkdir(path.dirname(getManagedLSPPidFilePath()), { recursive: true });
+            await fs.writeFile(getManagedLSPPidFilePath(), String(process.pid));
+        } catch (error) {
+            logLanguageServer(`Unable to persist managed LSP pid=${process.pid}: ${formatError(error)}`);
+        }
+    });
 }
 
-async function forgetManagedLSPProcess(processToForget?: ChildProcessWithoutNullStreams | null) {
-    try {
-        const pidText = await fs.readFile(getManagedLSPPidFilePath(), "utf8");
-        const pid = Number.parseInt(pidText.trim(), 10);
+/**
+ * Removes the pid file. When a process is given, the file is only removed if it still holds that
+ * process's pid, so a later start's record is left alone.
+ */
+function forgetManagedLSPProcess(processToForget?: ChildProcessWithoutNullStreams | null): Promise<void> {
+    return queuePidFileOperation(async () => {
+        try {
+            const pidText = await fs.readFile(getManagedLSPPidFilePath(), "utf8");
+            const pid = Number.parseInt(pidText.trim(), 10);
 
-        if (!processToForget?.pid || pid === processToForget.pid) {
-            await fs.rm(getManagedLSPPidFilePath(), { force: true });
+            if (!processToForget?.pid || pid === processToForget.pid) {
+                await fs.rm(getManagedLSPPidFilePath(), { force: true });
+            }
+        } catch (error: any) {
+            if (error?.code !== "ENOENT") {
+                logLanguageServer(`Unable to remove managed LSP pid file: ${formatError(error)}`);
+            }
         }
-    } catch (error: any) {
-        if (error?.code !== "ENOENT") {
-            logLanguageServer(`Unable to remove managed LSP pid file: ${formatError(error)}`);
-        }
-    }
+    });
 }
 
+function readManagedLSPPid(): Promise<number | undefined> {
+    return queuePidFileOperation(async () => {
+        try {
+            const pidText = await fs.readFile(getManagedLSPPidFilePath(), "utf8");
+            return Number.parseInt(pidText.trim(), 10);
+        } catch (error: any) {
+            if (error?.code !== "ENOENT") {
+                logLanguageServer(`Unable to read managed LSP pid file: ${formatError(error)}`);
+                return Number.NaN;
+            }
+
+            return undefined;
+        }
+    });
+}
+
+/**
+ * Kills a managed LSP process left behind by an earlier start (recorded in the pid file) and
+ * waits until it is gone. Throws when it cannot be stopped, so the caller does not boot a second
+ * JVM beside it.
+ */
 async function cleanupStaleManagedLSPProcess() {
-    let pid: number;
+    const pid = await readManagedLSPPid();
 
-    try {
-        const pidText = await fs.readFile(getManagedLSPPidFilePath(), "utf8");
-        pid = Number.parseInt(pidText.trim(), 10);
-    } catch (error: any) {
-        if (error?.code !== "ENOENT") {
-            logLanguageServer(`Unable to read managed LSP pid file: ${formatError(error)}`);
-            await forgetManagedLSPProcess();
-        }
+    if (pid === undefined) {
         return;
     }
 
@@ -445,23 +503,37 @@ async function cleanupStaleManagedLSPProcess() {
         return;
     }
 
-    try {
-        process.kill(pid, 0);
-    } catch {
+    if (!isPidAlive(pid)) {
         await forgetManagedLSPProcess();
         return;
     }
 
     logLanguageServer(`Cleaning up stale managed LSP process pid=${pid}`);
 
-    try {
-        process.kill(pid);
-    } catch (error) {
-        logLanguageServer(`Failed to signal stale managed LSP process pid=${pid}: ${formatError(error)}`);
-        return;
+    if (!await terminatePid(pid, "stale managed LSP process")) {
+        throw new Error(`A previous LSP process (pid ${pid}) is still running and could not be stopped; not starting another one beside it`);
     }
 
     await forgetManagedLSPProcess();
+}
+
+/**
+ * Closes the socket a start opened to an external LSP without waiting on that start. Used where
+ * disconnectExternalClient() cannot be, because the start in question is still in flight.
+ */
+function destroyExternalSocket(targetClient: LanguageClient) {
+    const socket = externalClientSockets.get(targetClient);
+
+    if (!socket) {
+        return;
+    }
+
+    externalClientSockets.delete(targetClient);
+
+    if (!socket.destroyed) {
+        logLanguageServer("Destroying the external LSP socket of a start that did not complete");
+        socket.destroy();
+    }
 }
 
 async function disconnectExternalClient(activeClient: LanguageClient) {
@@ -550,8 +622,10 @@ export function startLSP(reason = "direct start"): Promise<LanguageClient | unde
         const pendingStart = client ? clientStartStates.get(client)?.promise : undefined;
 
         if (pendingStart) {
+            // If that start could not kill the process it spawned, this rejects and no new
+            // client is created beside the process that is still running.
             logLanguageServer(`startLSP() waiting for the in-flight client start to settle id=${requestId}`);
-            await pendingStart.catch(() => undefined);
+            await pendingStart;
         }
 
         return startLSPNow(requestId, reason);
@@ -731,7 +805,7 @@ function startLSPNow(startRequestId: number, reason: string) {
             // The library does not dispose the connection when initialize fails, so close the
             // socket we opened. disconnectExternalClient() is not usable here: it waits on this
             // very start promise.
-            externalClientSockets.get(nextClient)?.destroy();
+            destroyExternalSocket(nextClient);
             return;
         }
 
@@ -739,11 +813,14 @@ function startLSPNow(startRequestId: number, reason: string) {
             return;
         }
 
-        if (await terminateProcess(startState.process, "LSP process", reason)) {
-            await forgetManagedLSPProcess(startState.process);
-        } else {
-            logLanguageServer(`LSP process (pid ${startState.process.pid}) is still running; keeping its pid file so the next start can retry`);
+        if (!await terminateProcess(startState.process, "LSP process", reason)) {
+            // The pid file is kept so the next start retries the kill through
+            // cleanupStaleManagedLSPProcess(). Fail loudly so a stop() or startLSP() waiting on
+            // this start does not go on to boot a second JVM beside this one.
+            throw new Error(`LSP process (pid ${startState.process.pid}) is still running after termination attempts; not starting another one`);
         }
+
+        await forgetManagedLSPProcess(startState.process);
     };
 
     startState.promise = nextClient.start().then(async () => {
@@ -753,12 +830,17 @@ function startLSPNow(startRequestId: number, reason: string) {
             logLanguageServer(`client.start() resolved for an abandoned client attempt=${startAttemptId}; shutting it down`);
             intentionallyClosedClients.add(nextClient);
 
-            try {
-                await nextClient.stop(LSP_STOP_TIMEOUT_MS);
-            } catch (error) {
-                logLanguageServer(`Stopping the abandoned client failed: ${formatError(error)}`);
+            // An externally managed server is not ours to shut down; only the socket is closed.
+            if (!nextIsUsingExternalLSP) {
+                try {
+                    await nextClient.stop(LSP_STOP_TIMEOUT_MS);
+                } catch (error) {
+                    logLanguageServer(`Stopping the abandoned client failed: ${formatError(error)}`);
+                }
             }
 
+            // A teardown failure rejects the start promise directly (see below), it does not
+            // run through the rejection handler for a failed start.
             await tearDownStart(" after its start was abandoned");
             return;
         }
@@ -772,13 +854,20 @@ function startLSPNow(startRequestId: number, reason: string) {
         } catch (error) {
             logLanguageServer(`Failed to send initial workspace/didChangeConfiguration attempt=${startAttemptId}: ${formatError(error)}`);
         }
-    }).catch(async error => {
+    }, async error => {
+        // Only reached when client.start() itself rejected.
         logLanguageServer(`client.start() rejected attempt=${startAttemptId}: ${formatError(error)}`);
 
         // Clean up what the failed start left behind *before* clearing the client state. While
         // the client is still registered, stop() and startLSP() wait on this start instead of
         // seeing "no client" and spawning a replacement beside the old process.
-        await tearDownStart(" after the client failed to start");
+        let teardownFailure: unknown;
+
+        try {
+            await tearDownStart(" after the client failed to start");
+        } catch (cleanupError) {
+            teardownFailure = cleanupError;
+        }
 
         if (client === nextClient) {
             client = undefined;
@@ -786,8 +875,20 @@ function startLSPNow(startRequestId: number, reason: string) {
             isUsingExternalLSP = false;
             await updateAdvertisedServerCommands();
         }
+
+        if (teardownFailure) {
+            // Rejecting here is how a waiting stop() or startLSP() learns that the process is
+            // still running. The pid file is kept so the next start can retry the kill.
+            throw teardownFailure;
+        }
     }).finally(() => {
         clientStartStates.delete(nextClient);
+    });
+
+    // The promise rejects only when a teardown could not kill the process. Log it here so it is
+    // never an unhandled rejection; callers that need the outcome await the promise themselves.
+    startState.promise.catch(error => {
+        logLanguageServer(`client start attempt=${startAttemptId} left a process running: ${formatError(error)}`);
     });
 
     clientStartStates.set(nextClient, startState);
@@ -858,7 +959,14 @@ export function getLSPServerConfig(hooks: LSPServerConfigHooks = {}): ServerOpti
 
     return async () => {
         const [proc, port] = await startLanguageServerProcess({ onProcessSpawned, isAbandoned });
-        lspProcess = proc;
+
+        // Only a start that is still the active one may own the global process reference. A start
+        // that stop() has given up on tears its process down itself and must not clobber the
+        // reference a replacement start may already hold.
+        if (!isAbandoned?.()) {
+            lspProcess = proc;
+        }
+
         const socketId = ++lspSocketSequence;
 
         // Attach persistent crash monitoring to the LSP process
@@ -869,7 +977,11 @@ export function getLSPServerConfig(hooks: LSPServerConfigHooks = {}): ServerOpti
                 `[LSP Crash Monitor] Process (pid ${pid}) exited unexpectedly: ${exitInfo}. ` +
                 `Check output channel above for [LSP stdErr], [LSP crash], or JVM stacktrace messages.`
             );
-            lspProcess = null;
+
+            // Only clear the reference if it still points at this process.
+            if (lspProcess === proc) {
+                lspProcess = null;
+            }
         });
         proc.once('close', () => {
             boxlangOutputChannel.appendLine(
@@ -950,6 +1062,8 @@ async function startLanguageServerProcess(hooks: Pick<LSPServerConfigHooks, "onP
         throw new Error("LSP start was abandoned before the process was spawned");
     }
 
+    let pidRecorded: Promise<void> = Promise.resolve();
+
     const startedProcess = await startLSPProcess(
         lspBoxLangHome,
         lspModulePath,
@@ -958,13 +1072,15 @@ async function startLanguageServerProcess(hooks: Pick<LSPServerConfigHooks, "onP
             onSpawn: proc => {
                 // Record the pid right away so a process that outlives this start (for example a
                 // startup timeout we could not kill) is found by cleanupStaleManagedLSPProcess().
-                void rememberManagedLSPProcess(proc);
+                // The write is queued behind any earlier pid-file operation and ahead of any
+                // later removal, so it cannot land after a teardown or overwrite a newer pid.
+                pidRecorded = rememberManagedLSPProcess(proc);
                 hooks.onProcessSpawned?.(proc);
             }
         }
     );
 
-    await rememberManagedLSPProcess(startedProcess[0]);
+    await pidRecorded;
 
     return startedProcess;
 }

@@ -110,11 +110,11 @@ function logExtensionLifecycle(message: string) {
     boxlangOutputChannel.appendLine(`[Extension ${new Date().toISOString()}] ${message}`);
 }
 
-async function stopExtensionServices(reason: string) {
+async function stopExtensionServices(reason: string, options: LSP.StopOptions = {}) {
     logExtensionLifecycle(`stopExtensionServices() called reason=${reason}`);
 
     try {
-        await LSP.shutdown(reason);
+        await LSP.shutdown(reason, options);
     } catch (error) {
         logExtensionLifecycle(`stopExtensionServices() failed reason=${reason}: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -533,7 +533,8 @@ export function activate(context: ExtensionContext): void {
  */
 export async function deactivate(): Promise<void> {
     logExtensionLifecycle("deactivate() called");
-    await stopExtensionServices("deactivate()");
+    // Do not hold deactivation up for a language server that is still starting.
+    await stopExtensionServices("deactivate()", { startSettleTimeoutMs: LSP.LSP_DEACTIVATE_START_SETTLE_MS });
 }
 
 export async function restartAllProcesses(reason = "unspecified", refreshWorkspace = false): Promise<void> {
@@ -591,7 +592,9 @@ async function runSetup(context: ExtensionContext) {
     }, 3000);
 
     logExtensionLifecycle("runSetup() invoking LSP.startLSP()");
-    void LSP.startLSP("activation");
+    LSP.startLSP("activation").catch(error => {
+        logExtensionLifecycle(`LSP.startLSP() failed during activation: ${error instanceof Error ? error.message : String(error)}`);
+    });
 
     try {
         setupServers(context);

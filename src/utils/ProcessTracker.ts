@@ -117,6 +117,72 @@ export async function terminateProcess(process: ChildProcessWithoutNullStreams, 
     return false;
 }
 
+/**
+ * True when a process with this pid exists. A pid we are not allowed to signal still counts as alive.
+ */
+export function isPidAlive(pid: number): boolean {
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch (error: any) {
+        return error?.code === "EPERM";
+    }
+}
+
+async function waitForPidExit(pid: number, timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+
+    while (isPidAlive(pid)) {
+        if (Date.now() >= deadline) {
+            return false;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+    }
+
+    return true;
+}
+
+/**
+ * Like terminateProcess(), but for a process we only know by pid (for example one recorded in a
+ * pid file by an earlier extension host). Waits for the pid to disappear after each signal.
+ * @returns true when the process is gone, false when it is still running after both attempts.
+ */
+export async function terminatePid(pid: number, label: string): Promise<boolean> {
+    if (!isPidAlive(pid)) {
+        return true;
+    }
+
+    boxlangOutputChannel.appendLine(`Force-killing ${label} (pid ${pid})`);
+
+    try {
+        process.kill(pid);
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`Failed to signal ${label} (pid ${pid}): ${error instanceof Error ? error.message : String(error)}`);
+        return !isPidAlive(pid);
+    }
+
+    if (await waitForPidExit(pid, FORCE_KILL_TIMEOUT_MS)) {
+        return true;
+    }
+
+    boxlangOutputChannel.appendLine(`${label} (pid ${pid}) did not exit after SIGTERM, sending SIGKILL`);
+
+    try {
+        process.kill(pid, "SIGKILL");
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`Failed to force-kill ${label} (pid ${pid}): ${error instanceof Error ? error.message : String(error)}`);
+        return !isPidAlive(pid);
+    }
+
+    if (await waitForPidExit(pid, FORCE_KILL_TIMEOUT_MS)) {
+        return true;
+    }
+
+    boxlangOutputChannel.appendLine(`${label} (pid ${pid}) is still running after SIGKILL`);
+    return false;
+}
+
 export function cleanupTrackedProcesses() {
     processes.forEach(p => {
         try {

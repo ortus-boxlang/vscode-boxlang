@@ -46,6 +46,9 @@ class MockLanguageClient {
     static failAfterConnect: Error | undefined;
     // Runs right before failAfterConnect is thrown, so a test can change the process state first.
     static beforeFailAfterConnect: (() => void) | undefined;
+    // When set, start() waits on this after the server options resolved, like an initialize
+    // request that never gets an answer.
+    static hangAfterConnect: Promise<void> | undefined;
 
     readonly serverOptions: any;
     readonly clientOptions: any;
@@ -66,6 +69,10 @@ class MockLanguageClient {
         this.startPromise = Promise.resolve().then(async () => {
             if (this.serverOptions) {
                 this.transport = await this.serverOptions();
+            }
+
+            if (MockLanguageClient.hangAfterConnect) {
+                await MockLanguageClient.hangAfterConnect;
             }
 
             if (MockLanguageClient.failAfterConnect) {
@@ -198,7 +205,7 @@ Module.prototype.require = function (id: string) {
 };
 
 const { ExtensionConfig } = require('../../utils/Configuration');
-const { getLanguageClient, getLSPServerConfig, requestRestart, shutdown, startLSP, stop } = require('../../utils/LanguageServer');
+const { getLanguageClient, getLSPServerConfig, LSP_DEACTIVATE_START_SETTLE_MS, requestRestart, shutdown, startLSP, stop } = require('../../utils/LanguageServer');
 const { CloseAction, ErrorAction } = require('vscode-languageclient/node');
 
 suite('LanguageServer Test Suite', () => {
@@ -250,6 +257,7 @@ suite('LanguageServer Test Suite', () => {
         MockLanguageClient.stopHandler = undefined;
         MockLanguageClient.failAfterConnect = undefined;
         MockLanguageClient.beforeFailAfterConnect = undefined;
+        MockLanguageClient.hangAfterConnect = undefined;
         startLSPProcessImpl = async (_home, _module, _jar, options) => {
             options?.onSpawn?.(fakeLspProcess);
             return [fakeLspProcess, fakeLspPort];
@@ -576,7 +584,7 @@ suite('LanguageServer Test Suite', () => {
         await assert.rejects(fs.access(path.join(workspaceStoragePath, 'managed-lsp.pid')), 'the pid file should be removed once the process is gone');
     });
 
-    test('shutdown should not wait long for a start that is still booting', async function () {
+    test('shutdown for deactivation should not wait long for a start that is still booting', async function () {
         this.timeout(5000);
         await setupManagedLspEnvironment();
         bootingForeverProcess();
@@ -585,7 +593,7 @@ suite('LanguageServer Test Suite', () => {
         await waitUntil(() => fakeLspProcess.listenerCount('exit') > 0);
 
         const startedAt = Date.now();
-        await shutdown('test shutdown during boot');
+        await shutdown('test deactivate during boot', { startSettleTimeoutMs: LSP_DEACTIVATE_START_SETTLE_MS });
 
         assert.ok(Date.now() - startedAt < 3000, 'shutdown should give up on the booting start quickly');
         assert.deepStrictEqual(fakeLspProcess.killSignals, ['SIGTERM']);
@@ -648,6 +656,137 @@ suite('LanguageServer Test Suite', () => {
         await new Promise(resolve => setTimeout(resolve, 20));
 
         assert.strictEqual(spawnCount, 0, 'an abandoned start must not spawn a process');
+    });
+
+    test('a start should wait for a stale managed LSP process to exit before spawning', async () => {
+        const { workspaceStoragePath } = await setupManagedLspEnvironment();
+        await fs.mkdir(workspaceStoragePath, { recursive: true });
+        await fs.writeFile(path.join(workspaceStoragePath, 'managed-lsp.pid'), '4242');
+
+        // The stale process is alive until it has been signalled.
+        let staleProcessSignalled = false;
+        processKillStub.withArgs(4242, 0).callsFake(() => {
+            if (staleProcessSignalled) {
+                throw Object.assign(new Error('mock process not found'), { code: 'ESRCH' });
+            }
+
+            return true;
+        });
+        processKillStub.withArgs(4242).callsFake(() => {
+            staleProcessSignalled = true;
+            return true;
+        });
+
+        let spawnCount = 0;
+        let staleProcessGoneAtSpawn: boolean | undefined;
+        startLSPProcessImpl = async (_home, _module, _jar, options) => {
+            spawnCount++;
+            staleProcessGoneAtSpawn = staleProcessSignalled;
+            options?.onSpawn?.(fakeLspProcess);
+            return [fakeLspProcess, fakeLspPort];
+        };
+
+        await startLSP();
+        await MockLanguageClient.instances[0].startPromise;
+
+        assert.strictEqual(spawnCount, 1);
+        assert.strictEqual(staleProcessGoneAtSpawn, true, 'the stale process should be gone before the new one is spawned');
+        sinon.assert.calledWith(processKillStub, 4242);
+    });
+
+    test('a start should fail instead of spawning beside a stale managed LSP process that cannot be killed', async function () {
+        this.timeout(8000);
+        const { workspaceStoragePath } = await setupManagedLspEnvironment();
+        await fs.mkdir(workspaceStoragePath, { recursive: true });
+        await fs.writeFile(path.join(workspaceStoragePath, 'managed-lsp.pid'), '4242');
+
+        // The stale process ignores every signal.
+        processKillStub.withArgs(4242, 0).returns(true);
+
+        let spawnCount = 0;
+        startLSPProcessImpl = async () => {
+            spawnCount++;
+            return [fakeLspProcess, fakeLspPort];
+        };
+
+        await startLSP();
+        await assert.rejects(MockLanguageClient.instances[0].startPromise, /still running and could not be stopped/);
+
+        assert.strictEqual(spawnCount, 0, 'no process should be spawned beside the stale one');
+        assert.strictEqual(
+            await fs.readFile(path.join(workspaceStoragePath, 'managed-lsp.pid'), 'utf8'),
+            '4242',
+            'the pid file should be kept for the next attempt'
+        );
+    });
+
+    test('requestRestart should fail when a failed start cannot kill the process it spawned', async function () {
+        this.timeout(8000);
+        await setupManagedLspEnvironment();
+        MockLanguageClient.failAfterConnect = new Error('initialize failed');
+        // The process ignores every signal.
+        fakeLspProcess.deferExit = true;
+
+        let spawnCount = 0;
+        startLSPProcessImpl = async (_home, _module, _jar, options) => {
+            spawnCount++;
+            options?.onSpawn?.(fakeLspProcess);
+            return [fakeLspProcess, fakeLspPort];
+        };
+
+        await startLSP();
+        await waitUntil(() => fakeLspProcess.killed);
+
+        await assert.rejects(requestRestart('restart during failed teardown', 0), /still running after termination attempts/);
+
+        assert.strictEqual(spawnCount, 1, 'no replacement should be spawned while the old process is still running');
+        assert.deepStrictEqual(fakeLspProcess.killSignals, ['SIGTERM', 'SIGKILL']);
+    });
+
+    test('stop should fail instead of releasing an abandoned start whose process cannot be killed', async function () {
+        this.timeout(8000);
+        await setupManagedLspEnvironment();
+        // A booting process that ignores every signal and never opens a port.
+        fakeLspProcess.deferExit = true;
+        bootingForeverProcess();
+
+        await startLSP();
+        await waitUntil(() => fakeLspProcess.listenerCount('exit') > 0);
+
+        await assert.rejects(stop({ startSettleTimeoutMs: 20 }), /still running after termination attempts/);
+
+        assert.deepStrictEqual(fakeLspProcess.killSignals, ['SIGTERM', 'SIGKILL']);
+        assert.notStrictEqual(getLanguageClient(), undefined, 'the client slot must not be released while the process is alive');
+
+        // Let the process die so the abandoned start can finish its cleanup.
+        fakeLspProcess.exitWith('SIGKILL');
+        await waitUntil(() => getLanguageClient() === undefined);
+    });
+
+    test('stop should close the socket of an abandoned external start', async () => {
+        await startFakeLspServer();
+        const port = (lspServer.address() as net.AddressInfo).port;
+        process.env.BOXLANG_LSP_PORT = String(port);
+
+        // The connection is made but initialize never answers.
+        const initializeAnswered = createDeferred<void>();
+        MockLanguageClient.hangAfterConnect = initializeAnswered.promise;
+
+        await startLSP();
+        await waitUntil(() => MockLanguageClient.instances[0].transport !== undefined);
+
+        await stop({ startSettleTimeoutMs: 20 });
+
+        const socket = MockLanguageClient.instances[0].transport.reader as net.Socket;
+        assert.strictEqual(socket.destroyed, true, 'the abandoned external socket should be closed');
+        assert.strictEqual(getLanguageClient(), undefined);
+
+        initializeAnswered.resolve();
+        await MockLanguageClient.instances[0].startPromise;
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        // The external server is not ours: the abandoned client must not send it a shutdown.
+        assert.strictEqual(MockLanguageClient.instances[0].stopTimeout, undefined, 'an external server must not be shut down');
     });
 
     test('stop should fail and keep the pid file when the LSP process cannot be killed', async function () {
