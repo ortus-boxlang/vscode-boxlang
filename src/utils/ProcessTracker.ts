@@ -79,10 +79,12 @@ export function waitForProcessExit(process: ChildProcessWithoutNullStreams, time
  * if the process is still running after FORCE_KILL_TIMEOUT_MS.
  * @param label Short name used in log lines, e.g. "LSP process"
  * @param reason Optional suffix for the log line, e.g. " after a shutdown failure"
+ * @returns true when the process is gone, false when it is still running after both attempts.
+ *          Callers must not treat the process as cleaned up when this returns false.
  */
-export async function terminateProcess(process: ChildProcessWithoutNullStreams, label: string, reason = ""): Promise<void> {
+export async function terminateProcess(process: ChildProcessWithoutNullStreams, label: string, reason = ""): Promise<boolean> {
     if (!isProcessActive(process)) {
-        return;
+        return true;
     }
 
     boxlangOutputChannel.appendLine(`Force-killing ${label} (pid ${process.pid})${reason}`);
@@ -91,21 +93,28 @@ export async function terminateProcess(process: ChildProcessWithoutNullStreams, 
         process.kill();
     } catch (error) {
         boxlangOutputChannel.appendLine(`Failed to signal ${label} (pid ${process.pid}): ${error instanceof Error ? error.message : String(error)}`);
-        return;
+        return !isProcessActive(process);
     }
 
     if (await waitForProcessExit(process, FORCE_KILL_TIMEOUT_MS)) {
-        return;
+        return true;
     }
 
     boxlangOutputChannel.appendLine(`${label} (pid ${process.pid}) did not exit after SIGTERM, sending SIGKILL`);
 
     try {
         process.kill("SIGKILL");
-        await waitForProcessExit(process, FORCE_KILL_TIMEOUT_MS);
     } catch (error) {
         boxlangOutputChannel.appendLine(`Failed to force-kill ${label} (pid ${process.pid}): ${error instanceof Error ? error.message : String(error)}`);
+        return !isProcessActive(process);
     }
+
+    if (await waitForProcessExit(process, FORCE_KILL_TIMEOUT_MS)) {
+        return true;
+    }
+
+    boxlangOutputChannel.appendLine(`${label} (pid ${process.pid}) is still running after SIGKILL`);
+    return false;
 }
 
 export function cleanupTrackedProcesses() {

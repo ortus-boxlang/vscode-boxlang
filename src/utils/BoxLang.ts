@@ -38,12 +38,21 @@ export async function setupVSCodeBoxLangHome(context: ExtensionContext): Promise
     BoxLang.getVersionOutput();
 }
 
+export type StartLSPProcessOptions = {
+    /** How long to wait for the process to print its port before giving up. */
+    timeoutMs?: number;
+    /** Called as soon as the process is spawned, before it has opened a port. */
+    onSpawn?: (process: ChildProcessWithoutNullStreams) => void;
+};
+
 export async function startLSPProcess(
     boxlangHome: string,
     lspModulePath: string,
     boxlangVersionPath: string,
-    timeoutMs = 30000
+    options: StartLSPProcessOptions = {}
 ): Promise<Array<any>> {
+    const timeoutMs = options.timeoutMs ?? 30000;
+
     return new Promise((resolve, reject) => {
         const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
 
@@ -62,6 +71,8 @@ export async function startLSPProcess(
                 CLASSPATH: boxlangVersionPath
             }
         });
+        options.onSpawn?.(lsp);
+
         let stdout = '';
         let stderr = '';
         let found = false;
@@ -158,9 +169,11 @@ export async function startLSPProcess(
         // Only record the exit code here and finish on "close", so stderr written just before the
         // process died still ends up in the failure message.
         let exitCode: number | null | undefined;
+        let exitSignal: NodeJS.Signals | null = null;
 
-        const onExit = (code) => {
+        const onExit = (code, signal) => {
             exitCode = code;
+            exitSignal = signal ?? null;
         };
 
         const onClose = () => {
@@ -170,9 +183,16 @@ export async function startLSPProcess(
 
             cleanupStartupListeners();
 
-            const summary = exitCode === undefined
-                ? "LSP process closed before opening port"
-                : `LSP process exited with code ${exitCode} before opening port`;
+            // Node reports a signal kill as code=null plus the signal name.
+            let summary: string;
+
+            if (exitCode === undefined) {
+                summary = "LSP process closed before opening port";
+            } else if (exitCode === null && exitSignal) {
+                summary = `LSP process was terminated by ${exitSignal} before opening port`;
+            } else {
+                summary = `LSP process exited with code ${exitCode} before opening port`;
+            }
 
             reject(new Error(describeStartupFailure(summary)));
         };
@@ -187,9 +207,12 @@ export async function startLSPProcess(
             // The process is still running at this point. Do not leave it behind: the next start
             // would boot a second JVM into the same BOXLANG_HOME and the two would race on the
             // home assets.
-            await terminateProcess(lsp, "LSP process", ` because it did not open a port within ${timeoutMs}ms`);
+            const exited = await terminateProcess(lsp, "LSP process", ` because it did not open a port within ${timeoutMs}ms`);
+            const summary = exited
+                ? `LSP process failed to start within ${timeoutMs}ms`
+                : `LSP process failed to start within ${timeoutMs}ms and is still running (pid ${lsp.pid})`;
 
-            reject(new Error(describeStartupFailure(`LSP process failed to start within ${timeoutMs}ms`)));
+            reject(new Error(describeStartupFailure(summary)));
         }, timeoutMs);
 
         function cleanupStartupListeners() {

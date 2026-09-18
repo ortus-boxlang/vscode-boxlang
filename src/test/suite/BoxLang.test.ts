@@ -99,6 +99,53 @@ suite('BoxLang LSP Process Test Suite', () => {
         );
     });
 
+    test('should describe a signal kill instead of reporting exit code null', async () => {
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
+
+        setTimeout(() => {
+            lastMockProcess.emit('exit', null, 'SIGTERM');
+            lastMockProcess.emit('close', null, 'SIGTERM');
+        }, 10);
+
+        await assert.rejects(
+            promise,
+            /LSP process was terminated by SIGTERM before opening port/
+        );
+    });
+
+    test('should report the spawned process through onSpawn before it opens a port', async () => {
+        let spawned: any = null;
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar', {
+            onSpawn: (proc) => { spawned = proc; }
+        });
+
+        assert.strictEqual(spawned, lastMockProcess, 'onSpawn should run as soon as the process exists');
+
+        setTimeout(() => {
+            lastMockProcess.stdout.emit('data', 'Listening on port: 8080\n');
+        }, 10);
+
+        await promise;
+    });
+
+    test('should say the process is still running when the timeout kill does not work', async function () {
+        this.timeout(6000);
+
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar', { timeoutMs: 100 });
+        // A process that ignores both SIGTERM and SIGKILL.
+        lastMockProcess.kill = (signal: NodeJS.Signals = 'SIGTERM') => {
+            lastMockProcess.killSignals.push(signal);
+            return true;
+        };
+
+        await assert.rejects(
+            promise,
+            new RegExp(`LSP process failed to start within 100ms and is still running \\(pid ${lastMockProcess.pid}\\)`)
+        );
+
+        assert.deepStrictEqual(lastMockProcess.killSignals, ['SIGTERM', 'SIGKILL']);
+    });
+
     test('should not resolve when the port line arrives after the child process has exited', async () => {
         const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
 
@@ -198,7 +245,7 @@ suite('BoxLang LSP Process Test Suite', () => {
     });
 
     test('should reject with timeout when process is silent', async () => {
-        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar', 100);
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar', { timeoutMs: 100 });
 
         await assert.rejects(
             promise,
