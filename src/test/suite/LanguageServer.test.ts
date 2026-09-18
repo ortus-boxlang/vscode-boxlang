@@ -43,6 +43,8 @@ class MockLanguageClient {
     static stopHandler: ((timeout: number) => Promise<void>) | undefined;
     // When set, start() fails after the server options resolved, like a failed initialize request.
     static failAfterConnect: Error | undefined;
+    // Runs right before failAfterConnect is thrown, so a test can change the process state first.
+    static beforeFailAfterConnect: (() => void) | undefined;
 
     readonly serverOptions: any;
     readonly clientOptions: any;
@@ -68,6 +70,7 @@ class MockLanguageClient {
             if (MockLanguageClient.failAfterConnect) {
                 // The real client does not dispose the connection when initialize fails,
                 // so the transport is left open on purpose here.
+                MockLanguageClient.beforeFailAfterConnect?.();
                 this.state = 1;
                 throw MockLanguageClient.failAfterConnect;
             }
@@ -245,6 +248,7 @@ suite('LanguageServer Test Suite', () => {
         MockLanguageClient.instances.length = 0;
         MockLanguageClient.stopHandler = undefined;
         MockLanguageClient.failAfterConnect = undefined;
+        MockLanguageClient.beforeFailAfterConnect = undefined;
         startLSPProcessImpl = async () => [fakeLspProcess, fakeLspPort];
         sinon.stub(ExtensionConfig, 'boxlangJavaExecutable').get(() => 'java');
         sinon.stub(ExtensionConfig, 'boxlangMaxHeapSize').get(() => 512);
@@ -502,6 +506,41 @@ suite('LanguageServer Test Suite', () => {
         await assert.rejects(fs.access(path.join(workspaceStoragePath, 'managed-lsp.pid')), 'the managed pid file should be removed');
     });
 
+    test('a failed client start should remove the pid file even if the LSP process already died', async () => {
+        const { workspaceStoragePath } = await setupManagedLspEnvironment();
+        MockLanguageClient.failAfterConnect = new Error('initialize failed');
+
+        // The process dies after opening its port but before the client gives up, so the crash
+        // monitor has already cleared the global process reference by the time cleanup runs.
+        MockLanguageClient.beforeFailAfterConnect = () => {
+            fakeLspProcess.exitCode = 1;
+            fakeLspProcess.emit('exit', 1, null);
+            fakeLspProcess.emit('close', 1, null);
+        };
+
+        await startLSP();
+        await MockLanguageClient.instances[0].startPromise.catch(() => undefined);
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        assert.deepStrictEqual(fakeLspProcess.killSignals, [], 'an already-dead process should not be signalled');
+        await assert.rejects(fs.access(path.join(workspaceStoragePath, 'managed-lsp.pid')), 'the managed pid file should be removed');
+    });
+
+    test('a failed client start should not report the cleanup kill as a crash', async () => {
+        await setupManagedLspEnvironment();
+        MockLanguageClient.failAfterConnect = new Error('initialize failed');
+
+        await startLSP();
+        await MockLanguageClient.instances[0].startPromise.catch(() => undefined);
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        // The library keeps its connection open after a failed start, so killing the process
+        // makes it call closed(). That must be treated as intentional, not as a crash.
+        const errorHandler = MockLanguageClient.instances[0].clientOptions?.errorHandler;
+        assert.ok(errorHandler);
+        assert.deepStrictEqual(await errorHandler.closed(), { action: CloseAction.DoNotRestart, handled: true });
+    });
+
     test('requestRestart during a failed start should wait for the failed LSP process to exit before spawning again', async () => {
         await setupManagedLspEnvironment();
         MockLanguageClient.failAfterConnect = new Error('initialize failed');
@@ -564,6 +603,10 @@ suite('LanguageServer Test Suite', () => {
 
         const socket = MockLanguageClient.instances[0].transport.reader as net.Socket;
         assert.strictEqual(socket.destroyed, true, 'the external socket should be closed after the failed start');
+
+        const errorHandler = MockLanguageClient.instances[0].clientOptions?.errorHandler;
+        assert.ok(errorHandler);
+        assert.deepStrictEqual(await errorHandler.closed(), { action: CloseAction.DoNotRestart, handled: true });
 
         await assert.doesNotReject(stop());
     });

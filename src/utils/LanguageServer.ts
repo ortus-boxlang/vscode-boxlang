@@ -598,6 +598,11 @@ function startLSPNow(startRequestId: number, reason: string) {
         }
     };
 
+    // The process this start spawned. Kept separately from the global lspProcess, which the
+    // crash monitor clears as soon as the process exits, so the failure handler below can still
+    // clean up after a process that died between opening its port and the client giving up.
+    let startedProcess: ChildProcessWithoutNullStreams | null = null;
+
     nextClient = new LanguageClient(
         "boxlang",
         "BoxLang Language Support",
@@ -608,6 +613,8 @@ function startLSPNow(startRequestId: number, reason: string) {
                     externalClientSockets.delete(nextClient);
                 }
             });
+        }, proc => {
+            startedProcess = proc;
         }),
         clientOptions,
         true
@@ -650,17 +657,23 @@ function startLSPNow(startRequestId: number, reason: string) {
             // Clean up what the failed start left behind *before* clearing the client state.
             // While the client is still registered, stop() and startLSP() wait on this start
             // instead of seeing "no client" and spawning a replacement beside the old process.
+
+            // The library keeps its connection open after a failed start, so closing the socket
+            // or killing the process below will trigger the closed() handler. Mark the client so
+            // that handler does not report a crash on top of the startup failure.
+            intentionallyClosedClients.add(nextClient);
+
             if (nextIsUsingExternalLSP) {
                 // The library does not dispose the connection when initialize fails, so close
                 // the socket we opened. disconnectExternalClient() is not usable here: it waits
                 // on this very start promise.
                 externalClientSockets.get(nextClient)?.destroy();
-            } else if (lspProcess) {
+            } else if (startedProcess) {
                 // The process was spawned but the client never finished connecting to it.
                 // Do not leave it running, or the next start would boot a second JVM beside it.
-                const failedProcess = lspProcess;
-                await terminateProcess(failedProcess, "LSP process", " after the client failed to start");
-                await forgetManagedLSPProcess(failedProcess);
+                // If it already died on its own, this still removes its pid file.
+                await terminateProcess(startedProcess, "LSP process", " after the client failed to start");
+                await forgetManagedLSPProcess(startedProcess);
             }
 
             client = undefined;
@@ -707,7 +720,10 @@ export function notifyConfigurationChanged() {
 }
 
 
-export function getLSPServerConfig(onExternalSocket?: (socket: net.Socket) => void): ServerOptions {
+export function getLSPServerConfig(
+    onExternalSocket?: (socket: net.Socket) => void,
+    onManagedProcess?: (process: ChildProcessWithoutNullStreams) => void
+): ServerOptions {
     if (process.env.BOXLANG_LSP_PORT) {
         return () => {
             const socketId = ++lspSocketSequence;
@@ -730,6 +746,7 @@ export function getLSPServerConfig(onExternalSocket?: (socket: net.Socket) => vo
     return async () => {
         const [proc, port] = await startLanguageServerProcess();
         lspProcess = proc;
+        onManagedProcess?.(proc);
         const socketId = ++lspSocketSequence;
 
         // Attach persistent crash monitoring to the LSP process

@@ -99,6 +99,22 @@ suite('BoxLang LSP Process Test Suite', () => {
         );
     });
 
+    test('should not resolve when the port line arrives after the child process has exited', async () => {
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
+
+        // Buffered stdout can be delivered after "exit" and before "close".
+        setTimeout(() => {
+            lastMockProcess.emit('exit', 1);
+            lastMockProcess.stdout.emit('data', 'Listening on port: 8080\n');
+            lastMockProcess.emit('close', 1);
+        }, 10);
+
+        await assert.rejects(
+            promise,
+            /LSP process exited with code 1 before opening port/
+        );
+    });
+
     test('should reject when child process errors before printing port', async () => {
         const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
 

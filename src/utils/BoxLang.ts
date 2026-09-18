@@ -96,7 +96,9 @@ export async function startLSPProcess(
         const onData = (data) => {
             stdout += data;
 
-            if (found) {
+            // Once the process has exited, a late "Listening on port" line must not resolve the
+            // start with a dead process. onClose will reject instead.
+            if (found || exitCode !== undefined) {
                 return;
             }
 
