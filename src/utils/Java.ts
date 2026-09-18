@@ -91,15 +91,21 @@ export function detectJavaVerison(refresh = false) {
 export async function setupLocalJavaInstall(context: ExtensionContext) {
     JAVA_INSTALL_DIR = path.join(context.globalStorageUri.fsPath, "java_install");
 
-    // Create the java install directory if it doesn't exist
+    const javaExe = process.platform === "win32" ? "java.exe" : "java";
+    const javaExePath = path.join(JAVA_INSTALL_DIR, "bin", javaExe);
+
+    // Create the java install directory if it doesn't exist, or if it doesn't contain a valid java executable
     try {
-        await fsp.access(JAVA_INSTALL_DIR);
-        boxlangOutputChannel.appendLine("Java install directory already exists - skipping download");
+        await fsp.access(javaExePath);
+        boxlangOutputChannel.appendLine("Java executable already exists - skipping download");
         return;
     }
     catch (e) {
-        boxlangOutputChannel.appendLine("Java install directory does not exist - downloading java");
-        await fsp.mkdir(JAVA_INSTALL_DIR);
+        boxlangOutputChannel.appendLine("Java executable does not exist - downloading java");
+        try {
+            await fsp.rm(JAVA_INSTALL_DIR, { recursive: true, force: true });
+        } catch (err) {}
+        await fsp.mkdir(JAVA_INSTALL_DIR, { recursive: true });
     }
 
     // download a java version if it doesn't exist
@@ -116,17 +122,20 @@ export async function setupLocalJavaInstall(context: ExtensionContext) {
     }
 
     // copy contents of setting path to JAVA_INSTALL_DIR
-    const files = fs.readdirSync(settingPath);
-    for (const file of files) {
-        const src = path.join(settingPath, file);
-        const dest = path.join(JAVA_INSTALL_DIR, file);
-        await fsp.cp(src, dest, { recursive: true });
+    if (settingPath !== JAVA_INSTALL_DIR) {
+        const files = fs.readdirSync(settingPath);
+        for (const file of files) {
+            const src = path.join(settingPath, file);
+            const dest = path.join(JAVA_INSTALL_DIR, file);
+            await fsp.rename(src, dest);
+        }
+
+        //clean up extractedPath
+        try { await fsp.rm(extractedPath, { recursive: true, force: true }); } catch (e) {}
     }
 
-    //clean up extractedPath
-    fsp.rm(extractedPath, { recursive: true, force: true });
     // clean up filePath
-    fsp.rm(filePath, { force: true });
+    try { await fsp.rm(filePath, { force: true }); } catch (e) {}
 
     boxlangOutputChannel.appendLine("Java was downloaded and extracted successfully - setting java home to " + settingPath);
 }
@@ -213,11 +222,29 @@ async function extractTarGz(javaInstallDir: string, archiveFilePath: string): Pr
         throw new Error("Archive appears to be empty");
     }
 
-    // Get the first entry which is typically the root directory or file
-    const firstEntry = entries[0];
-    const extractedPath = path.join(javaInstallDir, firstEntry);
+    // Find the root directory/file - typically the first entry or the shortest path
+    const rootEntry = entries
+        .filter(entry => !entry.includes('/') || entry.split('/').length === 2)
+        .sort((a, b) => a.length - b.length)[0];
 
-    return extractedPath;
+    if (!rootEntry) {
+        // Fallback: use the common prefix of all entries
+        const commonPrefix = entries.reduce((prefix, entry) => {
+            const entryPath = entry.split('/')[0];
+            return prefix === null ? entryPath : (prefix === entryPath ? prefix : '');
+        }, null as string | null);
+
+        if (commonPrefix) {
+            return path.join(javaInstallDir, commonPrefix);
+        }
+
+        // Last resort: return the destination path
+        return javaInstallDir;
+    }
+
+    // Remove trailing slash if present and get the first part of the path
+    const cleanEntry = rootEntry.replace(/\/$/, '').split('/')[0];
+    return path.join(javaInstallDir, cleanEntry);
 }
 
 async function extractZip(javaInstallDir: string, archiveFilePath: string): Promise<string> {
