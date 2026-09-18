@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Fix "couldn't create connection to server" / "LSP process exited with code 1 before opening port" errors caused by a restart or shutdown arriving while the language server was still starting, which spawned a second LSP JVM into the same BOXLANG_HOME (GitHub #86)
+- Include the LSP process stderr in language server startup failures so the cause is visible in the output channel
 - BLIDE-325 Fix debugger version tracking
 - BLIDE-322 Fix problem interacting with ForgeBox API
 - BLIDE-321 Add `boxlang check`

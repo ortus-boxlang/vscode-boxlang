@@ -13,6 +13,7 @@ const originalRequire = Module.prototype.require;
 let mockExtensionContext: any;
 let fakeLspProcess: any;
 let fakeLspPort = 0;
+let startLSPProcessImpl: (...args: any[]) => Promise<any[]>;
 
 function createDeferred<T>() {
     let resolve!: (value: T | PromiseLike<T>) => void;
@@ -28,6 +29,8 @@ function createDeferred<T>() {
 class MockLanguageClient {
     static instances: MockLanguageClient[] = [];
     static stopHandler: ((timeout: number) => Promise<void>) | undefined;
+    // When set, start() fails after the server options resolved, like a failed initialize request.
+    static failAfterConnect: Error | undefined;
 
     readonly serverOptions: any;
     readonly clientOptions: any;
@@ -48,6 +51,12 @@ class MockLanguageClient {
         this.startPromise = Promise.resolve().then(async () => {
             if (this.serverOptions) {
                 this.transport = await this.serverOptions();
+            }
+
+            if (MockLanguageClient.failAfterConnect) {
+                this.destroyTransport();
+                this.state = 1;
+                throw MockLanguageClient.failAfterConnect;
             }
 
             this.state = 2;
@@ -149,7 +158,7 @@ Module.prototype.require = function (id: string) {
         return { getExtensionContext: () => mockExtensionContext };
     }
     if (fromLanguageServer && (id.endsWith('/BoxLang') || id === './BoxLang')) {
-        return { startLSPProcess: async () => [fakeLspProcess, fakeLspPort] };
+        return { startLSPProcess: (...args: any[]) => startLSPProcessImpl(...args) };
     }
     if (fromLanguageServer && (id.endsWith('/versionManager') || id === './versionManager')) {
         return { ensureBoxLangVersion: async () => '/mock/boxlang.jar' };
@@ -204,6 +213,8 @@ suite('LanguageServer Test Suite', () => {
     setup(() => {
         MockLanguageClient.instances.length = 0;
         MockLanguageClient.stopHandler = undefined;
+        MockLanguageClient.failAfterConnect = undefined;
+        startLSPProcessImpl = async () => [fakeLspProcess, fakeLspPort];
         sinon.stub(ExtensionConfig, 'boxlangJavaExecutable').get(() => 'java');
         sinon.stub(ExtensionConfig, 'boxlangMaxHeapSize').get(() => 512);
         sinon.stub(ExtensionConfig, 'boxlangLSPJVMArgs').get(() => '');
@@ -358,6 +369,103 @@ suite('LanguageServer Test Suite', () => {
         await MockLanguageClient.instances[1].startPromise;
 
         assert.strictEqual(MockLanguageClient.instances.length, 2);
+    });
+
+    test('stop should wait for an in-flight start and then stop the LSP process it produced', async () => {
+        await setupManagedLspEnvironment();
+
+        // Hold the LSP process in its "booting" phase until the test releases it.
+        const spawnRequested = createDeferred<void>();
+        const spawnResult = createDeferred<any[]>();
+        startLSPProcessImpl = () => {
+            spawnRequested.resolve();
+            return spawnResult.promise;
+        };
+
+        MockLanguageClient.stopHandler = async () => {
+            fakeLspProcess.exitCode = 0;
+            fakeLspProcess.emit('exit', 0, null);
+            fakeLspProcess.emit('close', 0, null);
+        };
+
+        await startLSP();
+        await spawnRequested.promise;
+
+        let stopSettled = false;
+        const stopPromise = stop().then(() => {
+            stopSettled = true;
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 20));
+        assert.strictEqual(stopSettled, false, 'stop should wait while the LSP process is still starting');
+
+        spawnResult.resolve([fakeLspProcess, fakeLspPort]);
+        await stopPromise;
+
+        assert.strictEqual(MockLanguageClient.instances[0].stopTimeout, 10000, 'client.stop should run once the client is running');
+        assert.strictEqual(fakeLspProcess.exitCode, 0, 'the LSP process that finished booting should be stopped');
+    });
+
+    test('requestRestart during startup should not spawn a second LSP process while the first is still starting', async () => {
+        await setupManagedLspEnvironment();
+
+        const firstProcess = fakeLspProcess;
+        const secondProcess = new FakeChildProcess();
+        secondProcess.pid = 4343;
+        let runningProcess = firstProcess;
+
+        const spawnRequested = [createDeferred<void>(), createDeferred<void>()];
+        const spawnResults = [createDeferred<any[]>(), createDeferred<any[]>()];
+        let spawnCount = 0;
+        let firstProcessExitedBeforeSecondSpawn: boolean | undefined;
+
+        startLSPProcessImpl = () => {
+            const index = spawnCount++;
+
+            if (index === 1) {
+                firstProcessExitedBeforeSecondSpawn = firstProcess.exitCode !== null;
+            }
+
+            spawnRequested[index].resolve();
+            return spawnResults[index].promise;
+        };
+
+        MockLanguageClient.stopHandler = async () => {
+            runningProcess.exitCode = 0;
+            runningProcess.emit('exit', 0, null);
+            runningProcess.emit('close', 0, null);
+        };
+
+        await startLSP();
+        await spawnRequested[0].promise;
+
+        const restartPromise = requestRestart('restart during startup', 0);
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        assert.strictEqual(spawnCount, 1, 'a second LSP process must not be spawned while the first is still starting');
+
+        spawnResults[0].resolve([firstProcess, fakeLspPort]);
+        await restartPromise;
+        await spawnRequested[1].promise;
+
+        runningProcess = secondProcess;
+        spawnResults[1].resolve([secondProcess, fakeLspPort]);
+        await MockLanguageClient.instances[1].startPromise;
+
+        assert.strictEqual(spawnCount, 2);
+        assert.strictEqual(firstProcessExitedBeforeSecondSpawn, true, 'the first LSP process should be stopped before the second one is spawned');
+    });
+
+    test('a failed client start should terminate the LSP process it already spawned', async () => {
+        const { workspaceStoragePath } = await setupManagedLspEnvironment();
+        MockLanguageClient.failAfterConnect = new Error('initialize failed');
+
+        await startLSP();
+        await MockLanguageClient.instances[0].startPromise.catch(() => undefined);
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        assert.deepStrictEqual(fakeLspProcess.killSignals, ['SIGTERM']);
+        await assert.rejects(fs.access(path.join(workspaceStoragePath, 'managed-lsp.pid')), 'the managed pid file should be removed');
     });
 
     test('shutdown should cancel a pending delayed restart', async () => {

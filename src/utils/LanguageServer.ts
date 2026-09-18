@@ -247,9 +247,31 @@ export async function stop() {
     }
 
     const activeClient = client;
+    intentionallyClosedClients.add(activeClient);
+
+    // A restart or shutdown can arrive while the client is still starting, which means the LSP
+    // JVM is still booting. In that state LanguageClient.stop() rejects and lspProcess has not
+    // been recorded yet, so stopping right away would leave the booting JVM running and the next
+    // start would spawn a second JVM into the same BOXLANG_HOME. Two runtimes booting in one home
+    // race on the home assets and one of them exits with code 1 before it opens a port.
+    // Wait for the start to settle so we stop the process it produced.
+    const pendingStart = clientStartPromises.get(activeClient);
+
+    if (pendingStart) {
+        logLanguageServer("stop() waiting for the in-flight client start to settle before stopping");
+        await pendingStart.catch(() => undefined);
+    }
+
+    if (client !== activeClient) {
+        // The start failed and its handler already cleared the client state and process.
+        logLanguageServer("stop() found no active client after the in-flight start settled");
+        isUsingExternalLSP = false;
+        await updateAdvertisedServerCommands();
+        return;
+    }
+
     const processToStop = lspProcess;
     const isExternalLSP = isUsingExternalLSP;
-    intentionallyClosedClients.add(activeClient);
 
     logLanguageServer(
         `stop() called external=${isExternalLSP} clientState=${describeLanguageClientState((activeClient as LanguageClient & { state?: number }).state)}`
@@ -671,10 +693,19 @@ function startLSPNow(startRequestId: number, reason: string) {
         logLanguageServer(`client.start() rejected attempt=${startAttemptId}: ${formatError(error)}`);
 
         if (client === nextClient) {
+            const failedProcess = lspProcess;
+
             client = undefined;
             lspProcess = null;
             isUsingExternalLSP = false;
             await updateAdvertisedServerCommands();
+
+            // The process was spawned but the client never finished connecting to it.
+            // Do not leave it running, or the next start would boot a second JVM beside it.
+            if (failedProcess && !nextIsUsingExternalLSP) {
+                await terminateLSPProcess(failedProcess, " after the client failed to start");
+                await forgetManagedLSPProcess(failedProcess);
+            }
         }
     }).finally(() => {
         clientStartPromises.delete(nextClient);

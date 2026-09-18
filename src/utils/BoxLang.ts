@@ -63,8 +63,10 @@ export async function startLSPProcess(
             }
         });
         let stdout = '';
+        let stderr = '';
         let found = false;
         const MAX_STDOUT_BUFFER = 1024 * 100; // 100KB cap
+        const MAX_STDERR_BUFFER = 1024 * 8; // 8KB cap, only used to describe startup failures
 
         // Persistent listeners that stay active for the lifetime of the LSP process.
         // These ensure crash diagnostics are captured in the output channel.
@@ -124,33 +126,50 @@ export async function startLSPProcess(
 
         const onStderr = (data) => {
             boxlangOutputChannel.appendLine(data + "");
+
+            // Keep the tail of stderr so a startup failure can say *why* the process died.
+            // The language client only shows the rejection message, not the output channel.
+            stderr += data;
+            if (stderr.length > MAX_STDERR_BUFFER) {
+                stderr = stderr.slice(-MAX_STDERR_BUFFER);
+            }
+        };
+
+        const describeStartupFailure = (summary: string) => {
+            const details = stderr.trim();
+
+            if (!details.length) {
+                return summary;
+            }
+
+            return `${summary}. Process stderr:\n${details}`;
         };
 
         const onError = (err) => {
             if (!found) {
                 cleanupStartupListeners();
-                reject(new Error(`LSP process failed to start: ${err.message}`));
+                reject(new Error(describeStartupFailure(`LSP process failed to start: ${err.message}`)));
             }
         };
 
         const onExit = (code) => {
             if (!found) {
                 cleanupStartupListeners();
-                reject(new Error(`LSP process exited with code ${code} before opening port`));
+                reject(new Error(describeStartupFailure(`LSP process exited with code ${code} before opening port`)));
             }
         };
 
         const onClose = () => {
             if (!found) {
                 cleanupStartupListeners();
-                reject(new Error("LSP process closed before opening port"));
+                reject(new Error(describeStartupFailure("LSP process closed before opening port")));
             }
         };
 
         const timeoutId = setTimeout(() => {
             if (!found) {
                 cleanupStartupListeners();
-                reject(new Error(`LSP process failed to start within ${timeoutMs}ms`));
+                reject(new Error(describeStartupFailure(`LSP process failed to start within ${timeoutMs}ms`)));
             }
         }, timeoutMs);
 

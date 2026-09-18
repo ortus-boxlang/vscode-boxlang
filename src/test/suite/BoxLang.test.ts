@@ -69,6 +69,20 @@ suite('BoxLang LSP Process Test Suite', () => {
         );
     });
 
+    test('should include the process stderr when the child process exits before printing port', async () => {
+        const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
+
+        setTimeout(() => {
+            lastMockProcess.stderr.emit('data', 'java.nio.file.FileAlreadyExistsException: C:\\home\\version.properties\n');
+            lastMockProcess.emit('exit', 1);
+        }, 10);
+
+        await assert.rejects(
+            promise,
+            /LSP process exited with code 1 before opening port\. Process stderr:\njava\.nio\.file\.FileAlreadyExistsException: C:\\home\\version\.properties/
+        );
+    });
+
     test('should reject when child process errors before printing port', async () => {
         const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
 
