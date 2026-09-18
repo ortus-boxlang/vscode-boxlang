@@ -102,7 +102,7 @@ jobs:
             markdownlint changelog.md --fix || true
 
         - name: Commit Version Bump
-          uses: EndBug/add-and-commit@v9.1.4
+          uses: EndBug/add-and-commit@v10.0.0
           with:
             author_name: Github Actions
             author_email: info@ortussolutions.com
