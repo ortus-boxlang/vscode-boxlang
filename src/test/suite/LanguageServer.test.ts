@@ -26,6 +26,18 @@ function createDeferred<T>() {
     return { promise, resolve, reject };
 }
 
+async function waitUntil(condition: () => boolean, timeoutMs = 2000) {
+    const deadline = Date.now() + timeoutMs;
+
+    while (!condition()) {
+        if (Date.now() > deadline) {
+            throw new Error('waitUntil timed out');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 5));
+    }
+}
+
 class MockLanguageClient {
     static instances: MockLanguageClient[] = [];
     static stopHandler: ((timeout: number) => Promise<void>) | undefined;
@@ -54,7 +66,8 @@ class MockLanguageClient {
             }
 
             if (MockLanguageClient.failAfterConnect) {
-                this.destroyTransport();
+                // The real client does not dispose the connection when initialize fails,
+                // so the transport is left open on purpose here.
                 this.state = 1;
                 throw MockLanguageClient.failAfterConnect;
             }
@@ -114,16 +127,27 @@ class FakeChildProcess extends EventEmitter {
     signalCode: NodeJS.Signals | null = null;
     killed = false;
     killSignals: NodeJS.Signals[] = [];
+    // When true, kill() only records the signal and the test emits exit/close itself later.
+    deferExit = false;
 
     kill(signal?: NodeJS.Signals) {
         const normalizedSignal = signal ?? 'SIGTERM';
         this.killSignals.push(normalizedSignal);
         this.killed = true;
-        this.signalCode = normalizedSignal;
-        this.exitCode = 0;
-        this.emit('exit', 0, normalizedSignal);
-        this.emit('close', 0, normalizedSignal);
+
+        if (this.deferExit) {
+            return true;
+        }
+
+        this.exitWith(normalizedSignal);
         return true;
+    }
+
+    exitWith(signal: NodeJS.Signals) {
+        this.signalCode = signal;
+        this.exitCode = 0;
+        this.emit('exit', 0, signal);
+        this.emit('close', 0, signal);
     }
 }
 
@@ -177,6 +201,17 @@ suite('LanguageServer Test Suite', () => {
     let tempDir: string;
     let lspServer: net.Server;
     let processKillStub: sinon.SinonStub;
+    const serverSockets = new Set<net.Socket>();
+
+    async function startFakeLspServer() {
+        lspServer = net.createServer((socket) => {
+            socket.on('error', () => undefined);
+            serverSockets.add(socket);
+            socket.once('close', () => serverSockets.delete(socket));
+        });
+
+        await new Promise<void>((resolve) => lspServer.listen(0, '127.0.0.1', () => resolve()));
+    }
 
     async function setupManagedLspEnvironment() {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-language-server-'));
@@ -194,11 +229,7 @@ suite('LanguageServer Test Suite', () => {
             storageUri: { fsPath: workspaceStoragePath }
         };
 
-        lspServer = net.createServer((socket) => {
-            socket.on('error', () => undefined);
-        });
-
-        await new Promise<void>((resolve) => lspServer.listen(0, '127.0.0.1', () => resolve()));
+        await startFakeLspServer();
         fakeLspPort = (lspServer.address() as net.AddressInfo).port;
         fakeLspProcess = new FakeChildProcess();
 
@@ -233,6 +264,9 @@ suite('LanguageServer Test Suite', () => {
         delete process.env.BOXLANG_LSP_PORT;
 
         if (lspServer) {
+            // A failed start can leave a client socket open; server.close() would wait on it.
+            serverSockets.forEach(socket => socket.destroy());
+            serverSockets.clear();
             await new Promise<void>((resolve) => lspServer.close(() => resolve()));
         }
 
@@ -468,6 +502,72 @@ suite('LanguageServer Test Suite', () => {
         await assert.rejects(fs.access(path.join(workspaceStoragePath, 'managed-lsp.pid')), 'the managed pid file should be removed');
     });
 
+    test('requestRestart during a failed start should wait for the failed LSP process to exit before spawning again', async () => {
+        await setupManagedLspEnvironment();
+        MockLanguageClient.failAfterConnect = new Error('initialize failed');
+
+        const firstProcess = fakeLspProcess;
+        firstProcess.deferExit = true;
+        const secondProcess = new FakeChildProcess();
+        secondProcess.pid = 4343;
+
+        let spawnCount = 0;
+        let firstProcessExitedBeforeSecondSpawn: boolean | undefined;
+        const secondSpawnRequested = createDeferred<void>();
+
+        startLSPProcessImpl = async () => {
+            const index = spawnCount++;
+
+            if (index === 0) {
+                return [firstProcess, fakeLspPort];
+            }
+
+            firstProcessExitedBeforeSecondSpawn = firstProcess.exitCode !== null;
+            secondSpawnRequested.resolve();
+            // Let the second start succeed.
+            MockLanguageClient.failAfterConnect = undefined;
+            return [secondProcess, fakeLspPort];
+        };
+
+        MockLanguageClient.stopHandler = async () => {
+            secondProcess.exitWith('SIGTERM');
+        };
+
+        await startLSP();
+        // The failed start is now killing the first process, but the process has not exited yet.
+        await waitUntil(() => firstProcess.killed);
+
+        const restartPromise = requestRestart('restart during failed start', 0);
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        assert.strictEqual(spawnCount, 1, 'a replacement must not be spawned while the failed LSP process is still being killed');
+
+        firstProcess.exitWith('SIGTERM');
+        await restartPromise;
+        await secondSpawnRequested.promise;
+        await MockLanguageClient.instances[1].startPromise;
+
+        assert.strictEqual(spawnCount, 2);
+        assert.strictEqual(firstProcessExitedBeforeSecondSpawn, true, 'the failed LSP process should be gone before the second one is spawned');
+    });
+
+    test('a failed external client start should close the socket it opened', async () => {
+        await startFakeLspServer();
+        const port = (lspServer.address() as net.AddressInfo).port;
+
+        process.env.BOXLANG_LSP_PORT = String(port);
+        MockLanguageClient.failAfterConnect = new Error('initialize failed');
+
+        await startLSP();
+        await MockLanguageClient.instances[0].startPromise.catch(() => undefined);
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        const socket = MockLanguageClient.instances[0].transport.reader as net.Socket;
+        assert.strictEqual(socket.destroyed, true, 'the external socket should be closed after the failed start');
+
+        await assert.doesNotReject(stop());
+    });
+
     test('shutdown should cancel a pending delayed restart', async () => {
         await setupManagedLspEnvironment();
 
@@ -500,11 +600,7 @@ suite('LanguageServer Test Suite', () => {
     });
 
     test('stop should disconnect from an externally managed LSP without sending shutdown', async () => {
-        lspServer = net.createServer((socket) => {
-            socket.on('error', () => undefined);
-        });
-
-        await new Promise<void>((resolve) => lspServer.listen(0, '127.0.0.1', () => resolve()));
+        await startFakeLspServer();
         const port = (lspServer.address() as net.AddressInfo).port;
 
         process.env.BOXLANG_LSP_PORT = String(port);
@@ -525,11 +621,7 @@ suite('LanguageServer Test Suite', () => {
     });
 
     test('stop should not reject for an externally managed LSP that is still starting', async () => {
-        lspServer = net.createServer((socket) => {
-            socket.on('error', () => undefined);
-        });
-
-        await new Promise<void>((resolve) => lspServer.listen(0, '127.0.0.1', () => resolve()));
+        await startFakeLspServer();
         const port = (lspServer.address() as net.AddressInfo).port;
 
         process.env.BOXLANG_LSP_PORT = String(port);
@@ -557,11 +649,7 @@ suite('LanguageServer Test Suite', () => {
     });
 
     test('startLSP should disable automatic restart for externally managed LSP connections', async () => {
-        lspServer = net.createServer((socket) => {
-            socket.on('error', () => undefined);
-        });
-
-        await new Promise<void>((resolve) => lspServer.listen(0, '127.0.0.1', () => resolve()));
+        await startFakeLspServer();
         const port = (lspServer.address() as net.AddressInfo).port;
 
         process.env.BOXLANG_LSP_PORT = String(port);

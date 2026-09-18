@@ -34,6 +34,80 @@ export function trackedSpawn(...args): ChildProcessWithoutNullStreams {
     return process;
 }
 
+const FORCE_KILL_TIMEOUT_MS = 1000;
+
+export function isProcessActive(process: ChildProcessWithoutNullStreams): boolean {
+    return process.exitCode === null && process.signalCode === null;
+}
+
+/**
+ * Resolves true once the process has exited, or false if it is still running after timeoutMs.
+ */
+export function waitForProcessExit(process: ChildProcessWithoutNullStreams, timeoutMs: number): Promise<boolean> {
+    if (!isProcessActive(process)) {
+        return Promise.resolve(true);
+    }
+
+    return new Promise(resolve => {
+        const timeoutId = setTimeout(() => {
+            cleanup();
+            resolve(false);
+        }, timeoutMs);
+
+        const onExit = () => {
+            cleanup();
+            resolve(true);
+        };
+
+        const cleanup = () => {
+            clearTimeout(timeoutId);
+            process.off("exit", onExit);
+            process.off("close", onExit);
+        };
+
+        process.once("exit", onExit);
+        process.once("close", onExit);
+
+        if (!isProcessActive(process)) {
+            onExit();
+        }
+    });
+}
+
+/**
+ * Kills a process and waits for it to exit. Sends SIGTERM first and falls back to SIGKILL
+ * if the process is still running after FORCE_KILL_TIMEOUT_MS.
+ * @param label Short name used in log lines, e.g. "LSP process"
+ * @param reason Optional suffix for the log line, e.g. " after a shutdown failure"
+ */
+export async function terminateProcess(process: ChildProcessWithoutNullStreams, label: string, reason = ""): Promise<void> {
+    if (!isProcessActive(process)) {
+        return;
+    }
+
+    boxlangOutputChannel.appendLine(`Force-killing ${label} (pid ${process.pid})${reason}`);
+
+    try {
+        process.kill();
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`Failed to signal ${label} (pid ${process.pid}): ${error instanceof Error ? error.message : String(error)}`);
+        return;
+    }
+
+    if (await waitForProcessExit(process, FORCE_KILL_TIMEOUT_MS)) {
+        return;
+    }
+
+    boxlangOutputChannel.appendLine(`${label} (pid ${process.pid}) did not exit after SIGTERM, sending SIGKILL`);
+
+    try {
+        process.kill("SIGKILL");
+        await waitForProcessExit(process, FORCE_KILL_TIMEOUT_MS);
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`Failed to force-kill ${label} (pid ${process.pid}): ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
+
 export function cleanupTrackedProcesses() {
     processes.forEach(p => {
         try {

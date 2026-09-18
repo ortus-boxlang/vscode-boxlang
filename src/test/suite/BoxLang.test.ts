@@ -17,14 +17,27 @@ function createMockProcess() {
     mockProcess.stderr = new EventEmitter();
     mockProcess.pid = 12345 + Math.floor(Math.random() * 1000);
     mockProcess.killed = false;
+    mockProcess.killSignals = [];
     mockProcess.exitCode = null;
+    mockProcess.signalCode = null;
+    // Behave like a real child: exit right away on kill, then close once stdio is done.
+    mockProcess.kill = (signal: NodeJS.Signals = 'SIGTERM') => {
+        mockProcess.killSignals.push(signal);
+        mockProcess.killed = true;
+        mockProcess.signalCode = signal;
+        mockProcess.emit('exit', null, signal);
+        mockProcess.emit('close', null, signal);
+        return true;
+    };
     lastMockProcess = mockProcess;
     return mockProcess;
 }
 
 Module.prototype.require = function (id: string) {
     if (id.endsWith('/ProcessTracker') || id === './ProcessTracker') {
+        // Keep the real helpers (terminateProcess etc.) and only replace the spawn.
         return {
+            ...originalRequire.apply(this, arguments),
             trackedSpawn: (...args: any[]) => {
                 const proc = createMockProcess();
                 return proc;
@@ -61,6 +74,7 @@ suite('BoxLang LSP Process Test Suite', () => {
 
         setTimeout(() => {
             lastMockProcess.emit('exit', 1);
+            lastMockProcess.emit('close', 1);
         }, 10);
 
         await assert.rejects(
@@ -72,9 +86,11 @@ suite('BoxLang LSP Process Test Suite', () => {
     test('should include the process stderr when the child process exits before printing port', async () => {
         const promise = startLSPProcess('/mock/home', '/mock/modules', '/mock/boxlang.jar');
 
+        // Node can deliver the last stderr chunk after "exit" but before "close".
         setTimeout(() => {
-            lastMockProcess.stderr.emit('data', 'java.nio.file.FileAlreadyExistsException: C:\\home\\version.properties\n');
             lastMockProcess.emit('exit', 1);
+            lastMockProcess.stderr.emit('data', 'java.nio.file.FileAlreadyExistsException: C:\\home\\version.properties\n');
+            lastMockProcess.emit('close', 1);
         }, 10);
 
         await assert.rejects(
@@ -150,6 +166,7 @@ suite('BoxLang LSP Process Test Suite', () => {
 
         setTimeout(() => {
             lastMockProcess.emit('exit', 1);
+            lastMockProcess.emit('close', 1);
         }, 10);
 
         await assert.rejects(
@@ -172,6 +189,7 @@ suite('BoxLang LSP Process Test Suite', () => {
             /LSP process failed to start within 100ms/
         );
 
+        assert.deepStrictEqual(lastMockProcess.killSignals, ['SIGTERM'], 'the silent process should be killed before rejecting');
         assert.strictEqual(lastMockProcess.stdout.listenerCount('data'), 0, 'stdout data listener should be removed');
         assert.strictEqual(lastMockProcess.stderr.listenerCount('data'), 0, 'stderr data listener should be removed');
         assert.strictEqual(lastMockProcess.listenerCount('error'), 0, 'error listener should be removed');

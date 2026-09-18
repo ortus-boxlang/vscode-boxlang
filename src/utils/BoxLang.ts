@@ -7,7 +7,7 @@ import { getExtensionContext } from "../context";
 import { ExtensionConfig } from "../utils/Configuration";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
 import { ensureConfiguredDebuggerModule } from "./DebuggerManager";
-import { trackedSpawn } from "./ProcessTracker";
+import { terminateProcess, trackedSpawn } from "./ProcessTracker";
 import { BoxServerConfig, trackServerStart, trackServerStop } from "./Server";
 import { getConfiguredBoxLangJarPath } from "./versionManager";
 
@@ -152,25 +152,42 @@ export async function startLSPProcess(
             }
         };
 
+        // Node emits "exit" before the child's stdio streams are done, and "close" after they are.
+        // Only record the exit code here and finish on "close", so stderr written just before the
+        // process died still ends up in the failure message.
+        let exitCode: number | null | undefined;
+
         const onExit = (code) => {
-            if (!found) {
-                cleanupStartupListeners();
-                reject(new Error(describeStartupFailure(`LSP process exited with code ${code} before opening port`)));
-            }
+            exitCode = code;
         };
 
         const onClose = () => {
-            if (!found) {
-                cleanupStartupListeners();
-                reject(new Error(describeStartupFailure("LSP process closed before opening port")));
+            if (found) {
+                return;
             }
+
+            cleanupStartupListeners();
+
+            const summary = exitCode === undefined
+                ? "LSP process closed before opening port"
+                : `LSP process exited with code ${exitCode} before opening port`;
+
+            reject(new Error(describeStartupFailure(summary)));
         };
 
-        const timeoutId = setTimeout(() => {
-            if (!found) {
-                cleanupStartupListeners();
-                reject(new Error(describeStartupFailure(`LSP process failed to start within ${timeoutMs}ms`)));
+        const timeoutId = setTimeout(async () => {
+            if (found) {
+                return;
             }
+
+            cleanupStartupListeners();
+
+            // The process is still running at this point. Do not leave it behind: the next start
+            // would boot a second JVM into the same BOXLANG_HOME and the two would race on the
+            // home assets.
+            await terminateProcess(lsp, "LSP process", ` because it did not open a port within ${timeoutMs}ms`);
+
+            reject(new Error(describeStartupFailure(`LSP process failed to start within ${timeoutMs}ms`)));
         }, timeoutMs);
 
         function cleanupStartupListeners() {
