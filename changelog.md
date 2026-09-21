@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-326 Improve LSP connection handling
+
 ## [1.24.1] - 2026-09-19
 
 - BLIDE-325 Fix debugger version tracking
