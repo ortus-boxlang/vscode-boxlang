@@ -2,7 +2,6 @@ import { ChildProcessWithoutNullStreams } from "child_process";
 import fs from "fs/promises";
 import net from "net";
 import path from "path";
-import { setTimeout as wait } from "timers/promises";
 import * as vscode from "vscode";
 import { CloseAction, ErrorAction, LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { getExtensionContext } from "../context";
@@ -103,6 +102,39 @@ function attachSocketLogging(socket: net.Socket, label: string) {
     });
 }
 
+function wait(delayMs: number, signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+            reject(signal.reason ?? new Error("Operation aborted"));
+            return;
+        }
+
+        let settled = false;
+        const cleanup = () => signal?.removeEventListener("abort", onAbort);
+        const timer = setTimeout(() => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            cleanup();
+            resolve();
+        }, delayMs);
+        const onAbort = () => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            clearTimeout(timer);
+            cleanup();
+            reject(signal?.reason ?? new Error("Operation aborted"));
+        };
+
+        signal?.addEventListener("abort", onAbort, { once: true });
+    });
+}
+
 function connectSocket(port: number, label: string, onSocket?: (socket: net.Socket) => void, signal?: AbortSignal): Promise<net.Socket> {
     return new Promise((resolve, reject) => {
         signal?.throwIfAborted();
@@ -186,7 +218,7 @@ async function connectToLSP(
 
             const retryDelay = LSP_SOCKET_RETRY_DELAYS_MS[attempt - 1];
             if (retryDelay !== undefined) {
-                await wait(retryDelay, undefined, { signal });
+                await wait(retryDelay, signal);
             }
         }
     }
