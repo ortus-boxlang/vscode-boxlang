@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.26.1] - 2026-09-25
+
 - BLIDE-326 Improve LSP connection handling
 
 ## [1.24.1] - 2026-09-19
@@ -339,7 +341,8 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.24.1...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.26.1...HEAD
+[1.26.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.24.1...v1.26.1
 [1.24.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.22.3...v1.24.1
 [1.22.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.22.2...v1.22.3
 [1.22.2]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.22.1...v1.22.2
