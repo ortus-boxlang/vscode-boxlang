@@ -68,7 +68,7 @@ suite('ModuleManager Test Suite', () => {
                 );
             });
 
-            const result = await manager.installModule('bx-lsp@1.5.0', testBoxLangHome, false);
+            const result = await manager.installModule('bx-lsp@1.5.0', testBoxLangHome);
 
             assert.strictEqual(result, true);
             assert.ok(forgeBoxClientStub.calledWith('bx-lsp', '1.5.0'));
@@ -94,7 +94,7 @@ suite('ModuleManager Test Suite', () => {
                 );
             });
 
-            await manager.installModule('bx-lsp', testBoxLangHome, false);
+            await manager.installModule('bx-lsp', testBoxLangHome);
 
             // Old file should be gone
             assert.ok(!fs.existsSync(path.join(modulePath, 'old-file.txt')));
@@ -108,22 +108,17 @@ suite('ModuleManager Test Suite', () => {
             downloadStub = sinon.stub(DownloadManager, 'downloadAndExtract').resolves();
 
             await assert.rejects(
-                async () => await manager.installModule('bx-lsp', testBoxLangHome, false),
+                async () => await manager.installModule('bx-lsp', testBoxLangHome),
                 /Module installation failed: box.json not found/
             );
         });
 
-        test.skip('should fallback to CommandBox on native failure (SKIPPED - requires VS Code)', async () => {
-            // This test requires CommandBox which has VS Code dependencies
-            // Run in full VS Code extension test environment instead
-        });
-
-        test('should throw error when fallback disabled', async () => {
+        test('should propagate install errors without CommandBox fallback', async () => {
             sinon.stub(ForgeBoxClient.prototype, 'getDownloadURL')
                 .rejects(new Error('Network error'));
 
             await assert.rejects(
-                async () => await manager.installModule('bx-lsp', testBoxLangHome, false),
+                async () => await manager.installModule('bx-lsp', testBoxLangHome),
                 /Network error/
             );
         });
@@ -144,7 +139,7 @@ suite('ModuleManager Test Suite', () => {
                 );
             });
 
-            await manager.installModuleToDir('bx-lsp', customDir, false);
+            await manager.installModuleToDir('bx-lsp', customDir);
 
             assert.ok(downloadStub.calledWith('https://forgebox.io/downloads/bx-lsp.zip', customDir));
         });

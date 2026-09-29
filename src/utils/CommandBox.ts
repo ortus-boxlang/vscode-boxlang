@@ -285,14 +285,6 @@ export async function runCommandBox(opts: Record<string, any>, ...args: string[]
     });
 }
 
-export async function installBoxLangModuleToDir( moduleName: string, directory: string ): Promise<CommandBoxResult> {
-    return runCommandBox({ cwd: process.env.HOME}, "install", `id=${moduleName}`, `directory="${directory}"` );
-}
-
-export async function installBoxLangModule(boxlangHome: string, moduleName: string): Promise<CommandBoxResult> {
-    return runCommandBox({ env: { BOXLANG_HOME: boxlangHome } }, "install", moduleName, "--verbose");
-}
-
 export async function uninstallBoxLangModule(boxlangHome, moduleName: string): Promise<CommandBoxResult> {
     return runCommandBox({ env: { BOXLANG_HOME: boxlangHome } }, "uninstall", moduleName, "--verbose");
 }

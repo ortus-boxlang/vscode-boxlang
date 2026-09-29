@@ -290,20 +290,6 @@ function findPort(stdout: string) {
     return null;
 }
 
-async function startLegacyDebugger(boxlangHome: string): Promise<string> {
-    boxlangOutputChannel.appendLine("Starting legacy BoxLang debugger");
-
-    return startDebuggerProcess(
-        ["ortus.boxlang.debugger.DebugMain"],
-        {
-            ...process.env,
-            JAVA_HOME: ExtensionConfig.boxlangJavaHome,
-            BOXLANG_HOME: boxlangHome,
-            CLASSPATH: ExtensionConfig.boxlangJarPath + getJavaCLASSPATHSeparator() + ExtensionConfig.boxlangMiniServerJarPath
-        }
-    );
-}
-
 async function startModuleDebugger(boxlangHome: string): Promise<string> {
     const debuggerInstall = await ensureConfiguredDebuggerModule();
 
@@ -320,16 +306,6 @@ async function startModuleDebugger(boxlangHome: string): Promise<string> {
             CLASSPATH: debuggerInstall.runtimeJarPath
         }
     );
-}
-
-async function startConfiguredDebugger(boxlangHome: string): Promise<string> {
-    const mode = ExtensionConfig.boxlangDebuggerMode;
-
-    if (mode === "module") {
-        return startModuleDebugger(boxlangHome);
-    }
-
-    return startLegacyDebugger(boxlangHome);
 }
 
 export class BoxLangWithHome {
@@ -420,7 +396,7 @@ export class BoxLangWithHome {
     }
 
     async startDebugger(): Promise<string> {
-        return startConfiguredDebugger(this.boxlangHome);
+        return startModuleDebugger(this.boxlangHome);
     }
 
     async startLSP(): Promise<Array<any>> {
@@ -681,7 +657,7 @@ export class BoxLang {
     }
 
     static async startDebugger(): Promise<string> {
-        return startConfiguredDebugger(BOXLANG_HOME);
+        return startModuleDebugger(BOXLANG_HOME);
     }
 
     static async getVersionOutput(): Promise<string> {

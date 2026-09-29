@@ -418,29 +418,15 @@
                     "scope": "resource",
                     "default": ""
                 },
-                "boxlang.debugger.mode": {
-                    "type": "string",
-                    "description": "Choose which BoxLang debugger implementation to use",
-                    "scope": "resource",
-                    "default": "legacy",
-                    "enum": [
-                        "legacy",
-                        "module"
-                    ],
-                    "enumDescriptions": [
-                        "Use the built-in debugger from the BoxLang JAR",
-                        "Use a ForgeBox debugger module managed by version"
-                    ]
-                },
                 "boxlang.debugger.moduleName": {
                     "type": "string",
-                    "description": "ForgeBox module slug for the module-based debugger",
+                    "description": "ForgeBox module slug for the BoxLang debugger",
                     "scope": "resource",
                     "default": "bx-debugger"
                 },
                 "boxlang.debugger.moduleVersion": {
                     "type": "string",
-                    "description": "Debugger module version to use when debugger mode is set to module",
+                    "description": "Version of the BoxLang debugger module to use",
                     "scope": "resource",
                     "default": "1.0.0-snapshot"
                 },
@@ -499,7 +485,7 @@
                 },
                 "boxlang.updates.preRelease": {
                     "type": "boolean",
-                    "description": "When enabled, update checks will include pre-release (snapshot, beta, alpha) versions",
+                    "description": "When enabled, runtime and MiniServer update checks will include pre-release versions",
                     "scope": "machine",
                     "default": false
                 },

@@ -202,13 +202,13 @@ export class DownloadManager {
         destDir: string,
         options: DownloadOptions = {}
     ): Promise<void> {
-        const urlLower = url.toLowerCase();
+        const urlPath = new URL(url).pathname.toLowerCase();
 
-        if (urlLower.endsWith(".zip")) {
+        if (urlPath.endsWith(".zip")) {
             await this.downloadAndExtractZip(url, destDir, options);
-        } else if (urlLower.endsWith(".tar.gz") || urlLower.endsWith(".tgz")) {
+        } else if (urlPath.endsWith(".tar.gz") || urlPath.endsWith(".tgz")) {
             await this.downloadAndExtractTarGz(url, destDir, options);
-        } else if (urlLower.endsWith(".jar")) {
+        } else if (urlPath.endsWith(".jar")) {
             // JAR files don't need extraction
             const fileName = path.basename(new URL(url).pathname);
             await this.downloadFile(url, path.join(destDir, fileName), options);

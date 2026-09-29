@@ -1,4 +1,7 @@
 import * as assert from 'assert';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
 import * as sinon from 'sinon';
 
 const vscode = require('vscode');
@@ -8,11 +11,16 @@ const originalRequire = Module.prototype.require;
 let mockBvmrcVersion: string | null = null;
 let mockDebuggerVersion = '1.0.0-snapshot';
 let mockDebuggerLatestVersion = '1.1.0';
+let mockDebuggerVersions = ['1.1.0'];
+let mockDebuggerBinaryHash: string | undefined;
+let mockVersionUpdatedDate = '2026-01-01T00:00:00Z';
+let moduleVersionMetadataCalls = 0;
 let debuggerVersionUpdate: ((version: string) => void) | undefined;
 const outputLines: string[] = [];
 const stateStore = new Map<string, unknown>();
 
 const mockExtensionContext = {
+    extension: { packageJSON: { version: '1.28.0' } },
     globalStorageUri: { fsPath: '/mock/global-storage' },
     globalState: {
         get<T>(key: string, defaultValue: T): T {
@@ -29,7 +37,6 @@ const mockExtensionConfig = {
     boxlangMiniServerVersionUpdateMode: 'manual' as 'auto' | 'prompt' | 'manual',
     boxlangLSPVersionUpdateMode: 'auto' as 'auto' | 'prompt' | 'manual',
     boxlangDebuggerVersionUpdateMode: 'manual' as 'auto' | 'prompt' | 'manual',
-    boxlangDebuggerMode: 'legacy',
     boxlangUpdatesPreRelease: false,
     boxlangVersion: '1.13.0-snapshot',
     boxlangMiniServerJarPath: '/mock/boxlang-miniserver-1.0.0.jar',
@@ -53,7 +60,10 @@ const mockLSP = {
     }
 };
 
-let mockLatestMetadata = {
+let mockLatestMetadata: {
+    latestVersion: { version: string; binaryHash?: string };
+    versions: Array<{ version: string; binaryHash?: string }>;
+} = {
     latestVersion: { version: '1.10.0+9' },
     versions: [{ version: '1.9.0+8' }]
 };
@@ -65,9 +75,14 @@ class MockForgeBoxClient {
         }
 
         return {
-            latestVersion: { version: mockDebuggerLatestVersion },
-            versions: [{ version: mockDebuggerLatestVersion }]
+            latestVersion: { version: mockDebuggerLatestVersion, binaryHash: mockDebuggerBinaryHash },
+            versions: mockDebuggerVersions.map(version => ({ version, binaryHash: mockDebuggerBinaryHash }))
         };
+    }
+
+    async getModuleVersionMetadata(_moduleName: string, version: string) {
+        moduleVersionMetadataCalls++;
+        return { version, updatedDate: mockVersionUpdatedDate };
     }
 }
 
@@ -165,9 +180,14 @@ suite('UpdateManager Test Suite', () => {
     setup(() => {
         outputLines.length = 0;
         stateStore.clear();
+        mockExtensionContext.extension.packageJSON.version = '1.28.0';
         mockBvmrcVersion = null;
         mockDebuggerVersion = '1.0.0-snapshot';
         mockDebuggerLatestVersion = '1.1.0';
+        mockDebuggerVersions = ['1.1.0'];
+        mockDebuggerBinaryHash = undefined;
+        mockVersionUpdatedDate = '2026-01-01T00:00:00Z';
+        moduleVersionMetadataCalls = 0;
         debuggerVersionUpdate = undefined;
         delete process.env.BOXLANG_LSP_PORT;
         mockLatestMetadata = {
@@ -179,7 +199,6 @@ suite('UpdateManager Test Suite', () => {
         mockExtensionConfig.boxlangMiniServerVersionUpdateMode = 'manual';
         mockExtensionConfig.boxlangLSPVersionUpdateMode = 'auto';
         mockExtensionConfig.boxlangDebuggerVersionUpdateMode = 'manual';
-        mockExtensionConfig.boxlangDebuggerMode = 'legacy';
         mockExtensionConfig.boxlangUpdatesPreRelease = false;
         mockExtensionConfig.boxlangLSPVersion = 'bx-lsp@1.9.0+8';
     });
@@ -191,12 +210,14 @@ suite('UpdateManager Test Suite', () => {
 
     test('checkAllUpdates should persist the new LSP version before restarting in auto mode', async () => {
         const order: string[] = [];
+        const persistStarted = createDeferred<void>();
         const persistDeferred = createDeferred<void>();
         const persistStub = sinon.stub(mockExtensionConfig, 'updateBoxlangLSPVersion');
         const restartStub = sinon.stub(mockLSP, 'restart');
 
         persistStub.callsFake(async (versionSpec: string) => {
             order.push(`persist:${versionSpec}:start`);
+            persistStarted.resolve();
             await persistDeferred.promise;
             order.push(`persist:${versionSpec}:done`);
         });
@@ -206,7 +227,7 @@ suite('UpdateManager Test Suite', () => {
 
         const updatePromise = checkAllUpdates(true);
 
-        await new Promise<void>(resolve => setImmediate(resolve));
+        await persistStarted.promise;
 
         assert.strictEqual(persistStub.calledOnceWithExactly('bx-lsp@1.10.0+9'), true);
         assert.strictEqual(restartStub.called, false);
@@ -219,6 +240,209 @@ suite('UpdateManager Test Suite', () => {
             'persist:bx-lsp@1.10.0+9:done',
             'restart'
         ]);
+        assert.strictEqual(moduleVersionMetadataCalls, 0);
+    });
+
+    test('republished LSP snapshot with the same version triggers an update', async () => {
+        const storagePath = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-update-manager-'));
+        const originalStoragePath = mockExtensionContext.globalStorageUri.fsPath;
+
+        try {
+            mockExtensionContext.globalStorageUri.fsPath = storagePath;
+            mockExtensionContext.extension.packageJSON.version = '1.27.0';
+            mockExtensionConfig.boxlangLSPVersion = 'bx-lsp@1.14.0-snapshot';
+            mockLatestMetadata = {
+                latestVersion: { version: '1.14.0+13' },
+                versions: [{ version: '1.14.0-snapshot' }]
+            };
+            mockVersionUpdatedDate = '2026-09-23T16:02:22+00:00';
+            const installedDir = path.join(storagePath, 'lspVersions', 'bx-lsp@1.14.0-snapshot');
+            await fs.mkdir(installedDir, { recursive: true });
+            await fs.writeFile(path.join(installedDir, 'version.json'), JSON.stringify({ updatedDate: '2026-09-22T17:25:42+00:00' }));
+
+            const persistStub = sinon.stub(mockExtensionConfig, 'updateBoxlangLSPVersion');
+            const restartStub = sinon.stub(mockLSP, 'restart');
+
+            await checkAllUpdates(true);
+
+            assert.strictEqual(persistStub.calledOnceWithExactly('bx-lsp@1.14.0-snapshot'), true);
+            assert.strictEqual(restartStub.calledOnce, true);
+            assert.strictEqual(moduleVersionMetadataCalls, 1);
+            assert.deepStrictEqual(stateStore.get('boxlang.updates.pendingLSPRefresh'), {
+                versionSpec: 'bx-lsp@1.14.0-snapshot',
+                forceRefresh: true,
+                updatedDate: '2026-09-23T16:02:22+00:00'
+            });
+        } finally {
+            mockExtensionContext.globalStorageUri.fsPath = originalStoragePath;
+            await fs.rm(storagePath, { recursive: true, force: true });
+        }
+    });
+
+    test('up-to-date LSP cache is not refreshed again for the same ForgeBox updatedDate', async () => {
+        const storagePath = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-update-manager-'));
+        const originalStoragePath = mockExtensionContext.globalStorageUri.fsPath;
+
+        try {
+            mockExtensionContext.globalStorageUri.fsPath = storagePath;
+            mockExtensionConfig.boxlangLSPVersion = 'bx-lsp@1.10.0+9';
+            mockLatestMetadata = {
+                latestVersion: { version: '1.10.0+9' },
+                versions: [{ version: '1.9.0+8' }]
+            };
+            const installedDir = path.join(storagePath, 'lspVersions', 'bx-lsp@1.10.0+9');
+            await fs.mkdir(installedDir, { recursive: true });
+            await fs.writeFile(path.join(installedDir, 'version.json'), JSON.stringify({ updatedDate: mockVersionUpdatedDate }));
+            const restartStub = sinon.stub(mockLSP, 'restart');
+
+            await checkAllUpdates(true);
+
+            assert.strictEqual(restartStub.called, false);
+            assert.strictEqual(stateStore.has('boxlang.updates.pendingLSPRefresh'), false);
+        } finally {
+            mockExtensionContext.globalStorageUri.fsPath = originalStoragePath;
+            await fs.rm(storagePath, { recursive: true, force: true });
+        }
+    });
+
+    test('binaryHash detects a republished snapshot without a version-detail request', async () => {
+        const storagePath = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-update-manager-'));
+        const originalStoragePath = mockExtensionContext.globalStorageUri.fsPath;
+
+        try {
+            mockExtensionContext.globalStorageUri.fsPath = storagePath;
+            mockExtensionContext.extension.packageJSON.version = '1.27.0';
+            mockExtensionConfig.boxlangLSPVersion = 'bx-lsp@1.15.0-snapshot';
+            mockLatestMetadata = {
+                latestVersion: { version: '1.14.0+13' },
+                versions: [{ version: '1.15.0-snapshot', binaryHash: 'new-hash' }]
+            };
+            const installedDir = path.join(storagePath, 'lspVersions', 'bx-lsp@1.15.0-snapshot');
+            await fs.mkdir(installedDir, { recursive: true });
+            await fs.writeFile(path.join(installedDir, 'version.json'), JSON.stringify({ binaryHash: 'old-hash' }));
+            const restartStub = sinon.stub(mockLSP, 'restart');
+
+            await checkAllUpdates(true);
+
+            assert.strictEqual(restartStub.calledOnce, true);
+            assert.strictEqual(moduleVersionMetadataCalls, 0);
+            assert.deepStrictEqual(stateStore.get('boxlang.updates.pendingLSPRefresh'), {
+                versionSpec: 'bx-lsp@1.15.0-snapshot',
+                forceRefresh: true,
+                binaryHash: 'new-hash'
+            });
+        } finally {
+            mockExtensionContext.globalStorageUri.fsPath = originalStoragePath;
+            await fs.rm(storagePath, { recursive: true, force: true });
+        }
+    });
+
+    test('republished debugger snapshot with the same version triggers an update', async () => {
+        const storagePath = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-update-manager-'));
+        const originalStoragePath = mockExtensionContext.globalStorageUri.fsPath;
+
+        try {
+            mockExtensionContext.globalStorageUri.fsPath = storagePath;
+            mockExtensionContext.extension.packageJSON.version = '1.27.0';
+            mockExtensionConfig.boxlangLSPVersionUpdateMode = 'manual';
+            mockExtensionConfig.boxlangDebuggerVersionUpdateMode = 'auto';
+            mockDebuggerVersion = '1.14.0-snapshot';
+            mockDebuggerLatestVersion = '1.14.0-snapshot';
+            mockDebuggerVersions = ['1.14.0-snapshot'];
+            mockVersionUpdatedDate = '2026-09-23T16:02:22+00:00';
+            const installedDir = path.join(storagePath, 'debuggerVersions', 'bx-debugger@1.14.0-snapshot');
+            await fs.mkdir(installedDir, { recursive: true });
+            await fs.writeFile(path.join(installedDir, 'version.json'), JSON.stringify({ updatedDate: '2026-09-22T17:25:42+00:00' }));
+
+            await checkAllUpdates(true);
+
+            assert.strictEqual(mockDebuggerVersion, '1.14.0-snapshot');
+            assert.deepStrictEqual(stateStore.get('boxlang.updates.pendingDebuggerRefresh'), {
+                versionSpec: 'bx-debugger@1.14.0-snapshot',
+                forceRefresh: true,
+                updatedDate: '2026-09-23T16:02:22+00:00'
+            });
+        } finally {
+            mockExtensionContext.globalStorageUri.fsPath = originalStoragePath;
+            await fs.rm(storagePath, { recursive: true, force: true });
+        }
+    });
+
+    test('binaryHash detects a republished debugger snapshot without a version-detail request', async () => {
+        const storagePath = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-update-manager-'));
+        const originalStoragePath = mockExtensionContext.globalStorageUri.fsPath;
+
+        try {
+            mockExtensionContext.globalStorageUri.fsPath = storagePath;
+            mockExtensionContext.extension.packageJSON.version = '1.27.0';
+            mockExtensionConfig.boxlangLSPVersionUpdateMode = 'manual';
+            mockExtensionConfig.boxlangDebuggerVersionUpdateMode = 'auto';
+            mockDebuggerVersion = '1.15.0-snapshot';
+            mockDebuggerLatestVersion = '1.15.0-snapshot';
+            mockDebuggerVersions = ['1.15.0-snapshot'];
+            mockDebuggerBinaryHash = 'debugger-new-hash';
+            const installedDir = path.join(storagePath, 'debuggerVersions', 'bx-debugger@1.15.0-snapshot');
+            await fs.mkdir(installedDir, { recursive: true });
+            await fs.writeFile(path.join(installedDir, 'version.json'), JSON.stringify({ binaryHash: 'debugger-old-hash' }));
+
+            await checkAllUpdates(true);
+
+            assert.strictEqual(moduleVersionMetadataCalls, 0);
+            assert.deepStrictEqual(stateStore.get('boxlang.updates.pendingDebuggerRefresh'), {
+                versionSpec: 'bx-debugger@1.15.0-snapshot',
+                forceRefresh: true,
+                binaryHash: 'debugger-new-hash'
+            });
+        } finally {
+            mockExtensionContext.globalStorageUri.fsPath = originalStoragePath;
+            await fs.rm(storagePath, { recursive: true, force: true });
+        }
+    });
+
+    test('pre-release extension should prefer the newest LSP snapshot even when ForgeBox latest is stable', async () => {
+        mockExtensionContext.extension.packageJSON.version = '1.27.0';
+        mockLatestMetadata = {
+            latestVersion: { version: '1.10.0+9' },
+            versions: [
+                { version: '1.10.0-snapshot+9' },
+                { version: '1.10.0-snapshot+10' },
+                { version: '1.10.0+11' }
+            ]
+        };
+        const persistStub = sinon.stub(mockExtensionConfig, 'updateBoxlangLSPVersion');
+
+        await checkAllUpdates(true);
+
+        assert.strictEqual(persistStub.calledOnceWithExactly('bx-lsp@1.10.0-snapshot+10'), true);
+    });
+
+    test('release extension should select the highest stable LSP version regardless of ForgeBox order', async () => {
+        mockExtensionConfig.boxlangUpdatesPreRelease = true;
+        mockLatestMetadata = {
+            latestVersion: { version: '1.10.0+9' },
+            versions: [
+                { version: '1.12.0-snapshot+1' },
+                { version: '1.10.0+10' }
+            ]
+        };
+        const persistStub = sinon.stub(mockExtensionConfig, 'updateBoxlangLSPVersion');
+
+        await checkAllUpdates(true);
+
+        assert.strictEqual(persistStub.calledOnceWithExactly('bx-lsp@1.10.0+10'), true);
+    });
+
+    test('release LSP switches from a newer snapshot to the stable stream', async () => {
+        mockExtensionConfig.boxlangLSPVersion = 'bx-lsp@1.12.0-snapshot+1';
+        mockLatestMetadata = {
+            latestVersion: { version: '1.10.0+9' },
+            versions: [{ version: '1.11.0+10' }]
+        };
+        const persistStub = sinon.stub(mockExtensionConfig, 'updateBoxlangLSPVersion');
+
+        await checkAllUpdates(true);
+
+        assert.strictEqual(persistStub.calledOnceWithExactly('bx-lsp@1.11.0+10'), true);
     });
 
     test('checkAllUpdates should update the configured LSP version without restarting when prompt mode selects next restart', async () => {
@@ -260,7 +484,57 @@ suite('UpdateManager Test Suite', () => {
         assert.strictEqual(errorStub.calledOnce, true);
     });
 
-    test('automatic debugger updates write global settings even in legacy mode', async () => {
+    test('pre-release debugger updates prefer snapshots when both streams are available', async () => {
+        mockExtensionContext.extension.packageJSON.version = '1.27.0';
+        mockDebuggerLatestVersion = '1.0.0';
+        mockDebuggerVersions = ['1.2.0-snapshot', '1.1.0'];
+        mockExtensionConfig.boxlangLSPVersionUpdateMode = 'manual';
+        mockExtensionConfig.boxlangDebuggerVersionUpdateMode = 'auto';
+
+        await checkAllUpdates(true);
+
+        assert.strictEqual(mockDebuggerVersion, '1.2.0-snapshot');
+    });
+
+    test('pre-release debugger moves from stable to the latest snapshot stream', async () => {
+        mockExtensionContext.extension.packageJSON.version = '1.27.0';
+        mockDebuggerVersion = '1.3.0';
+        mockDebuggerLatestVersion = '1.2.0';
+        mockDebuggerVersions = ['1.2.0-snapshot', '1.1.0'];
+        mockExtensionConfig.boxlangLSPVersionUpdateMode = 'manual';
+        mockExtensionConfig.boxlangDebuggerVersionUpdateMode = 'auto';
+
+        await checkAllUpdates(true);
+
+        assert.strictEqual(mockDebuggerVersion, '1.2.0-snapshot');
+    });
+
+    test('release debugger moves from a newer snapshot to the latest stable stream', async () => {
+        mockDebuggerVersion = '1.2.0-snapshot';
+        mockDebuggerLatestVersion = '1.1.0';
+        mockDebuggerVersions = ['1.1.0'];
+        mockExtensionConfig.boxlangLSPVersionUpdateMode = 'manual';
+        mockExtensionConfig.boxlangDebuggerVersionUpdateMode = 'auto';
+
+        await checkAllUpdates(true);
+
+        assert.strictEqual(mockDebuggerVersion, '1.1.0');
+    });
+
+    test('release debugger updates from a snapshot to the same stable version', async () => {
+        mockDebuggerVersion = '1.0.0-snapshot';
+        mockDebuggerLatestVersion = '1.0.0';
+        mockDebuggerVersions = ['1.0.0'];
+        mockExtensionConfig.boxlangLSPVersionUpdateMode = 'manual';
+        mockExtensionConfig.boxlangDebuggerVersionUpdateMode = 'auto';
+
+        await checkAllUpdates(true);
+
+        assert.strictEqual(mockDebuggerVersion, '1.0.0');
+    });
+
+    test('automatic debugger updates write global settings to the stable fallback on pre-release builds', async () => {
+        mockExtensionContext.extension.packageJSON.version = '1.27.0';
         const originalGetConfiguration = vscode.workspace.getConfiguration;
         const originalWorkspaceFolders = vscode.workspace.workspaceFolders;
         const configurationUpdates: Array<{ key: string; value: unknown; target: unknown }> = [];

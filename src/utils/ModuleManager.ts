@@ -35,8 +35,8 @@ export interface BoxJsonModule {
 }
 
 /**
- * Module management using native TypeScript with CommandBox fallback
- * Replaces direct CommandBox dependencies for module operations
+ * ForgeBox module downloads use the native TypeScript path.
+ * CommandBox remains available for module listing and uninstall fallbacks.
  */
 export class ModuleManager {
     private forgeBoxClient: ForgeBoxClient;
@@ -51,64 +51,38 @@ export class ModuleManager {
      * Install a BoxLang module
      * @param moduleName - Module slug (e.g., "bx-lsp@1.5.0" or just "bx-compat")
      * @param boxlangHome - BoxLang home directory
-     * @param fallbackToCommandBox - Whether to use CommandBox on native failure
      */
-    async installModule(
-        moduleName: string,
-        boxlangHome: string,
-        fallbackToCommandBox: boolean = true
-    ): Promise<boolean> {
-        if (!this.useNativeMode) {
-            return this.installViaCommandBox(moduleName, boxlangHome);
-        }
-
+    async installModule(moduleName: string, boxlangHome: string): Promise<boolean> {
         try {
             boxlangOutputChannel.appendLine(`Installing module: ${moduleName} (native mode)`);
 
-            // Parse module name and version
             const [slug, version] = this.parseModuleSpec(moduleName);
-
-            // Get download URL from ForgeBox
             const downloadURL = await this.forgeBoxClient.getDownloadURL(slug, version);
             boxlangOutputChannel.appendLine(`Download URL: ${downloadURL}`);
 
-            // Determine installation directory
             const modulesDir = path.join(boxlangHome, "modules");
             const moduleDir = path.join(modulesDir, slug);
-
-            // Clean existing installation
             if (fs.existsSync(moduleDir)) {
                 boxlangOutputChannel.appendLine(`Removing existing module: ${moduleDir}`);
                 await fs.promises.rm(moduleDir, { recursive: true, force: true });
             }
 
-            // Download and extract
             await DownloadManager.downloadAndExtract(downloadURL, moduleDir);
 
-            // Validate installation by checking for box.json
             const boxJsonPath = path.join(moduleDir, "box.json");
             if (!fs.existsSync(boxJsonPath)) {
                 throw new Error(`Module installation failed: box.json not found at ${boxJsonPath}`);
             }
 
-            // Parse box.json for shallow dependency resolution
             const boxJson = await this.readBoxJson(boxJsonPath);
             if (boxJson.dependencies && Object.keys(boxJson.dependencies).length > 0) {
                 boxlangOutputChannel.appendLine(`Module has dependencies: ${Object.keys(boxJson.dependencies).join(", ")}`);
-                // Note: Not installing dependencies recursively (as per user requirement #2)
             }
 
             boxlangOutputChannel.appendLine(`Module installed successfully: ${slug}`);
             return true;
-
         } catch (error) {
             boxlangOutputChannel.appendLine(`Native installation failed: ${error}`);
-
-            if (fallbackToCommandBox) {
-                boxlangOutputChannel.appendLine(`Falling back to CommandBox...`);
-                return this.installViaCommandBox(moduleName, boxlangHome);
-            }
-
             throw error;
         }
     }
@@ -116,33 +90,16 @@ export class ModuleManager {
     /**
      * Install module to a specific directory (not standard BoxLang home)
      */
-    async installModuleToDir(
-        moduleName: string,
-        directory: string,
-        fallbackToCommandBox: boolean = true
-    ): Promise<boolean> {
-        if (!this.useNativeMode) {
-            // CommandBox doesn't have installToDir, so we'll use standard install
-            // This is a simplified fallback
-            return this.installViaCommandBox(moduleName, directory);
-        }
-
+    async installModuleToDir(moduleName: string, directory: string): Promise<boolean> {
         try {
             boxlangOutputChannel.appendLine(`Installing module to directory: ${moduleName} -> ${directory}`);
 
             const [slug, version] = this.parseModuleSpec(moduleName);
             const downloadURL = await this.forgeBoxClient.getDownloadURL(slug, version);
-
-            // Create target directory
             await fs.promises.mkdir(directory, { recursive: true });
-
-            // Download and extract directly to target
             await DownloadManager.downloadAndExtract(downloadURL, directory);
-
-            // Normalize extraction so content always lives under <directory>/<slug>/*
             await this.ensureNestedModuleDirectory(directory, slug);
 
-            // Validate installation by checking for box.json
             const boxJsonPath = path.join(directory, slug, "box.json");
             if (!fs.existsSync(boxJsonPath)) {
                 throw new Error(`Module installation failed: box.json not found at ${boxJsonPath}`);
@@ -150,15 +107,8 @@ export class ModuleManager {
 
             boxlangOutputChannel.appendLine(`Module installed to directory: ${directory}`);
             return true;
-
         } catch (error) {
             boxlangOutputChannel.appendLine(`Native installation failed: ${error}`);
-
-            if (fallbackToCommandBox) {
-                boxlangOutputChannel.appendLine(`Falling back to CommandBox...`);
-                return this.installViaCommandBox(moduleName, directory);
-            }
-
             throw error;
         }
     }
@@ -295,17 +245,6 @@ export class ModuleManager {
     /**
      * CommandBox fallback methods
      */
-    private async installViaCommandBox(moduleName: string, boxlangHome: string): Promise<boolean> {
-        try {
-            const { installBoxLangModule } = getCommandBox();
-            await installBoxLangModule(boxlangHome, moduleName);
-            return true;
-        } catch (error) {
-            boxlangOutputChannel.appendLine(`CommandBox installation failed: ${error}`);
-            throw error;
-        }
-    }
-
     private async uninstallViaCommandBox(moduleName: string, boxlangHome: string): Promise<boolean> {
         try {
             const { uninstallBoxLangModule } = getCommandBox();

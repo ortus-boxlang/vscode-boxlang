@@ -6,11 +6,12 @@ import * as vscode from "vscode";
 import { CloseAction, ErrorAction, LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { getExtensionContext } from "../context";
 import { startLSPProcess } from "./BoxLang";
-import { runCommandBox } from "./CommandBox";
 import { ExtensionConfig } from "./Configuration";
+import { ForgeBoxClient } from "./ForgeBoxClient";
 import { ModuleManager } from "./ModuleManager";
 import { boxlangOutputChannel } from "./OutputChannels";
 import { ensureBoxLangVersion } from "./versionManager";
+import { PENDING_LSP_REFRESH_KEY, PendingModuleRefresh } from "./versionUpdateState";
 
 
 let client: LanguageClient | undefined;
@@ -1095,9 +1096,7 @@ async function startLanguageServerProcess(signal?: AbortSignal) {
                 throw e;
             }
 
-            boxlangOutputChannel.appendLine("Updating commandbox-boxlang module");
-            await runCommandBox({}, "install", "commandbox-boxlang", "--force");
-            boxlangOutputChannel.appendLine("Attempting to reinstall LSP modules");
+            boxlangOutputChannel.appendLine("Retrying native LSP module installation");
             lspModulePath = await ensureLSPModule();
         } else {
             throw e;
@@ -1135,6 +1134,18 @@ async function startLanguageServerProcess(signal?: AbortSignal) {
  * Ensures that the BoxLang Language Server module is installed.
  * @returns The path to the installed LSP module.
  */
+async function getLSPBinaryHash(versionSpec: string): Promise<string | undefined> {
+    try {
+        const version = versionSpec.replace(/^bx-lsp@/, "");
+        const metadata = await new ForgeBoxClient().getModuleMetadata("bx-lsp");
+        return [metadata.latestVersion, ...(metadata.versions ?? [])]
+            .find(entry => entry?.version === version && entry.binaryHash)?.binaryHash;
+    } catch (error) {
+        logLanguageServer(`Unable to read ForgeBox binaryHash for ${versionSpec}: ${error}`);
+        return undefined;
+    }
+}
+
 async function ensureLSPModule() {
     boxlangOutputChannel.appendLine("Ensuring BoxLang Language Server module is installed");
     const lspVersion = ExtensionConfig.boxlangLSPVersion;
@@ -1156,6 +1167,14 @@ async function ensureLSPModule() {
     }
 
     const lspVersionDir = path.join(context.globalStorageUri.fsPath, "lspVersions", lspVersion);
+    const pendingRefresh = context.globalState?.get<PendingModuleRefresh>(PENDING_LSP_REFRESH_KEY);
+    const hasPendingRefresh = pendingRefresh?.versionSpec === lspVersion;
+    const forceRefresh = hasPendingRefresh && pendingRefresh.forceRefresh === true;
+    if (forceRefresh) {
+        await fs.rm(lspVersionDir, { recursive: true, force: true });
+    }
+
+    let installed = false;
     try {
         await fs.access(lspVersionDir);
         boxlangOutputChannel.appendLine(`LSP version directory exists: ${lspVersionDir}`);
@@ -1168,9 +1187,10 @@ async function ensureLSPModule() {
         }
     }
     catch (e) {
-        // Use new ModuleManager with CommandBox fallback
+        // Install directly from ForgeBox without a CommandBox fallback
         const moduleManager = new ModuleManager(true);
-        await moduleManager.installModuleToDir(lspVersion, lspVersionDir, true);
+        await moduleManager.installModuleToDir(lspVersion, lspVersionDir);
+        installed = true;
 
         try {
             await fs.access(path.join(lspVersionDir, "bx-lsp", "box.json"));
@@ -1182,6 +1202,22 @@ async function ensureLSPModule() {
         }
 
         boxlangOutputChannel.appendLine(`Installed LSP module to: ${lspVersionDir}`);
+    }
+
+    if (hasPendingRefresh || installed) {
+        const binaryHash = pendingRefresh?.binaryHash || await getLSPBinaryHash(lspVersion);
+        await fs.writeFile(
+            path.join(lspVersionDir, "version.json"),
+            JSON.stringify({
+                versionSpec: lspVersion,
+                updatedDate: pendingRefresh?.updatedDate,
+                binaryHash,
+                installedAt: new Date().toISOString()
+            })
+        );
+        if (hasPendingRefresh) {
+            await context.globalState?.update(PENDING_LSP_REFRESH_KEY, undefined);
+        }
     }
 
     return lspVersionDir;
@@ -1235,7 +1271,7 @@ async function ensureBoxLangModules(lspBoxLangHome: string) {
     for (const moduleName of moduleNames) {
         try {
             boxlangOutputChannel.appendLine(`Installing BoxLang module for LSP: ${moduleName}`);
-            await moduleManager.installModule(moduleName, lspBoxLangHome, true);
+            await moduleManager.installModule(moduleName, lspBoxLangHome);
             boxlangOutputChannel.appendLine(`Successfully installed module: ${moduleName}`);
         } catch (error) {
             boxlangOutputChannel.appendLine(`Error installing module ${moduleName}: ${error}`);

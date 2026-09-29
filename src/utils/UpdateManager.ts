@@ -10,6 +10,7 @@ import { ForgeBoxClient } from "./ForgeBoxClient";
 import * as LSP from "./LanguageServer";
 import { boxlangOutputChannel } from "./OutputChannels";
 import { getAvailableBoxLangVerions } from "./versionManager";
+import { PENDING_DEBUGGER_REFRESH_KEY, PENDING_LSP_REFRESH_KEY } from "./versionUpdateState";
 
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 
@@ -23,9 +24,88 @@ const COOLDOWN_KEYS = {
 type Component = "runtime" | "miniserver" | "lsp" | "debugger";
 type UpdateMode = "auto" | "prompt" | "manual";
 type UpdateTiming = "now" | "restart";
+type UpdateInfo = { current: string; latest: string; updatedDate?: string; binaryHash?: string; needsRefresh?: boolean };
 
 function isExternallyManagedLSP(): boolean {
     return Boolean(process.env.BOXLANG_LSP_PORT);
+}
+
+function isPreReleaseExtension(): boolean {
+    // Release workflows use odd minor versions for prereleases and even minors for stable releases.
+    const version = semver.parse(getExtensionContext().extension.packageJSON.version);
+    return version !== null && version.minor % 2 === 1;
+}
+
+function isSnapshotVersion(version: string): boolean {
+    return semver.parse(version)?.prerelease[0]?.toString().toLowerCase() === "snapshot";
+}
+
+function isVersionStreamMismatch(latest: string, current: string): boolean {
+    // Switching channels can require the target stream even when semver sees it as older.
+    const latestVersion = semver.parse(latest);
+    const currentVersion = semver.parse(current);
+    if (!latestVersion || !currentVersion) {
+        return false;
+    }
+
+    if (latestVersion.prerelease.length === 0) {
+        return currentVersion.prerelease.length > 0;
+    }
+    return isSnapshotVersion(latest) && !isSnapshotVersion(current);
+}
+
+function getLatestForgeBoxVersion(
+    versions: Array<string | undefined>,
+    preRelease: boolean,
+    compare: (a: string, b: string) => number
+): string | undefined {
+    const allVersions = Array.from(new Set(versions.filter((version): version is string => Boolean(version && semver.valid(version)))));
+    const stableVersions = allVersions.filter(version => !semver.prerelease(version));
+    const preferredVersions = preRelease ? allVersions.filter(isSnapshotVersion) : stableVersions;
+    return (preferredVersions.length ? preferredVersions : stableVersions).sort(compare)[0];
+}
+
+async function getCachedVersionDir(component: "lsp" | "debugger", version: string): Promise<string | undefined> {
+    const context = getExtensionContext();
+    const moduleName = component === "lsp" ? "bx-lsp" : ExtensionConfig.boxlangDebuggerModuleName;
+    const parentDir = path.join(context.globalStorageUri.fsPath, component === "lsp" ? "lspVersions" : "debuggerVersions");
+    const versionDir = path.join(parentDir, `${moduleName}@${version}`);
+
+    try {
+        return (await fs.stat(versionDir)).isDirectory() ? versionDir : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+async function isCachedVersionOutdated(versionDir: string, binaryHash?: string, updatedDate?: string): Promise<boolean> {
+    let installedHash: string | undefined;
+    let installedDate: string | undefined;
+    try {
+        const metadata = JSON.parse(await fs.readFile(path.join(versionDir, "version.json"), "utf8"));
+        installedHash = metadata.binaryHash;
+        installedDate = metadata.updatedDate ?? metadata.createDate;
+    } catch { /* Older installs use the version directory mtime. */ }
+
+    if (binaryHash) {
+        return installedHash !== binaryHash;
+    }
+    if (!updatedDate) {
+        return false;
+    }
+
+    const remoteTime = Date.parse(updatedDate);
+    const installedTime = installedDate ? Date.parse(installedDate) : (await fs.stat(versionDir)).mtime.getTime();
+    return Number.isFinite(remoteTime) && (!Number.isFinite(installedTime) || remoteTime > installedTime);
+}
+
+async function getModuleUpdatedDate(forgeBoxClient: ForgeBoxClient, moduleName: string, version: string): Promise<string | undefined> {
+    try {
+        return (await forgeBoxClient.getModuleVersionMetadata(moduleName, version)).updatedDate;
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`BoxLang UpdateManager: Unable to fetch ${moduleName}@${version} update date: ${error}`);
+        return undefined;
+    }
 }
 
 /**
@@ -89,14 +169,19 @@ async function checkComponentUpdate(component: Component, force: boolean): Promi
         }
 
         const { current, latest } = updateInfo;
+        const refresh = updateInfo.needsRefresh ?? false;
 
-        if (!isNewerVersion(component, latest, current)) {
+        if (!isNewerVersion(component, latest, current) && !refresh) {
             boxlangOutputChannel.appendLine(`BoxLang UpdateManager: ${component} is up to date (${current})`);
             return;
         }
 
-        boxlangOutputChannel.appendLine(`BoxLang UpdateManager: ${component} update available: ${current} -> ${latest}`);
-        await handleUpdateFound(component, current, latest, mode);
+        if (refresh && current === latest) {
+            boxlangOutputChannel.appendLine(`BoxLang UpdateManager: updated build available for ${component} ${latest}`);
+        } else {
+            boxlangOutputChannel.appendLine(`BoxLang UpdateManager: ${component} update available: ${current} -> ${latest}`);
+        }
+        await handleUpdateFound(component, current, latest, mode, refresh, updateInfo.updatedDate, updateInfo.binaryHash);
     } catch (e) {
         boxlangOutputChannel.appendLine(`BoxLang UpdateManager: Unable to check for ${component} updates: ${e}`);
     }
@@ -123,7 +208,7 @@ function isVersionPinned(component: Component): boolean {
     return false;
 }
 
-async function getLatestVersion(component: Component): Promise<{ current: string; latest: string } | null> {
+async function getLatestVersion(component: Component): Promise<UpdateInfo | null> {
     const preRelease = ExtensionConfig.boxlangUpdatesPreRelease;
 
     switch (component) {
@@ -178,16 +263,20 @@ async function getLatestVersion(component: Component): Promise<{ current: string
 
             const forgeBoxClient = new ForgeBoxClient();
             const metadata = await forgeBoxClient.getModuleMetadata("bx-lsp");
-            const allVersions = [metadata.latestVersion, ...(metadata.versions ?? [])].filter(Boolean);
-            const candidates = preRelease
-                ? allVersions
-                : allVersions.filter(v => !hasPreReleaseIdentifier(v?.version));
-            const latest = candidates[0]?.version;
+            const versions = [metadata.latestVersion?.version, ...(metadata.versions ?? []).map(v => v?.version)];
+            const latest = getLatestForgeBoxVersion(versions, isPreReleaseExtension(), compareBoxLangLspVersionsDescending);
             if (!latest) {
                 return null;
             }
 
-            return { current, latest };
+            const binaryHash = [metadata.latestVersion, ...(metadata.versions ?? [])]
+                .find(v => v?.version === latest && v.binaryHash)?.binaryHash;
+            const versionDir = await getCachedVersionDir("lsp", latest);
+            const updatedDate = versionDir && !binaryHash
+                ? await getModuleUpdatedDate(forgeBoxClient, "bx-lsp", latest)
+                : undefined;
+            const needsRefresh = versionDir ? await isCachedVersionOutdated(versionDir, binaryHash, updatedDate) : false;
+            return { current, latest, updatedDate, binaryHash, needsRefresh };
         }
 
         case "debugger": {
@@ -199,16 +288,20 @@ async function getLatestVersion(component: Component): Promise<{ current: string
             const moduleName = ExtensionConfig.boxlangDebuggerModuleName;
             const forgeBoxClient = new ForgeBoxClient();
             const metadata = await forgeBoxClient.getModuleMetadata(moduleName);
-            const allVersions = [metadata.latestVersion, ...(metadata.versions ?? [])].filter(Boolean);
-            const candidates = preRelease
-                ? allVersions
-                : allVersions.filter(v => !hasPreReleaseIdentifier(v?.version));
-            const latest = candidates[0]?.version;
+            const versions = [metadata.latestVersion?.version, ...(metadata.versions ?? []).map(v => v?.version)];
+            const latest = getLatestForgeBoxVersion(versions, isPreReleaseExtension(), semver.rcompare);
             if (!latest) {
                 return null;
             }
 
-            return { current, latest };
+            const binaryHash = [metadata.latestVersion, ...(metadata.versions ?? [])]
+                .find(v => v?.version === latest && v.binaryHash)?.binaryHash;
+            const versionDir = await getCachedVersionDir("debugger", latest);
+            const updatedDate = versionDir && !binaryHash
+                ? await getModuleUpdatedDate(forgeBoxClient, moduleName, latest)
+                : undefined;
+            const needsRefresh = versionDir ? await isCachedVersionOutdated(versionDir, binaryHash, updatedDate) : false;
+            return { current, latest, updatedDate, binaryHash, needsRefresh };
         }
     }
 }
@@ -222,9 +315,17 @@ function hasPreReleaseIdentifier(version: string | undefined): boolean {
 
 function isNewerVersion(component: Component, latest: string, current: string): boolean {
     try {
+        if ((component === "lsp" || component === "debugger") && isVersionStreamMismatch(latest, current)) {
+            return true;
+        }
         if (component === "lsp") {
             // compareBoxLangLspVersionsDescending(current, latest) > 0 means current < latest
             return compareBoxLangLspVersionsDescending(current, latest) > 0;
+        }
+        if (component === "debugger") {
+            const latestVersion = semver.parse(latest);
+            const currentVersion = semver.parse(current);
+            return latestVersion !== null && currentVersion !== null && semver.gt(latestVersion, currentVersion);
         }
         const latestCoerced = semver.coerce(latest);
         const currentCoerced = semver.coerce(current);
@@ -241,7 +342,10 @@ async function handleUpdateFound(
     component: Component,
     current: string,
     latest: string,
-    mode: UpdateMode
+    mode: UpdateMode,
+    refresh: boolean,
+    updatedDate?: string,
+    binaryHash?: string
 ): Promise<void> {
     const label = getComponentLabel(component);
 
@@ -254,17 +358,21 @@ async function handleUpdateFound(
                 "Update on Next Restart"
             );
             const timing: UpdateTiming = choice === "Update Now Anyway" ? "now" : "restart";
-            await applyUpdate(component, latest, timing);
+            await applyUpdate(component, latest, timing, refresh, updatedDate, binaryHash);
         } else {
-            boxlangOutputChannel.appendLine(`BoxLang UpdateManager: auto-updating ${label} from ${current} to ${latest}`);
-            await applyUpdate(component, latest, "now");
+            const action = refresh && current === latest ? "refreshing" : "auto-updating";
+            boxlangOutputChannel.appendLine(`BoxLang UpdateManager: ${action} ${label} from ${current} to ${latest}`);
+            await applyUpdate(component, latest, "now", refresh, updatedDate, binaryHash);
         }
         return;
     }
 
     // prompt mode
+    const message = refresh && current === latest
+        ? `BoxLang: An updated ${label} build (${latest}) is available.`
+        : `BoxLang: A new ${label} version (${latest}) is available. Currently on ${current}.`;
     const choice = await vscode.window.showInformationMessage(
-        `BoxLang: A new ${label} version (${latest}) is available. Currently on ${current}.`,
+        message,
         "Update Now",
         "Update on Next Restart",
         "Skip"
@@ -274,10 +382,17 @@ async function handleUpdateFound(
         return;
     }
 
-    await applyUpdate(component, latest, choice === "Update Now" ? "now" : "restart");
+    await applyUpdate(component, latest, choice === "Update Now" ? "now" : "restart", refresh, updatedDate, binaryHash);
 }
 
-async function applyUpdate(component: Component, version: string, timing: UpdateTiming): Promise<void> {
+async function applyUpdate(
+    component: Component,
+    version: string,
+    timing: UpdateTiming,
+    refresh = false,
+    updatedDate?: string,
+    binaryHash?: string
+): Promise<void> {
     try {
         switch (component) {
             case "runtime":
@@ -287,10 +402,10 @@ async function applyUpdate(component: Component, version: string, timing: Update
                 await applyMiniServerUpdate(version, timing);
                 break;
             case "lsp":
-                await applyLSPUpdate(version, timing);
+                await applyLSPUpdate(version, timing, refresh, updatedDate, binaryHash);
                 break;
             case "debugger":
-                await applyDebuggerUpdate(version);
+                await applyDebuggerUpdate(version, refresh, updatedDate, binaryHash);
                 break;
         }
     } catch (e) {
@@ -300,7 +415,7 @@ async function applyUpdate(component: Component, version: string, timing: Update
             "Retry"
         );
         if (choice === "Retry") {
-            await applyUpdate(component, version, timing);
+            await applyUpdate(component, version, timing, refresh, updatedDate, binaryHash);
         }
     }
 }
@@ -378,13 +493,21 @@ async function applyMiniServerUpdate(version: string, timing: UpdateTiming): Pro
     vscode.window.showInformationMessage(`BoxLang: MiniServer updated to version ${version}`);
 }
 
-async function applyLSPUpdate(version: string, timing: UpdateTiming): Promise<void> {
+async function applyLSPUpdate(version: string, timing: UpdateTiming, refresh: boolean, updatedDate?: string, binaryHash?: string): Promise<void> {
     if (isExternallyManagedLSP()) {
         boxlangOutputChannel.appendLine(`BoxLang UpdateManager: skipping LSP update to bx-lsp@${version} because BOXLANG_LSP_PORT is set`);
         return;
     }
 
     const latestSpec = `bx-lsp@${version}`;
+    if (refresh || updatedDate || binaryHash) {
+        await getExtensionContext().globalState.update(PENDING_LSP_REFRESH_KEY, {
+            versionSpec: latestSpec,
+            forceRefresh: refresh,
+            ...(updatedDate ? { updatedDate } : {}),
+            ...(binaryHash ? { binaryHash } : {})
+        });
+    }
     boxlangOutputChannel.appendLine(`BoxLang UpdateManager: Setting LSP version to ${latestSpec}`);
     await ExtensionConfig.updateBoxlangLSPVersion(latestSpec);
 
@@ -394,7 +517,16 @@ async function applyLSPUpdate(version: string, timing: UpdateTiming): Promise<vo
     }
 }
 
-async function applyDebuggerUpdate(version: string): Promise<void> {
+async function applyDebuggerUpdate(version: string, refresh: boolean, updatedDate?: string, binaryHash?: string): Promise<void> {
+    if (refresh || updatedDate || binaryHash) {
+        const versionSpec = `${ExtensionConfig.boxlangDebuggerModuleName}@${version}`;
+        await getExtensionContext().globalState.update(PENDING_DEBUGGER_REFRESH_KEY, {
+            versionSpec,
+            forceRefresh: refresh,
+            ...(updatedDate ? { updatedDate } : {}),
+            ...(binaryHash ? { binaryHash } : {})
+        });
+    }
     boxlangOutputChannel.appendLine(`BoxLang UpdateManager: Setting debugger version to ${version}`);
     ExtensionConfig.boxlangDebuggerModuleVersion = version;
 }

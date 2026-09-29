@@ -3,14 +3,22 @@ import { EventEmitter } from 'events';
 import * as sinon from 'sinon';
 
 // Use the global vscode mock loaded by runTestSimple.ts / runUnitTests.ts.
-// We only need to mock ProcessTracker here so we can simulate child process
-// events without actually spawning anything.
+// Mock process spawning and debugger module setup to avoid external processes.
 const Module = require('module');
 const originalRequire = Module.prototype.require;
 
 // Track mock processes created by tests
 let lastMockProcess: any = null;
 let lastSpawnOptions: any = null;
+let lastSpawnArgs: string[] = [];
+let debuggerInstallCalls = 0;
+const mockDebuggerInstall = {
+    modulePath: '/mock/debugger',
+    runtimeJarPath: '/mock/boxlang.jar',
+    versionSpec: 'bx-debugger@1.2.3',
+    moduleName: 'bx-debugger',
+    boxlangHome: '/mock/debugger-home'
+};
 
 function createMockProcess() {
     const mockProcess = new EventEmitter() as any;
@@ -30,9 +38,19 @@ function createMockProcess() {
 }
 
 Module.prototype.require = function (id: string) {
+    const requester = this?.filename || '';
+    if (/[\\/]utils[\\/]BoxLang\./.test(requester) && (id.endsWith('/DebuggerManager') || id === './DebuggerManager')) {
+        return {
+            ensureConfiguredDebuggerModule: async () => {
+                debuggerInstallCalls++;
+                return mockDebuggerInstall;
+            }
+        };
+    }
     if (id.endsWith('/ProcessTracker') || id === './ProcessTracker') {
         return {
             trackedSpawn: (...args: any[]) => {
+                lastSpawnArgs = args[1];
                 lastSpawnOptions = args[2];
                 const proc = createMockProcess();
                 // Model Node's native spawn({ signal, killSignal }) support.
@@ -58,10 +76,13 @@ const { startLSPProcess, BoxLangWithHome, BoxLang } = require('../../utils/BoxLa
 
 
 
-suite('BoxLang LSP Process Test Suite', () => {
+suite('BoxLang Process Test Suite', () => {
     setup(() => {
         lastSpawnOptions = null;
+        lastSpawnArgs = [];
+        debuggerInstallCalls = 0;
         sinon.stub(ExtensionConfig, 'boxlangJavaExecutable').get(() => 'java');
+        sinon.stub(ExtensionConfig, 'boxlangJavaHome').get(() => '/mock/java');
         sinon.stub(ExtensionConfig, 'boxlangMaxHeapSize').get(() => 512);
         sinon.stub(ExtensionConfig, 'boxlangLSPJVMArgs').get(() => '');
     });
@@ -243,6 +264,18 @@ suite('BoxLang LSP Process Test Suite', () => {
         const result = await promise;
         assert.strictEqual(result[0], lastMockProcess);
         assert.strictEqual(result[1], '9090');
+    });
+
+    test('BoxLangWithHome.startDebugger launches the configured debugger module', async () => {
+        const promise = new BoxLangWithHome('/mock/home').startDebugger();
+        setTimeout(() => lastMockProcess.stdout.emit('data', 'Listening on port: 9876\\n'), 10);
+
+        assert.strictEqual(await promise, '9876');
+        assert.strictEqual(debuggerInstallCalls, 1);
+        assert.deepStrictEqual(lastSpawnArgs, ['ortus.boxlang.runtime.BoxRunner', 'module:bx-debugger']);
+        assert.strictEqual(lastSpawnOptions.env.BOXLANG_HOME, '/mock/home');
+        assert.strictEqual(lastSpawnOptions.env.BOXLANG_MODULESDIRECTORY, '/mock/debugger');
+        assert.strictEqual(lastSpawnOptions.env.CLASSPATH, '/mock/boxlang.jar');
     });
 
     test('BoxLangWithHome.startLSP should reject when javaExecutable is not configured', async () => {

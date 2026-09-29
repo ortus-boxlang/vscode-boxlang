@@ -216,10 +216,6 @@ export const ExtensionConfig = {
         return workspace.getConfiguration("boxlang.updates").get<boolean>('preRelease') ?? false;
     },
 
-    get boxlangDebuggerMode() {
-        return workspace.getConfiguration("boxlang.debugger").get<string>('mode') || "legacy";
-    },
-
     get boxlangDebuggerModuleName() {
         return workspace.getConfiguration("boxlang.debugger").get<string>('moduleName') || "bx-debugger";
     },

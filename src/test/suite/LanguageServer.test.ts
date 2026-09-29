@@ -15,6 +15,8 @@ let fakeLspProcess: any;
 let fakeLspPort = 0;
 let lspStartError: Error | undefined;
 let beforeLspBanner: ((signal?: AbortSignal) => Promise<void>) | undefined;
+let lspInstallCalls = 0;
+const contextState = new Map<string, unknown>();
 
 function createDeferred<T>() {
     let resolve!: (value: T | PromiseLike<T>) => void;
@@ -152,6 +154,18 @@ Module.prototype.require = function (id: string) {
     if (fromLanguageServer && (id.endsWith('/context') || id === '../context')) {
         return { getExtensionContext: () => mockExtensionContext };
     }
+    if (fromLanguageServer && (id.endsWith('/ModuleManager') || id === './ModuleManager')) {
+        return {
+            ModuleManager: class {
+                async installModuleToDir(_versionSpec: string, directory: string) {
+                    lspInstallCalls++;
+                    const moduleDir = path.join(directory, 'bx-lsp');
+                    await fs.mkdir(moduleDir, { recursive: true });
+                    await fs.writeFile(path.join(moduleDir, 'box.json'), '{}');
+                }
+            }
+        };
+    }
     if (fromLanguageServer && (id.endsWith('/BoxLang') || id === './BoxLang')) {
         return {
             startLSPProcess: async (_home, _modules, _runtime, _timeout, signal?: AbortSignal) => {
@@ -163,6 +177,15 @@ Module.prototype.require = function (id: string) {
                     fakeLspProcess = new FakeChildProcess();
                 }
                 return [fakeLspProcess, fakeLspPort];
+            }
+        };
+    }
+    if (fromLanguageServer && (id.endsWith('/ForgeBoxClient') || id === './ForgeBoxClient')) {
+        return {
+            ForgeBoxClient: class {
+                async getModuleMetadata() {
+                    return { latestVersion: { version: '1.9.0+8', binaryHash: 'lsp-test-hash' }, versions: [] };
+                }
             }
         };
     }
@@ -197,7 +220,16 @@ suite('LanguageServer Test Suite', () => {
 
         mockExtensionContext = {
             globalStorageUri: { fsPath: globalStoragePath },
-            storageUri: { fsPath: workspaceStoragePath }
+            storageUri: { fsPath: workspaceStoragePath },
+            globalState: {
+                get<T>(key: string, defaultValue?: T): T | undefined {
+                    return contextState.has(key) ? contextState.get(key) as T : defaultValue;
+                },
+                async update(key: string, value: unknown): Promise<void> {
+                    if (value === undefined) contextState.delete(key);
+                    else contextState.set(key, value);
+                }
+            }
         };
 
         lspServer = net.createServer((socket) => {
@@ -217,6 +249,8 @@ suite('LanguageServer Test Suite', () => {
     }
 
     setup(() => {
+        contextState.clear();
+        lspInstallCalls = 0;
         MockLanguageClient.instances.length = 0;
         lspStartError = undefined;
         beforeLspBanner = undefined;
@@ -273,6 +307,22 @@ suite('LanguageServer Test Suite', () => {
             serverOptions(),
             (err: any) => err.name === 'InvalidLSPInstallationError' && /boxlang\.lsp\.lspVersion is not configured/.test(err.message)
         );
+    });
+
+    test('startLSP refreshes a cached module when a newer ForgeBox updateDate is pending', async () => {
+        const { globalStoragePath } = await setupManagedLspEnvironment();
+        const versionSpec = 'bx-lsp@1.9.0+8';
+        const pendingRefreshKey = 'boxlang.updates.pendingLSPRefresh';
+        contextState.set(pendingRefreshKey, { versionSpec, forceRefresh: true, updatedDate: '2026-09-23T16:02:22+00:00' });
+
+        await startLSP();
+        await MockLanguageClient.instances[0].startPromise;
+
+        assert.strictEqual(lspInstallCalls, 1);
+        const installMetadata = JSON.parse(await fs.readFile(path.join(globalStoragePath, 'lspVersions', versionSpec, 'version.json'), 'utf8'));
+        assert.strictEqual(installMetadata.updatedDate, '2026-09-23T16:02:22+00:00');
+        assert.strictEqual(installMetadata.binaryHash, 'lsp-test-hash');
+        assert.strictEqual(contextState.has(pendingRefreshKey), false);
     });
 
     test('startLSP should not terminate a managed LSP owned by another workspace', async () => {

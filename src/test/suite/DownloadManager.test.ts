@@ -190,6 +190,16 @@ suite('DownloadManager Test Suite', () => {
             assert.ok(downloadStub.calledWith(url, testTempDir));
         });
 
+        test('detects archives when the download URL has query parameters', async () => {
+            const url = 'https://storage.example/module.zip?signature=test';
+            const downloadStub = sinon.stub(DownloadManager, 'downloadAndExtractZip').resolves();
+
+            await DownloadManager.downloadAndExtract(url, testTempDir);
+
+            assert.ok(downloadStub.calledOnce);
+            assert.ok(downloadStub.calledWith(url, testTempDir));
+        });
+
         test('should detect tar.gz archive from URL', async () => {
             const url = 'https://example.com/module.tar.gz';
             const downloadStub = sinon.stub(DownloadManager, 'downloadAndExtractTarGz').resolves();

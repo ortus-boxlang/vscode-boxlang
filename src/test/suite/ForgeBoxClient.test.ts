@@ -85,6 +85,29 @@ suite('ForgeBoxClient Test Suite', () => {
         });
     });
 
+    suite('getModuleVersionMetadata', () => {
+        test('encodes plus signs in stable LSP versions', async () => {
+            axiosGetStub.resolves({ data: { data: { version: '1.14.0+13', updatedDate: '2026-09-25T14:56:49+00:00' } } });
+
+            await client.getModuleVersionMetadata('bx-lsp', '1.14.0+13');
+
+            assert.ok(axiosGetStub.calledWith('/entry/bx-lsp/versions/1.14.0%2B13'));
+        });
+
+        test('should fetch metadata for a specific module version', async () => {
+            axiosGetStub.resolves({ data: { data: {
+                version: '1.14.0-snapshot',
+                updatedDate: '2026-09-23T16:02:22+00:00',
+                binaryHash: ''
+            } } });
+
+            const metadata = await client.getModuleVersionMetadata('bx-lsp', '1.14.0-snapshot');
+
+            assert.strictEqual(metadata.updatedDate, '2026-09-23T16:02:22+00:00');
+            assert.ok(axiosGetStub.calledWith('/entry/bx-lsp/versions/1.14.0-snapshot'));
+        });
+    });
+
     suite('getDownloadURL', () => {
         test('should return latest version URL when version not specified', async () => {
             const mockResponse = {
@@ -133,6 +156,20 @@ suite('ForgeBoxClient Test Suite', () => {
             const url = await client.getDownloadURL('bx-lsp', '1.4.0');
 
             assert.strictEqual(url, 'https://forgebox.io/downloads/bx-lsp/1.4.0');
+        });
+
+        test('resolves ForgeBox storage versions to a downloadable URL', async () => {
+            const signedURL = 'https://storage.example/bx-lsp.zip?signature=test';
+            axiosGetStub.onFirstCall().resolves({ data: { data: {
+                latestVersion: { version: '1.14.0+13', downloadURL: 'https://downloads.example/bx-lsp.zip' },
+                versions: [{ version: '1.15.0-snapshot', downloadURL: 'forgeboxstorage' }]
+            } } });
+            axiosGetStub.onSecondCall().resolves({ data: { data: signedURL } });
+
+            const url = await client.getDownloadURL('bx-lsp', '1.15.0-snapshot');
+
+            assert.strictEqual(url, signedURL);
+            assert.ok(axiosGetStub.calledWith('/storage/bx-lsp/1.15.0-snapshot'));
         });
 
         test('should throw error when specific version not found', async () => {

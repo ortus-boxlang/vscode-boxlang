@@ -90,7 +90,7 @@ async function reinstallLSP(context: ExtensionContext): Promise<void> {
             await fs.mkdir(lspVersionsParentDir, { recursive: true });
 
             const moduleManager = new ModuleManager(true);
-            await moduleManager.installModuleToDir(versionSpec, lspVersionDir, true);
+            await moduleManager.installModuleToDir(versionSpec, lspVersionDir);
 
             const boxJsonPath = path.join(lspVersionDir, "bx-lsp", "box.json");
             try {

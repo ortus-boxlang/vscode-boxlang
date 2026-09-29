@@ -23,6 +23,15 @@ export interface ForgeBoxVersion {
     isActive: boolean;
     createDate?: string;
     modifyDate?: string;
+    binaryHash?: string;
+}
+
+export interface ForgeBoxVersionDetails {
+    version: string;
+    downloadURL: string;
+    updatedDate?: string;
+    createdDate?: string;
+    binaryHash?: string;
 }
 
 export interface ForgeBoxSearchResult {
@@ -66,6 +75,18 @@ export class ForgeBoxClient {
         }
     }
 
+    async getModuleVersionMetadata(moduleName: string, version: string): Promise<ForgeBoxVersionDetails> {
+        try {
+            const response = await this.client.get(`/entry/${moduleName}/versions/${encodeURIComponent(version)}`);
+            return response.data.data || response.data;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                throw new Error(`Failed to fetch module version '${moduleName}@${version}': ${error.message}`);
+            }
+            throw error;
+        }
+    }
+
     /**
      * Get download URL for a specific version of a module
      * @param moduleName - Module slug
@@ -74,18 +95,35 @@ export class ForgeBoxClient {
      */
     async getDownloadURL(moduleName: string, version?: string): Promise<string> {
         const metadata = await this.getModuleMetadata(moduleName);
+        const versionEntry = !version || version === "latest"
+            ? metadata.latestVersion || metadata.versions?.[0]
+            : [metadata.latestVersion, ...(metadata.versions || [])].find(v => v?.version === version);
 
-        if (!version || version === "latest") {
-            return metadata.latestVersion?.downloadURL || metadata.versions[0]?.downloadURL;
+        if (!versionEntry?.downloadURL) {
+            throw new Error(`Version ${version || "latest"} not found for module ${moduleName}`);
         }
 
-        // Find specific version
-        const versionEntry = metadata.versions.find(v => v.version === version);
-        if (!versionEntry) {
-            throw new Error(`Version ${version} not found for module ${moduleName}`);
+        if (versionEntry.downloadURL.toLowerCase() === "forgeboxstorage") {
+            return this.getStorageLocation(moduleName, versionEntry.version);
         }
 
         return versionEntry.downloadURL;
+    }
+
+    private async getStorageLocation(moduleName: string, version: string): Promise<string> {
+        try {
+            const response = await this.client.get(`/storage/${encodeURIComponent(moduleName)}/${encodeURIComponent(version)}`);
+            const downloadURL = response.data.data || response.data;
+            if (typeof downloadURL !== "string" || !/^https?:\/\//i.test(downloadURL)) {
+                throw new Error(`ForgeBox returned an invalid storage URL for ${moduleName}@${version}`);
+            }
+            return downloadURL;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                throw new Error(`Failed to resolve ForgeBox storage for '${moduleName}@${version}': ${error.message}`);
+            }
+            throw error;
+        }
     }
 
     /**

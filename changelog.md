@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-334 Change pre-release to auto update to snapshot of LSP and Debugger
+
 ## [1.26.1] - 2026-09-25
 
 - BLIDE-326 Improve LSP connection handling

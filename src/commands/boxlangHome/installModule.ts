@@ -1,16 +1,17 @@
 
 import * as vscode from "vscode";
-import { boxlangModuleCache, installBoxLangModule } from "../../utils/CommandBox";
+import { ForgeBoxClient, ForgeBoxEntry } from "../../utils/ForgeBoxClient";
+import { ModuleManager } from "../../utils/ModuleManager";
 import { ModulesDirectoryTreeItem, notifyServerHomeDataChange } from "../../views/ServerHomesView";
 
-async function getModuleNameToInstall(installedModules): Promise<string> {
+async function getModuleNameToInstall(installedModules: string[], availableModules: ForgeBoxEntry[]): Promise<string> {
     return new Promise((resolve, reject) => {
-        const choices = boxlangModuleCache
+        const choices = availableModules
             .filter(module => !installedModules.includes(module.slug))
             .map(module => {
                 return {
                     label: module.slug,
-                    description: module.versions[0].version,
+                    description: module.latestVersion?.version || module.versions[0]?.version || "",
                     detail: module.summary
                 }
             });
@@ -50,22 +51,20 @@ async function getModuleNameToInstall(installedModules): Promise<string> {
 export async function installModule(modulesDirectory: ModulesDirectoryTreeItem) {
     const installedModules = modulesDirectory.modules.map(m => m.name);
 
-    let name = await getModuleNameToInstall(installedModules);
+    const availableModules = await new ForgeBoxClient().listBoxLangModules();
+    let name = await getModuleNameToInstall(installedModules, availableModules);
 
     if (!name) {
         vscode.window.showErrorMessage(`Could not install module. You must provide a valid module name`);
         return;
     }
 
-    vscode.window.withProgress({
+    await vscode.window.withProgress({
         title: "Installing BoxLang module: " + name,
         location: vscode.ProgressLocation.Notification,
     }, async () => {
-        await installBoxLangModule(modulesDirectory.getRoot().directory, name);
-
+        await new ModuleManager(true).installModule(name, modulesDirectory.getRoot().directory);
         notifyServerHomeDataChange();
-
-        return { increment: 100 }
     });
 }
 

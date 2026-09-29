@@ -6,6 +6,7 @@ import { ForgeBoxClient } from "./ForgeBoxClient";
 import { ModuleManager } from "./ModuleManager";
 import { boxlangOutputChannel } from "./OutputChannels";
 import { getConfiguredBoxLangJarPath } from "./versionManager";
+import { PENDING_DEBUGGER_REFRESH_KEY, PendingModuleRefresh } from "./versionUpdateState";
 
 async function fileExists(filePath: string): Promise<boolean> {
     try {
@@ -125,12 +126,22 @@ export async function installDebuggerVersionSpec(versionSpec: string): Promise<s
     const moduleName = versionSpec.split("@")[0];
 
     const moduleManager = new ModuleManager(true);
-    await moduleManager.installModuleToDir(versionSpec, versionDir, true);
+    await moduleManager.installModuleToDir(versionSpec, versionDir);
 
     const boxJsonPath = path.join(versionDir, moduleName, "box.json");
     if (!(await fileExists(boxJsonPath))) {
         throw new Error(`Debugger installation is missing box.json: ${boxJsonPath}`);
     }
+
+    let binaryHash: string | undefined;
+    try {
+        const metadata = await new ForgeBoxClient().getModuleMetadata(moduleName);
+        binaryHash = [metadata.latestVersion, ...(metadata.versions ?? [])]
+            .find(version => version?.version === extractVersionFromSpec(versionSpec) && version.binaryHash)?.binaryHash;
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`Unable to read ForgeBox binaryHash for ${versionSpec}: ${error}`);
+    }
+    await fs.writeFile(path.join(versionDir, "version.json"), JSON.stringify({ versionSpec, binaryHash, installedAt: new Date().toISOString() }));
 
     return versionDir;
 }
@@ -187,12 +198,35 @@ export async function ensureConfiguredDebuggerModule(): Promise<{ modulePath: st
 
     boxlangOutputChannel.appendLine(`Ensuring debugger module is installed: ${versionSpec}`);
 
+    const context = getExtensionContext();
     const parentDir = await getDebuggerVersionsParentDir();
     const versionDir = path.join(parentDir, versionSpec);
     const expectedBoxJson = path.join(versionDir, moduleName, "box.json");
+    const pendingRefresh = context.globalState?.get<PendingModuleRefresh>(PENDING_DEBUGGER_REFRESH_KEY);
+    const hasPendingRefresh = pendingRefresh?.versionSpec === versionSpec;
+    const forceRefresh = hasPendingRefresh && pendingRefresh.forceRefresh === true;
 
+    if (forceRefresh) {
+        await fs.rm(versionDir, { recursive: true, force: true });
+    }
     if (!(await fileExists(expectedBoxJson))) {
         await installDebuggerVersionSpec(versionSpec);
+    }
+    if (hasPendingRefresh) {
+        let installedMetadata: Record<string, unknown> = {};
+        try {
+            installedMetadata = JSON.parse(await fs.readFile(path.join(versionDir, "version.json"), "utf8"));
+        } catch { /* A successful install normally writes this metadata. */ }
+        await fs.writeFile(
+            path.join(versionDir, "version.json"),
+            JSON.stringify({
+                ...installedMetadata,
+                versionSpec,
+                updatedDate: pendingRefresh.updatedDate ?? installedMetadata["updatedDate"],
+                binaryHash: pendingRefresh.binaryHash ?? installedMetadata["binaryHash"]
+            })
+        );
+        await context.globalState?.update(PENDING_DEBUGGER_REFRESH_KEY, undefined);
     }
 
     const requiredVersion = await getRequiredBoxLangVersion(versionDir);
