@@ -14,6 +14,8 @@ let mockDebuggerLatestVersion = '1.1.0';
 let mockDebuggerVersions = ['1.1.0'];
 let mockDebuggerBinaryHash: string | undefined;
 let mockVersionUpdatedDate = '2026-01-01T00:00:00Z';
+let mockRuntimeS3Versions: Array<{ version: string; url: string; date: Date; etag?: string }> = [];
+let mockMiniServerS3Versions: Array<{ version: string; url: string; date: Date; etag?: string }> = [];
 let moduleVersionMetadataCalls = 0;
 let debuggerVersionUpdate: ((version: string) => void) | undefined;
 const outputLines: string[] = [];
@@ -148,7 +150,7 @@ Module.prototype.require = function (id: string) {
     if (fromUpdateManager && (id.endsWith('/DownloadManager') || id === './DownloadManager')) {
         return {
             DownloadManager: {
-                listS3MiniServerVersions: async () => [],
+                listS3MiniServerVersions: async () => mockMiniServerS3Versions,
                 downloadMiniServer: async () => undefined
             }
         };
@@ -156,7 +158,11 @@ Module.prototype.require = function (id: string) {
 
     if (fromUpdateManager && (id.endsWith('/versionManager') || id === './versionManager')) {
         return {
-            getAvailableBoxLangVerions: async () => []
+            getAvailableBoxLangVerions: async () => mockRuntimeS3Versions.map(version => ({
+                ...version,
+                name: `boxlang-${version.version}`,
+                lastModified: version.date
+            }))
         };
     }
 
@@ -187,6 +193,8 @@ suite('UpdateManager Test Suite', () => {
         mockDebuggerVersions = ['1.1.0'];
         mockDebuggerBinaryHash = undefined;
         mockVersionUpdatedDate = '2026-01-01T00:00:00Z';
+        mockRuntimeS3Versions = [];
+        mockMiniServerS3Versions = [];
         moduleVersionMetadataCalls = 0;
         debuggerVersionUpdate = undefined;
         delete process.env.BOXLANG_LSP_PORT;
@@ -206,6 +214,148 @@ suite('UpdateManager Test Suite', () => {
     teardown(() => {
         delete process.env.BOXLANG_LSP_PORT;
         sinon.restore();
+    });
+
+    test('runtime and MiniServer pair available releases and fall back when unmatched', async () => {
+        const storagePath = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-update-manager-'));
+        const originalStoragePath = mockExtensionContext.globalStorageUri.fsPath;
+        const originalGetConfiguration = vscode.workspace.getConfiguration;
+        const originalWithProgress = vscode.window.withProgress;
+        const configurationUpdates: Array<{ section: string; key: string; value: unknown }> = [];
+
+        mockExtensionContext.globalStorageUri.fsPath = storagePath;
+        mockExtensionConfig.boxlangRuntimeVersionUpdateMode = 'auto';
+        mockExtensionConfig.boxlangMiniServerVersionUpdateMode = 'auto';
+        mockExtensionConfig.boxlangVersion = '1.17.5';
+        mockExtensionConfig.boxlangMiniServerJarPath = '/mock/boxlang-miniserver-1.17.5.jar';
+        mockRuntimeS3Versions = [
+            { version: '1.18.0', url: 'runtime-1.18.jar', date: new Date('2026-09-28T00:00:00Z') },
+            { version: '1.17.6', url: 'runtime-1.17.6.jar', date: new Date('2026-09-25T00:00:00Z') },
+            { version: '1.17.5', url: 'runtime-1.17.5.jar', date: new Date('2026-09-14T00:00:00Z') }
+        ];
+        mockMiniServerS3Versions = [
+            { version: '1.17.6', url: 'mini-1.17.6.jar', date: new Date('2026-09-25T01:00:00Z') },
+            { version: '1.17.5', url: 'mini-1.17.5.jar', date: new Date('2026-09-14T01:00:00Z') }
+        ];
+        vscode.workspace.getConfiguration = (section: string) => ({
+            update: async (key: string, value: unknown) => { configurationUpdates.push({ section, key, value }); }
+        });
+        vscode.window.withProgress = async (_options: unknown, task: () => Promise<unknown>) => task();
+
+        try {
+            await checkAllUpdates(true);
+            assert.ok(configurationUpdates.some(update => update.section === 'boxlang' && update.key === 'boxlangVersion' && update.value === '1.17.6'));
+            assert.ok(mockExtensionConfig.boxlangMiniServerJarPath.endsWith('boxlang-miniserver-1.17.6.jar'));
+
+            configurationUpdates.length = 0;
+            mockExtensionContext.extension.packageJSON.version = '1.27.0';
+            mockExtensionConfig.boxlangVersion = '1.17.6';
+            mockExtensionConfig.boxlangMiniServerJarPath = '/mock/boxlang-miniserver-1.17.6.jar';
+            mockRuntimeS3Versions = [
+                { version: '1.19.0-snapshot', url: 'runtime-1.19-snapshot.jar', date: new Date('2026-09-29T00:00:00Z') },
+                { version: '1.18.0-snapshot', url: 'runtime-1.18-snapshot.jar', date: new Date('2026-09-28T00:00:00Z') },
+                { version: '1.17.6', url: 'runtime-1.17.6.jar', date: new Date('2026-09-25T00:00:00Z') }
+            ];
+            mockMiniServerS3Versions = [
+                { version: '1.18.0-snapshot', url: 'mini-1.18-snapshot.jar', date: new Date('2026-09-28T01:00:00Z') },
+                { version: '1.17.6', url: 'mini-1.17.6.jar', date: new Date('2026-09-25T01:00:00Z') }
+            ];
+
+            await checkAllUpdates(true);
+            assert.ok(configurationUpdates.some(update => update.section === 'boxlang' && update.key === 'boxlangVersion' && update.value === '1.18.0-snapshot'));
+            assert.ok(mockExtensionConfig.boxlangMiniServerJarPath.endsWith('boxlang-miniserver-1.18.0-snapshot.jar'));
+
+            configurationUpdates.length = 0;
+            mockExtensionContext.extension.packageJSON.version = '1.28.0';
+            mockExtensionConfig.boxlangVersion = '1.19.0-snapshot';
+            mockExtensionConfig.boxlangMiniServerJarPath = '/mock/boxlang-miniserver-1.19.0-snapshot.jar';
+            mockRuntimeS3Versions = [
+                { version: '1.18.0', url: 'runtime-1.18.jar', date: new Date('2026-09-28T00:00:00Z') },
+                { version: '1.17.6', url: 'runtime-1.17.6.jar', date: new Date('2026-09-25T00:00:00Z') }
+            ];
+            mockMiniServerS3Versions = [
+                { version: '1.17.5', url: 'mini-1.17.5.jar', date: new Date('2026-09-14T01:00:00Z') },
+                { version: '1.17.4', url: 'mini-1.17.4.jar', date: new Date('2026-09-11T01:00:00Z') }
+            ];
+
+            await checkAllUpdates(true);
+            assert.ok(configurationUpdates.some(update => update.section === 'boxlang' && update.key === 'boxlangVersion' && update.value === '1.18.0'));
+            assert.ok(mockExtensionConfig.boxlangMiniServerJarPath.endsWith('boxlang-miniserver-1.17.5.jar'));
+        } finally {
+            mockExtensionContext.globalStorageUri.fsPath = originalStoragePath;
+            vscode.workspace.getConfiguration = originalGetConfiguration;
+            vscode.window.withProgress = originalWithProgress;
+            await fs.rm(storagePath, { recursive: true, force: true });
+        }
+    });
+
+    test('runtime S3 ETag detects a republished version', async () => {
+        const storagePath = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-update-manager-'));
+        const originalStoragePath = mockExtensionContext.globalStorageUri.fsPath;
+        const originalGetConfiguration = vscode.workspace.getConfiguration;
+
+        try {
+            mockExtensionContext.globalStorageUri.fsPath = storagePath;
+            vscode.workspace.getConfiguration = () => ({ update: async () => undefined });
+            mockExtensionConfig.boxlangRuntimeVersionUpdateMode = 'auto';
+            mockExtensionConfig.boxlangMiniServerVersionUpdateMode = 'manual';
+            mockExtensionConfig.boxlangLSPVersionUpdateMode = 'manual';
+            mockExtensionConfig.boxlangVersion = '1.17.6';
+            mockRuntimeS3Versions = [{
+                version: '1.17.6', url: 'runtime.jar', date: new Date('2026-09-29T00:00:00Z'), etag: '&quot;new-runtime-etag&quot;'
+            }];
+            const versionDir = path.join(storagePath, 'boxlang_versions', 'boxlang-1.17.6');
+            await fs.mkdir(versionDir, { recursive: true });
+            await fs.writeFile(path.join(versionDir, 'version.json'), JSON.stringify({ name: 'boxlang-1.17.6', etag: '&quot;old-runtime-etag&quot;' }));
+
+            await checkAllUpdates(true);
+
+            assert.deepStrictEqual(stateStore.get('boxlang.updates.pendingRuntimeRefresh'), {
+                versionSpec: 'boxlang-1.17.6',
+                forceRefresh: true,
+                etag: '&quot;new-runtime-etag&quot;',
+                lastModified: '2026-09-29T00:00:00.000Z'
+            }, outputLines.join('\\n'));
+        } finally {
+            mockExtensionContext.globalStorageUri.fsPath = originalStoragePath;
+            vscode.workspace.getConfiguration = originalGetConfiguration;
+            await fs.rm(storagePath, { recursive: true, force: true });
+        }
+    });
+
+    test('MiniServer S3 ETag refreshes same-version jars into a new cache path', async () => {
+        const storagePath = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-update-manager-'));
+        const originalStoragePath = mockExtensionContext.globalStorageUri.fsPath;
+        const originalWithProgress = vscode.window.withProgress;
+
+        try {
+            mockExtensionContext.globalStorageUri.fsPath = storagePath;
+            mockExtensionConfig.boxlangRuntimeVersionUpdateMode = 'manual';
+            mockExtensionConfig.boxlangMiniServerVersionUpdateMode = 'auto';
+            mockExtensionConfig.boxlangLSPVersionUpdateMode = 'manual';
+            const oldDir = path.join(storagePath, 'miniserverVersions', 'boxlang-miniserver-1.17.6');
+            const oldJar = path.join(oldDir, 'boxlang-miniserver-1.17.6.jar');
+            await fs.mkdir(oldDir, { recursive: true });
+            await fs.writeFile(oldJar, 'old jar');
+            await fs.writeFile(path.join(oldDir, 'version.json'), JSON.stringify({ version: '1.17.6', etag: 'old-mini-etag' }));
+            mockExtensionConfig.boxlangMiniServerJarPath = oldJar;
+            mockMiniServerS3Versions = [{
+                version: '1.17.6', url: 'mini.jar', date: new Date('2026-09-29T00:00:00Z'), etag: 'new-mini-etag'
+            }];
+            vscode.window.withProgress = async (_options: unknown, task: () => Promise<unknown>) => task();
+
+            await checkAllUpdates(true);
+
+            assert.notStrictEqual(mockExtensionConfig.boxlangMiniServerJarPath, oldJar);
+            assert.strictEqual(
+                JSON.parse(await fs.readFile(path.join(path.dirname(mockExtensionConfig.boxlangMiniServerJarPath), 'version.json'), 'utf8')).etag,
+                'new-mini-etag'
+            );
+        } finally {
+            mockExtensionContext.globalStorageUri.fsPath = originalStoragePath;
+            vscode.window.withProgress = originalWithProgress;
+            await fs.rm(storagePath, { recursive: true, force: true });
+        }
     });
 
     test('checkAllUpdates should persist the new LSP version before restarting in auto mode', async () => {

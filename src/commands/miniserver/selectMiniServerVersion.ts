@@ -19,8 +19,8 @@ async function fileExists(filePath: string): Promise<boolean> {
     }
 }
 
-async function listInstalledVersions(parentDir: string): Promise<Set<string>> {
-    const installed = new Set<string>();
+async function listInstalledVersions(parentDir: string): Promise<Map<string, string>> {
+    const installed = new Map<string, string>();
 
     if (!(await fileExists(parentDir))) {
         return installed;
@@ -32,15 +32,21 @@ async function listInstalledVersions(parentDir: string): Promise<Set<string>> {
             continue;
         }
 
-        const match = /^boxlang-miniserver-(.+)$/.exec(entry.name);
-        if (!match) {
+        const versionDir = path.join(parentDir, entry.name);
+        let version = /^boxlang-miniserver-(.+)$/.exec(entry.name)?.[1];
+        let configuredJarPath: string | undefined;
+        try {
+            const metadata = JSON.parse(await fs.readFile(path.join(versionDir, "version.json"), "utf8"));
+            version = metadata.version || version;
+            configuredJarPath = metadata.jarPath;
+        } catch { /* Older caches are identified by directory name. */ }
+
+        if (!version) {
             continue;
         }
-
-        const version = match[1];
-        const jarPath = path.join(parentDir, entry.name, `boxlang-miniserver-${version}.jar`);
+        const jarPath = configuredJarPath || path.join(versionDir, `boxlang-miniserver-${version}.jar`);
         if (await fileExists(jarPath)) {
-            installed.add(version);
+            installed.set(version, jarPath);
         }
     }
 
@@ -54,7 +60,13 @@ type MiniServerPickResult =
 const RECENT_VERSION_LIMIT = 10;
 const SHOW_ALL_LABEL = "Show older versions...";
 
-async function fetchMiniServerData(context: ExtensionContext): Promise<{ versions: string[]; installed: Set<string>; configuredVersion: string; parentDir: string }> {
+async function fetchMiniServerData(context: ExtensionContext): Promise<{
+    versions: string[];
+    installed: Map<string, string>;
+    versionDetails: Map<string, { etag?: string; date: Date }>;
+    configuredVersion: string;
+    parentDir: string;
+}> {
     const parentDir = path.join(context.globalStorageUri.fsPath, "miniserverVersions");
     const installed = await listInstalledVersions(parentDir);
 
@@ -71,16 +83,21 @@ async function fetchMiniServerData(context: ExtensionContext): Promise<{ version
         }
     }
 
+    if (configuredVersion && await fileExists(configuredJar)) {
+        installed.set(configuredVersion, configuredJar);
+    }
+
     const versions = Array.from(versionSet)
         .filter(v => typeof v === "string" && v.length > 0)
         .sort(compareVersionsDescending);
+    const versionDetails = new Map(s3Versions.map(v => [v.version, { etag: v.etag, date: v.date }]));
 
-    return { versions, installed, configuredVersion, parentDir };
+    return { versions, installed, versionDetails, configuredVersion, parentDir };
 }
 
 async function pickMiniServerVersion(
     versions: string[],
-    installed: Set<string>,
+    installed: Map<string, string>,
     configuredVersion: string,
     parentDir: string,
     showAll: boolean
@@ -135,7 +152,7 @@ async function pickMiniServerVersion(
                 const versionDir = path.join(parentDir, `boxlang-miniserver-${version}`);
                 const jarPath = path.join(versionDir, `boxlang-miniserver-${version}.jar`);
                 if (installed.has(version)) {
-                    resolve({ version, jarPath });
+                    resolve({ version, jarPath: installed.get(version)! });
                 } else {
                     resolve({ needsInstall: true, version, jarPath, versionDir });
                 }
@@ -175,9 +192,10 @@ export async function selectMiniServerVersion(context: ExtensionContext) {
 
                     await DownloadManager.downloadMiniServer(version, jarPath);
 
+                    const versionInfo = data.versionDetails.get(version);
                     await fs.writeFile(
                         path.join(versionDir, "version.json"),
-                        JSON.stringify({ name: `boxlang-miniserver-${version}`, version, jarPath, installedAt: new Date().toISOString() }, null, 4)
+                        JSON.stringify({ name: `boxlang-miniserver-${version}`, version, jarPath, installedAt: new Date().toISOString(), etag: versionInfo?.etag, lastModified: versionInfo?.date.toISOString() }, null, 4)
                     );
 
                     ExtensionConfig.boxlangMiniServerJarPath = jarPath;

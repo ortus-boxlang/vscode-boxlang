@@ -221,12 +221,12 @@ export class DownloadManager {
      * List available BoxLang versions from S3 (without AWS SDK)
      * Replaces AWS SDK usage in VersionManager.ts
      */
-    static async listS3BoxLangVersions(): Promise<Array<{ version: string; url: string; date: Date }>> {
+    static async listS3BoxLangVersions(): Promise<Array<{ version: string; url: string; date: Date; etag?: string }>> {
         const bucketUrl = "https://downloads.ortussolutions.com";
         const prefix = "ortussolutions/boxlang";
 
         try {
-            const versions: Array<{ version: string; url: string; date: Date }> = [];
+            const versions: Array<{ version: string; url: string; date: Date; etag?: string }> = [];
             let continuationToken: string | null = null;
 
             // Use S3 REST API directly - no authentication needed for public bucket.
@@ -248,6 +248,7 @@ export class DownloadManager {
                     const block = content[1];
                     const keyMatch = block.match(/<Key>([^<]+)<\/Key>/);
                     const dateMatch = block.match(/<LastModified>([^<]+)<\/LastModified>/);
+                    const etagMatch = block.match(/<ETag>([^<]+)<\/ETag>/);
 
                     if (!keyMatch) {
                         continue;
@@ -273,7 +274,8 @@ export class DownloadManager {
                     versions.push({
                         version: folderVersion,
                         url: `${bucketUrl}/${key}`,
-                        date: new Date(dateMatch?.[1] || new Date())
+                        date: new Date(dateMatch?.[1] || new Date()),
+                        etag: etagMatch?.[1]
                     });
                 }
 
@@ -281,7 +283,7 @@ export class DownloadManager {
                 continuationToken = nextTokenMatch?.[1] || null;
             } while (continuationToken);
 
-            const dedupedByVersion = new Map<string, { version: string; url: string; date: Date }>();
+            const dedupedByVersion = new Map<string, { version: string; url: string; date: Date; etag?: string }>();
             for (const item of versions) {
                 const existing = dedupedByVersion.get(item.version);
 
@@ -305,7 +307,7 @@ export class DownloadManager {
     /**
      * List available MiniServer versions from S3 (without AWS SDK)
      */
-    static async listS3MiniServerVersions(): Promise<Array<{ version: string; url: string; date: Date }>> {
+    static async listS3MiniServerVersions(): Promise<Array<{ version: string; url: string; date: Date; etag?: string }>> {
         const bucketUrl = "https://downloads.ortussolutions.com";
         const prefix = "ortussolutions/boxlang-runtimes/boxlang-miniserver";
 
@@ -319,12 +321,14 @@ export class DownloadManager {
                 }
             });
 
-            const versions: Array<{ version: string; url: string; date: Date }> = [];
+            const versions: Array<{ version: string; url: string; date: Date; etag?: string }> = [];
             const keyMatches = response.data.matchAll(/<Key>([^<]+)<\/Key>/g);
             const dateMatches = response.data.matchAll(/<LastModified>([^<]+)<\/LastModified>/g);
+            const etagMatches = response.data.matchAll(/<ETag>([^<]+)<\/ETag>/g);
 
             const keys = Array.from(keyMatches).map((m: any) => m[1]);
             const dates = Array.from(dateMatches).map((m: any) => m[1]);
+            const etags = Array.from(etagMatches).map((m: any) => m[1]);
 
             for (let i = 0; i < keys.length; i++) {
                 const key = keys[i];
@@ -342,7 +346,8 @@ export class DownloadManager {
                 versions.push({
                     version: versionMatch[1],
                     url: `${bucketUrl}/${key}`,
-                    date: new Date(dates[i] || new Date())
+                    date: new Date(dates[i] || new Date()),
+                    etag: etags[i]
                 });
             }
 

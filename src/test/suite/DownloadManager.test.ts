@@ -34,6 +34,7 @@ suite('DownloadManager Test Suite', () => {
                     <Contents>
                         <Key>ortussolutions/boxlang/1.9.0/boxlang-1.9.0.jar</Key>
                         <LastModified>2024-01-15T10:00:00.000Z</LastModified>
+                        <ETag>&quot;runtime-hash&quot;</ETag>
                     </Contents>
                     <Contents>
                         <Key>ortussolutions/boxlang/1.8.0/boxlang-1.8.0.jar</Key>
@@ -54,6 +55,7 @@ suite('DownloadManager Test Suite', () => {
             assert.strictEqual(versions[1].version, '1.8.0');
             assert.ok(versions[0].url.includes('boxlang-1.9.0.jar'));
             assert.ok(versions[0].date instanceof Date);
+            assert.strictEqual(versions[0].etag, '&quot;runtime-hash&quot;');
         });
 
         test('should filter out non-JAR files', async () => {
@@ -228,6 +230,25 @@ suite('DownloadManager Test Suite', () => {
                 async () => await DownloadManager.downloadAndExtract(url, testTempDir),
                 /Unsupported archive type/
             );
+        });
+    });
+
+    suite('listS3MiniServerVersions', () => {
+        test('returns S3 ETags with MiniServer versions', async () => {
+            const mockXMLResponse = `<?xml version="1.0" encoding="UTF-8"?>
+                <ListBucketResult>
+                    <Contents>
+                        <Key>ortussolutions/boxlang-runtimes/boxlang-miniserver/1.17.6/boxlang-miniserver-1.17.6.jar</Key>
+                        <LastModified>2026-09-25T23:39:31.000Z</LastModified>
+                        <ETag>&quot;mini-hash-2&quot;</ETag>
+                    </Contents>
+                </ListBucketResult>`;
+            axiosStub = sinon.stub(axios, 'get').resolves({ data: mockXMLResponse });
+
+            const versions = await DownloadManager.listS3MiniServerVersions();
+
+            assert.strictEqual(versions[0].version, '1.17.6');
+            assert.strictEqual(versions[0].etag, '&quot;mini-hash-2&quot;');
         });
     });
 

@@ -1,4 +1,5 @@
 import * as fs from "fs/promises";
+import { createHash } from "crypto";
 import * as path from "path";
 import semver from "semver";
 import * as vscode from "vscode";
@@ -9,8 +10,8 @@ import { DownloadManager } from "./DownloadManager";
 import { ForgeBoxClient } from "./ForgeBoxClient";
 import * as LSP from "./LanguageServer";
 import { boxlangOutputChannel } from "./OutputChannels";
-import { getAvailableBoxLangVerions } from "./versionManager";
-import { PENDING_DEBUGGER_REFRESH_KEY, PENDING_LSP_REFRESH_KEY } from "./versionUpdateState";
+import { BoxLangVersion, getAvailableBoxLangVerions } from "./versionManager";
+import { PENDING_DEBUGGER_REFRESH_KEY, PENDING_LSP_REFRESH_KEY, PENDING_RUNTIME_REFRESH_KEY } from "./versionUpdateState";
 
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 
@@ -24,7 +25,11 @@ const COOLDOWN_KEYS = {
 type Component = "runtime" | "miniserver" | "lsp" | "debugger";
 type UpdateMode = "auto" | "prompt" | "manual";
 type UpdateTiming = "now" | "restart";
-type UpdateInfo = { current: string; latest: string; updatedDate?: string; binaryHash?: string; needsRefresh?: boolean };
+type UpdateInfo = { current: string; latest: string; updatedDate?: string; binaryHash?: string; needsRefresh?: boolean; etag?: string; lastModified?: Date };
+type MiniServerS3Version = { version: string; url: string; date: Date; etag?: string };
+type S3VersionLists = { runtime: BoxLangVersion[]; miniserver: MiniServerS3Version[] };
+type S3VersionTargets = { runtime?: BoxLangVersion; miniserver?: MiniServerS3Version };
+type S3VersionListProvider = (includeRuntime: boolean, includeMiniServer: boolean) => Promise<S3VersionLists>;
 
 function isExternallyManagedLSP(): boolean {
     return Boolean(process.env.BOXLANG_LSP_PORT);
@@ -51,7 +56,92 @@ function isVersionStreamMismatch(latest: string, current: string): boolean {
     if (latestVersion.prerelease.length === 0) {
         return currentVersion.prerelease.length > 0;
     }
-    return isSnapshotVersion(latest) && !isSnapshotVersion(current);
+    if (isSnapshotVersion(latest)) {
+        return !isSnapshotVersion(current);
+    }
+    return currentVersion.prerelease.length === 0;
+}
+
+function shouldPairRuntimeAndMiniServer(): boolean {
+    // Respect manual component modes and the workspace-pinned runtime.
+    return ExtensionConfig.boxlangRuntimeVersionUpdateMode !== "manual"
+        && ExtensionConfig.boxlangMiniServerVersionUpdateMode !== "manual"
+        && getBvmrcVersion() === null;
+}
+
+function getLatestS3VersionTargets(
+    lists: S3VersionLists,
+    extensionPreRelease: boolean,
+    includePreRelease: boolean,
+    pairVersions: boolean
+): S3VersionTargets {
+    const runtimeCandidates = getS3ChannelCandidates(lists.runtime, version => version.name.replace(/^boxlang-/, ""), extensionPreRelease, includePreRelease);
+    const miniServerCandidates = getS3ChannelCandidates(lists.miniserver, version => version.version, extensionPreRelease, includePreRelease);
+
+    if (pairVersions) {
+        const miniServerByVersion = new Map(miniServerCandidates.map(version => [version.version, version]));
+        const commonRuntime = runtimeCandidates.find(version => miniServerByVersion.has(version.name.replace(/^boxlang-/, "")));
+        if (commonRuntime) {
+            return { runtime: commonRuntime, miniserver: miniServerByVersion.get(commonRuntime.name.replace(/^boxlang-/, "")) };
+        }
+
+        // If snapshots don't align, prefer a shared stable pair before allowing drift.
+        if (extensionPreRelease) {
+            const stableRuntime = getS3ChannelCandidates(lists.runtime, version => version.name.replace(/^boxlang-/, ""), false, false);
+            const stableMiniServer = getS3ChannelCandidates(lists.miniserver, version => version.version, false, false);
+            const stableMiniServerByVersion = new Map(stableMiniServer.map(version => [version.version, version]));
+            const commonStableRuntime = stableRuntime.find(version => stableMiniServerByVersion.has(version.name.replace(/^boxlang-/, "")));
+            if (commonStableRuntime) {
+                return { runtime: commonStableRuntime, miniserver: stableMiniServerByVersion.get(commonStableRuntime.name.replace(/^boxlang-/, "")) };
+            }
+        }
+    }
+
+    return { runtime: runtimeCandidates[0], miniserver: miniServerCandidates[0] };
+}
+
+function getS3CacheSuffix(etag?: string, lastModified?: Date): string | undefined {
+    const identity = etag || lastModified?.toISOString();
+    return identity ? createHash("sha256").update(identity).digest("hex").slice(0, 16) : undefined;
+}
+
+function getSelectedS3VersionTargets(
+    lists: S3VersionLists,
+    extensionPreRelease: boolean,
+    includePreRelease: boolean,
+    pairVersions: boolean
+): S3VersionTargets {
+    const targets = getLatestS3VersionTargets(lists, extensionPreRelease, includePreRelease, pairVersions);
+    if (!pairVersions || !targets.runtime || !targets.miniserver) {
+        return targets;
+    }
+
+    const runtimeCurrent = ExtensionConfig.boxlangVersion?.replace(/^boxlang-/, "");
+    const miniServerCurrent = /boxlang-miniserver-(.+)\.jar$/.exec(ExtensionConfig.boxlangMiniServerJarPath ?? "")?.[1];
+    const runtimeTarget = targets.runtime.name.replace(/^boxlang-/, "");
+    const miniServerTarget = targets.miniserver.version;
+    const runtimeWouldDowngrade = !!runtimeCurrent && runtimeCurrent !== runtimeTarget && !isNewerVersion("runtime", runtimeTarget, runtimeCurrent);
+    const miniServerWouldDowngrade = !!miniServerCurrent && miniServerCurrent !== miniServerTarget && !isNewerVersion("miniserver", miniServerTarget, miniServerCurrent);
+
+    // Don't downgrade a component just to match the other's common release.
+    return runtimeWouldDowngrade || miniServerWouldDowngrade
+        ? getLatestS3VersionTargets(lists, extensionPreRelease, includePreRelease, false)
+        : targets;
+}
+
+function getS3ChannelCandidates<T>(
+    versions: T[],
+    getVersion: (version: T) => string,
+    extensionPreRelease: boolean,
+    includePreRelease: boolean
+): T[] {
+    const validVersions = versions.filter(version => !!semver.valid(getVersion(version)));
+    const stable = validVersions.filter(version => !semver.prerelease(getVersion(version)));
+    if (extensionPreRelease) {
+        const snapshots = validVersions.filter(version => isSnapshotVersion(getVersion(version)));
+        return snapshots.length ? snapshots : stable;
+    }
+    return includePreRelease ? validVersions : stable;
 }
 
 function getLatestForgeBoxVersion(
@@ -65,11 +155,28 @@ function getLatestForgeBoxVersion(
     return (preferredVersions.length ? preferredVersions : stableVersions).sort(compare)[0];
 }
 
-async function getCachedVersionDir(component: "lsp" | "debugger", version: string): Promise<string | undefined> {
+async function getCachedVersionDir(component: Component, version: string): Promise<string | undefined> {
     const context = getExtensionContext();
-    const moduleName = component === "lsp" ? "bx-lsp" : ExtensionConfig.boxlangDebuggerModuleName;
-    const parentDir = path.join(context.globalStorageUri.fsPath, component === "lsp" ? "lspVersions" : "debuggerVersions");
-    const versionDir = path.join(parentDir, `${moduleName}@${version}`);
+    let versionDir: string;
+    switch (component) {
+        case "runtime":
+            versionDir = path.join(context.globalStorageUri.fsPath, "boxlang_versions", `boxlang-${version}`);
+            break;
+        case "miniserver": {
+            const configuredJarPath = ExtensionConfig.boxlangMiniServerJarPath;
+            const configuredVersion = /boxlang-miniserver-(.+)\.jar$/.exec(configuredJarPath ?? "")?.[1];
+            versionDir = configuredVersion === version
+                ? path.dirname(configuredJarPath)
+                : path.join(context.globalStorageUri.fsPath, "miniserverVersions", `boxlang-miniserver-${version}`);
+            break;
+        }
+        case "lsp":
+            versionDir = path.join(context.globalStorageUri.fsPath, "lspVersions", `bx-lsp@${version}`);
+            break;
+        case "debugger":
+            versionDir = path.join(context.globalStorageUri.fsPath, "debuggerVersions", `${ExtensionConfig.boxlangDebuggerModuleName}@${version}`);
+            break;
+    }
 
     try {
         return (await fs.stat(versionDir)).isDirectory() ? versionDir : undefined;
@@ -78,17 +185,22 @@ async function getCachedVersionDir(component: "lsp" | "debugger", version: strin
     }
 }
 
-async function isCachedVersionOutdated(versionDir: string, binaryHash?: string, updatedDate?: string): Promise<boolean> {
+async function isCachedVersionOutdated(versionDir: string, binaryHash?: string, updatedDate?: string, etag?: string): Promise<boolean> {
     let installedHash: string | undefined;
+    let installedEtag: string | undefined;
     let installedDate: string | undefined;
     try {
         const metadata = JSON.parse(await fs.readFile(path.join(versionDir, "version.json"), "utf8"));
         installedHash = metadata.binaryHash;
-        installedDate = metadata.updatedDate ?? metadata.createDate;
+        installedEtag = metadata.etag;
+        installedDate = metadata.updatedDate ?? metadata.createDate ?? metadata.lastModified ?? metadata.installedAt;
     } catch { /* Older installs use the version directory mtime. */ }
 
     if (binaryHash) {
         return installedHash !== binaryHash;
+    }
+    if (etag) {
+        return installedEtag !== etag;
     }
     if (!updatedDate) {
         return false;
@@ -113,11 +225,18 @@ async function getModuleUpdatedDate(forgeBoxClient: ForgeBoxClient, moduleName: 
  * Respects per-component cooldowns unless force=true.
  */
 export async function checkAllUpdates(force: boolean): Promise<void> {
+    let runtimeVersions: Promise<BoxLangVersion[]> | undefined;
+    let miniServerVersions: Promise<MiniServerS3Version[]> | undefined;
+    const getS3VersionLists: S3VersionListProvider = (includeRuntime, includeMiniServer) => Promise.all([
+        includeRuntime ? (runtimeVersions ??= getAvailableBoxLangVerions()) : Promise.resolve([] as BoxLangVersion[]),
+        includeMiniServer ? (miniServerVersions ??= DownloadManager.listS3MiniServerVersions()) : Promise.resolve([] as MiniServerS3Version[])
+    ]).then(([runtime, miniserver]) => ({ runtime, miniserver }));
+
     await Promise.all([
-        checkComponentUpdate("runtime", force),
-        checkComponentUpdate("miniserver", force),
-        checkComponentUpdate("lsp", force),
-        checkComponentUpdate("debugger", force),
+        checkComponentUpdate("runtime", force, getS3VersionLists),
+        checkComponentUpdate("miniserver", force, getS3VersionLists),
+        checkComponentUpdate("lsp", force, getS3VersionLists),
+        checkComponentUpdate("debugger", force, getS3VersionLists),
     ]);
 }
 
@@ -132,7 +251,7 @@ export async function resetAllCooldowns(): Promise<void> {
     }
 }
 
-async function checkComponentUpdate(component: Component, force: boolean): Promise<void> {
+async function checkComponentUpdate(component: Component, force: boolean, getS3VersionLists: S3VersionListProvider): Promise<void> {
     const context = getExtensionContext();
     const cooldownKey = COOLDOWN_KEYS[component];
 
@@ -163,7 +282,7 @@ async function checkComponentUpdate(component: Component, force: boolean): Promi
     }
 
     try {
-        const updateInfo = await getLatestVersion(component);
+        const updateInfo = await getLatestVersion(component, getS3VersionLists);
         if (!updateInfo) {
             return;
         }
@@ -181,7 +300,7 @@ async function checkComponentUpdate(component: Component, force: boolean): Promi
         } else {
             boxlangOutputChannel.appendLine(`BoxLang UpdateManager: ${component} update available: ${current} -> ${latest}`);
         }
-        await handleUpdateFound(component, current, latest, mode, refresh, updateInfo.updatedDate, updateInfo.binaryHash);
+        await handleUpdateFound(component, current, latest, mode, refresh, updateInfo.updatedDate, updateInfo.binaryHash, updateInfo.etag, updateInfo.lastModified);
     } catch (e) {
         boxlangOutputChannel.appendLine(`BoxLang UpdateManager: Unable to check for ${component} updates: ${e}`);
     }
@@ -208,8 +327,9 @@ function isVersionPinned(component: Component): boolean {
     return false;
 }
 
-async function getLatestVersion(component: Component): Promise<UpdateInfo | null> {
-    const preRelease = ExtensionConfig.boxlangUpdatesPreRelease;
+async function getLatestVersion(component: Component, getS3VersionLists: S3VersionListProvider): Promise<UpdateInfo | null> {
+    const extensionPreRelease = isPreReleaseExtension();
+    const includePreRelease = ExtensionConfig.boxlangUpdatesPreRelease;
 
     switch (component) {
         case "runtime": {
@@ -218,16 +338,19 @@ async function getLatestVersion(component: Component): Promise<UpdateInfo | null
                 return null;
             }
 
-            const versions = await getAvailableBoxLangVerions();
-            const stablePattern = /^boxlang-\d+\.\d+\.\d+$/;
-            const prereleasePattern = /^boxlang-\d+\.\d+\.\d+/;
-            const pattern = preRelease ? prereleasePattern : stablePattern;
-            const latest = versions.find(v => pattern.test(v.name))?.name.replace("boxlang-", "");
-            if (!latest) {
+            const pairVersions = shouldPairRuntimeAndMiniServer();
+            const lists = await getS3VersionLists(true, pairVersions);
+            const target = getSelectedS3VersionTargets(lists, extensionPreRelease, includePreRelease, pairVersions).runtime;
+            if (!target) {
                 return null;
             }
 
-            return { current, latest };
+            const latest = target.name.replace(/^boxlang-/, "");
+            const versionDir = await getCachedVersionDir("runtime", latest);
+            const needsRefresh = versionDir
+                ? await isCachedVersionOutdated(versionDir, undefined, target.lastModified.toISOString(), target.etag)
+                : false;
+            return { current, latest, lastModified: target.lastModified, etag: target.etag, needsRefresh };
         }
 
         case "miniserver": {
@@ -238,16 +361,18 @@ async function getLatestVersion(component: Component): Promise<UpdateInfo | null
                 return null;
             }
 
-            const s3Versions = await DownloadManager.listS3MiniServerVersions();
-            const candidates = preRelease
-                ? s3Versions
-                : s3Versions.filter(v => !hasPreReleaseIdentifier(v.version));
-            const latest = candidates[0]?.version;
-            if (!latest) {
+            const pairVersions = shouldPairRuntimeAndMiniServer();
+            const lists = await getS3VersionLists(pairVersions, true);
+            const target = getSelectedS3VersionTargets(lists, extensionPreRelease, includePreRelease, pairVersions).miniserver;
+            if (!target) {
                 return null;
             }
 
-            return { current, latest };
+            const versionDir = await getCachedVersionDir("miniserver", target.version);
+            const needsRefresh = versionDir
+                ? await isCachedVersionOutdated(versionDir, undefined, target.date.toISOString(), target.etag)
+                : false;
+            return { current, latest: target.version, lastModified: target.date, etag: target.etag, needsRefresh };
         }
 
         case "lsp": {
@@ -306,16 +431,9 @@ async function getLatestVersion(component: Component): Promise<UpdateInfo | null
     }
 }
 
-function hasPreReleaseIdentifier(version: string | undefined): boolean {
-    if (!version) {
-        return false;
-    }
-    return /-(snapshot|alpha|beta|be)(\.|$)/i.test(version);
-}
-
 function isNewerVersion(component: Component, latest: string, current: string): boolean {
     try {
-        if ((component === "lsp" || component === "debugger") && isVersionStreamMismatch(latest, current)) {
+        if (isVersionStreamMismatch(latest, current)) {
             return true;
         }
         if (component === "lsp") {
@@ -345,7 +463,9 @@ async function handleUpdateFound(
     mode: UpdateMode,
     refresh: boolean,
     updatedDate?: string,
-    binaryHash?: string
+    binaryHash?: string,
+    etag?: string,
+    lastModified?: Date
 ): Promise<void> {
     const label = getComponentLabel(component);
 
@@ -358,11 +478,11 @@ async function handleUpdateFound(
                 "Update on Next Restart"
             );
             const timing: UpdateTiming = choice === "Update Now Anyway" ? "now" : "restart";
-            await applyUpdate(component, latest, timing, refresh, updatedDate, binaryHash);
+            await applyUpdate(component, latest, timing, refresh, updatedDate, binaryHash, etag, lastModified);
         } else {
             const action = refresh && current === latest ? "refreshing" : "auto-updating";
             boxlangOutputChannel.appendLine(`BoxLang UpdateManager: ${action} ${label} from ${current} to ${latest}`);
-            await applyUpdate(component, latest, "now", refresh, updatedDate, binaryHash);
+            await applyUpdate(component, latest, "now", refresh, updatedDate, binaryHash, etag, lastModified);
         }
         return;
     }
@@ -382,7 +502,7 @@ async function handleUpdateFound(
         return;
     }
 
-    await applyUpdate(component, latest, choice === "Update Now" ? "now" : "restart", refresh, updatedDate, binaryHash);
+    await applyUpdate(component, latest, choice === "Update Now" ? "now" : "restart", refresh, updatedDate, binaryHash, etag, lastModified);
 }
 
 async function applyUpdate(
@@ -391,15 +511,17 @@ async function applyUpdate(
     timing: UpdateTiming,
     refresh = false,
     updatedDate?: string,
-    binaryHash?: string
+    binaryHash?: string,
+    etag?: string,
+    lastModified?: Date
 ): Promise<void> {
     try {
         switch (component) {
             case "runtime":
-                await applyRuntimeUpdate(version, timing);
+                await applyRuntimeUpdate(version, timing, refresh, etag, lastModified);
                 break;
             case "miniserver":
-                await applyMiniServerUpdate(version, timing);
+                await applyMiniServerUpdate(version, timing, refresh, etag, lastModified);
                 break;
             case "lsp":
                 await applyLSPUpdate(version, timing, refresh, updatedDate, binaryHash);
@@ -415,12 +537,12 @@ async function applyUpdate(
             "Retry"
         );
         if (choice === "Retry") {
-            await applyUpdate(component, version, timing, refresh, updatedDate, binaryHash);
+            await applyUpdate(component, version, timing, refresh, updatedDate, binaryHash, etag, lastModified);
         }
     }
 }
 
-async function applyRuntimeUpdate(version: string, timing: UpdateTiming): Promise<void> {
+async function applyRuntimeUpdate(version: string, timing: UpdateTiming, refresh: boolean, etag?: string, lastModified?: Date): Promise<void> {
     if (timing === "now" && isComponentActive()) {
         const proceed = await vscode.window.showWarningMessage(
             `BoxLang: A MiniServer or debug session is active. Updating the runtime will stop it. Continue?`,
@@ -432,6 +554,14 @@ async function applyRuntimeUpdate(version: string, timing: UpdateTiming): Promis
         }
     }
 
+    if (refresh) {
+        await getExtensionContext().globalState.update(PENDING_RUNTIME_REFRESH_KEY, {
+            versionSpec: `boxlang-${version}`,
+            forceRefresh: true,
+            etag,
+            lastModified: lastModified?.toISOString()
+        });
+    }
     boxlangOutputChannel.appendLine(`BoxLang UpdateManager: Setting runtime version to ${version}`);
     await vscode.workspace.getConfiguration("boxlang").update("boxlangVersion", version, vscode.ConfigurationTarget.Global);
 
@@ -446,7 +576,7 @@ async function applyRuntimeUpdate(version: string, timing: UpdateTiming): Promis
     }
 }
 
-async function applyMiniServerUpdate(version: string, timing: UpdateTiming): Promise<void> {
+async function applyMiniServerUpdate(version: string, timing: UpdateTiming, refresh: boolean, etag?: string, lastModified?: Date): Promise<void> {
     if (timing === "now" && hasActiveMiniServer()) {
         const proceed = await vscode.window.showWarningMessage(
             `BoxLang: A MiniServer is currently running. Updating will require a server restart. Continue?`,
@@ -460,7 +590,8 @@ async function applyMiniServerUpdate(version: string, timing: UpdateTiming): Pro
 
     const context = getExtensionContext();
     const parentDir = path.join(context.globalStorageUri.fsPath, "miniserverVersions");
-    const versionDir = path.join(parentDir, `boxlang-miniserver-${version}`);
+    const cacheSuffix = refresh ? getS3CacheSuffix(etag, lastModified) : undefined;
+    const versionDir = path.join(parentDir, `boxlang-miniserver-${version}${cacheSuffix ? `-${cacheSuffix}` : ""}`);
     const jarPath = path.join(versionDir, `boxlang-miniserver-${version}.jar`);
 
     let jarExists = false;
@@ -476,10 +607,6 @@ async function applyMiniServerUpdate(version: string, timing: UpdateTiming): Pro
                 await fs.mkdir(versionDir, { recursive: true });
                 try {
                     await DownloadManager.downloadMiniServer(version, jarPath);
-                    await fs.writeFile(
-                        path.join(versionDir, "version.json"),
-                        JSON.stringify({ name: `boxlang-miniserver-${version}`, version, jarPath, installedAt: new Date().toISOString() }, null, 4)
-                    );
                 } catch (e) {
                     try { await fs.rm(versionDir, { recursive: true, force: true }); } catch { /* ignore cleanup errors */ }
                     throw e;
@@ -488,6 +615,10 @@ async function applyMiniServerUpdate(version: string, timing: UpdateTiming): Pro
         );
     }
 
+    await fs.writeFile(
+        path.join(versionDir, "version.json"),
+        JSON.stringify({ name: `boxlang-miniserver-${version}`, version, jarPath, installedAt: new Date().toISOString(), etag, lastModified: lastModified?.toISOString() }, null, 4)
+    );
     ExtensionConfig.boxlangMiniServerJarPath = jarPath;
     boxlangOutputChannel.appendLine(`BoxLang UpdateManager: MiniServer updated to ${version}`);
     vscode.window.showInformationMessage(`BoxLang: MiniServer updated to version ${version}`);
@@ -551,7 +682,7 @@ function hasActiveMiniServer(): boolean {
 }
 
 function hasActiveDebugSession(): boolean {
-    return vscode.debug.activeDebugSession !== undefined;
+    return vscode.debug?.activeDebugSession !== undefined;
 }
 
 function getComponentLabel(component: Component): string {

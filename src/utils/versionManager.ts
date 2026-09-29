@@ -6,12 +6,14 @@ import { ExtensionConfig } from "./Configuration";
 import { DownloadManager } from "./DownloadManager";
 import * as fileUtil from "./fileUtil";
 import { boxlangOutputChannel } from "./OutputChannels";
+import { PENDING_RUNTIME_REFRESH_KEY, PendingModuleRefresh } from "./versionUpdateState";
 
 
 export type BoxLangVersion = {
     url: string,
     lastModified: Date,
     name: string,
+    etag?: string,
     jarPath?: string
 }
 
@@ -88,6 +90,22 @@ export async function getConfiguredBoxLangJarPath(): Promise<string> {
 }
 
 
+function isRuntimeInUse(): boolean {
+    try {
+        if (require("vscode").debug?.activeDebugSession) {
+            return true;
+        }
+    } catch { /* VS Code API unavailable in tests. */ }
+
+    try {
+        const Server = require("./Server");
+        const serverNames: string[] = Server.getAvailableServerNames();
+        return serverNames.some(name => Server.getServerData(name)?.status === "running");
+    } catch {
+        return false;
+    }
+}
+
 export async function ensureBoxLangVersion(version: string): Promise<string> {
     boxlangOutputChannel.appendLine("Ensuring BoxLang version is installed: " + version);
     const boxlangVersionSring = version.startsWith("boxlang-") ? version : `boxlang-${version}`;
@@ -95,6 +113,15 @@ export async function ensureBoxLangVersion(version: string): Promise<string> {
     if (!version || boxlangVersionSring === "boxlang-") {
         boxlangOutputChannel.appendLine("Invalid or empty BoxLang version specified, falling back to bundled JAR");
         return ExtensionConfig.includedBoxLangJarPath;
+    }
+
+    const pendingRefresh = context?.globalState?.get(PENDING_RUNTIME_REFRESH_KEY) as PendingModuleRefresh | undefined;
+    const shouldRefresh = pendingRefresh?.versionSpec === boxlangVersionSring && pendingRefresh.forceRefresh === true;
+    const versionPath = path.join(BOXLANG_INSTALLATIONS, boxlangVersionSring);
+    if (shouldRefresh && !isRuntimeInUse()) {
+        await fs.rm(versionPath, { recursive: true, force: true });
+    } else if (shouldRefresh) {
+        boxlangOutputChannel.appendLine(`Deferring BoxLang ${boxlangVersionSring} refresh until active sessions stop`);
     }
 
     const downloadedVersions = await getDownloadedBoxLangVersions();
@@ -108,10 +135,20 @@ export async function ensureBoxLangVersion(version: string): Promise<string> {
     }
     catch (e) {
         const availableVersions = await getAvailableBoxLangVerions();
-        const versionToDownload = availableVersions.find(v => v.name === boxlangVersionSring);
+        const availableVersion = availableVersions.find(v => v.name === boxlangVersionSring);
+        const versionToDownload = shouldRefresh && availableVersion
+            ? {
+                ...availableVersion,
+                etag: pendingRefresh.etag ?? availableVersion.etag,
+                lastModified: pendingRefresh.lastModified ? new Date(pendingRefresh.lastModified) : availableVersion.lastModified
+            }
+            : availableVersion;
         boxlangOutputChannel.appendLine("BoxLang version not found, installing: " + versionToDownload.name);
         try{
             const jarPath = await installVersion(versionToDownload);
+            if (shouldRefresh) {
+                await context?.globalState?.update(PENDING_RUNTIME_REFRESH_KEY, undefined);
+            }
             return jarPath;
         }
         catch(e){
@@ -173,7 +210,8 @@ async function getBoxLangVersionsFromAWS(): Promise<BoxLangVersion[]> {
         const boxlangVersions: BoxLangVersion[] = versions.map(v => ({
             url: v.url,
             lastModified: v.date,
-            name: `boxlang-${v.version}`
+            name: `boxlang-${v.version}`,
+            etag: v.etag
         }));
 
         boxlangOutputChannel.appendLine(`Found ${boxlangVersions.length} BoxLang versions`);
