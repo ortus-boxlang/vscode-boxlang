@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - BLIDE-334 Change pre-release to auto update to snapshot of LSP and Debugger
+- BLIDE-335 Combine runtime and miniserver updates
 
 ## [1.26.1] - 2026-09-25
 
