@@ -12,6 +12,11 @@ let DEFAULT_LSP_BOXLANG_HOME = "";
 let DEFAULT_DEBUGGER_BOXLANG_HOME = "";
 let BVMRC_VERSION: string | null = null;
 let BVMRC_JAR_PATH: string | null = null;
+let SHARED_LSP_VERSION: string | undefined;
+
+export function setSharedLSPVersion(version: string | undefined): void {
+    SHARED_LSP_VERSION = version;
+}
 
 export function setupConfiguration(context: ExtensionContext) {
     INCLUDED_BOXLANG_JAR_PATH = path.join(context.extensionPath, "resources", "lib", "boxlang.jar");
@@ -151,11 +156,21 @@ export const ExtensionConfig = {
         return workspace.getConfiguration("boxlang.lsp").get<string>('boxLangVersion');
     },
 
+    get boxlangLSPUsesSharedUpdates(): boolean {
+        if (this.boxlangLSPVersionUpdateMode === "manual" || process.env.BOXLANG_LSP_PORT) return false;
+        const config = workspace.getConfiguration("boxlang.lsp").inspect<string>("lspVersion");
+        if (config?.workspaceValue !== undefined || config?.workspaceFolderValue !== undefined) return false;
+        return !(workspace.workspaceFolders ?? []).some(folder =>
+            workspace.getConfiguration("boxlang.lsp", folder.uri).inspect<string>("lspVersion")?.workspaceFolderValue !== undefined);
+    },
+
     get boxlangLSPVersion() {
-        return workspace.getConfiguration("boxlang.lsp").get<string>('lspVersion');
+        return (this.boxlangLSPUsesSharedUpdates && SHARED_LSP_VERSION)
+            || workspace.getConfiguration("boxlang.lsp").get<string>('lspVersion');
     },
 
     async updateBoxlangLSPVersion(versionSpec: string) {
+        setSharedLSPVersion(undefined);
         await workspace.getConfiguration("boxlang.lsp").update("lspVersion", versionSpec, ConfigurationTarget.Global);
     },
 

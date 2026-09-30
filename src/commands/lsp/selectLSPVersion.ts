@@ -8,7 +8,7 @@ import { requestRestart } from "../../utils/LanguageServer";
 import { parseDate } from "../../utils/dateUtil";
 import { ModuleManager } from "../../utils/ModuleManager";
 import { boxlangOutputChannel } from "../../utils/OutputChannels";
-import { PENDING_LSP_REFRESH_KEY } from "../../utils/versionUpdateState";
+import { findInstalledLSPBuild, getLSPUpdateChannel, installLSPBuild, listInstalledLSPBuilds, publishLSPUpdate } from "../../utils/SharedLSPUpdates";
 
 export function compareBoxLangLspVersionsDescending(a: string, b: string): number {
     const [aBase, aBuild] = a.split("+");
@@ -50,50 +50,20 @@ export function compareBoxLangLspVersionsDescending(a: string, b: string): numbe
     return bBuildNum - aBuildNum;
 }
 
-async function fileExists(filePath: string): Promise<boolean> {
-    try {
-        await fs.access(filePath);
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-async function isNonEmptyDir(dirPath: string): Promise<boolean> {
-    try {
-        const entries = await fs.readdir(dirPath);
-        return entries.length > 0;
-    } catch {
-        return false;
-    }
-}
-
 type InstalledLspVersion = { date: Date; binaryHash?: string };
 
 async function getInstalledVersionData(lspVersionsParentDir: string): Promise<Map<string, InstalledLspVersion>> {
     const result = new Map<string, InstalledLspVersion>();
 
-    if (!(await fileExists(lspVersionsParentDir))) {
-        return result;
-    }
-
-    const entries = await fs.readdir(lspVersionsParentDir, { withFileTypes: true });
-    for (const entry of entries) {
-        if (!entry.isDirectory()) {
-            continue;
-        }
-
-        const fullPath = path.join(lspVersionsParentDir, entry.name);
-        if (!(await isNonEmptyDir(fullPath))) {
-            continue;
-        }
-
+    const storagePath = path.dirname(lspVersionsParentDir);
+    for (const build of await listInstalledLSPBuilds(storagePath)) {
+        const fullPath = path.join(storagePath, build.relativePath);
         let installed: InstalledLspVersion;
         let binaryHash: string | undefined;
         try {
             const versionJson = JSON.parse((await fs.readFile(path.join(fullPath, "version.json"))) + "");
             binaryHash = versionJson.binaryHash;
-            const parsedDate = parseDate(versionJson.updatedDate) ?? parseDate(versionJson.createDate);
+            const parsedDate = parseDate(versionJson.updatedDate) ?? parseDate(versionJson.createDate) ?? parseDate(versionJson.installedAt);
             if (!parsedDate) {
                 throw new Error("Invalid install date");
             }
@@ -104,7 +74,7 @@ async function getInstalledVersionData(lspVersionsParentDir: string): Promise<Ma
             installed = { date: stat.mtime, binaryHash };
         }
 
-        result.set(entry.name, installed);
+        result.set(build.versionSpec, installed);
     }
 
     return result;
@@ -290,38 +260,21 @@ export async function selectLSPVersion(context: ExtensionContext) {
 
         if ("needsInstall" in result) {
             const { version, versionSpec } = result;
-            const lspVersionsParentDir = path.join(context.globalStorageUri.fsPath, "lspVersions");
-            const lspVersionDir = path.join(lspVersionsParentDir, versionSpec);
+            const storagePath = context.globalStorageUri.fsPath;
             const remoteUpdatedDate = data.remoteUpdatedDates.get(versionSpec);
             const remoteBinaryHash = data.remoteBinaryHashes.get(versionSpec);
 
             await vscode.window.withProgress(
                 { title: `BoxLang: Installing LSP Version: ${version}`, location: ProgressLocation.Notification },
                 async () => {
-                    if (data.installedDates.has(versionSpec)) {
-                        await context.globalState.update(PENDING_LSP_REFRESH_KEY, {
-                            versionSpec,
-                            forceRefresh: true,
-                            updatedDate: remoteUpdatedDate?.toISOString(),
-                            binaryHash: remoteBinaryHash
-                        });
-                    } else {
-                        await fs.mkdir(lspVersionsParentDir, { recursive: true });
-
-                        const moduleManager = new ModuleManager(true);
-                        await moduleManager.installModuleToDir(versionSpec, lspVersionDir);
-
-                        const boxJsonPath = path.join(lspVersionDir, "bx-lsp", "box.json");
-                        if (!(await fileExists(boxJsonPath))) {
-                            throw new Error(`LSP installation is missing box.json: ${boxJsonPath}`);
-                        }
-
-                        await fs.writeFile(
-                            path.join(lspVersionDir, "version.json"),
-                            JSON.stringify({ versionSpec, updatedDate: remoteUpdatedDate?.toISOString(), binaryHash: remoteBinaryHash, installedAt: new Date().toISOString() })
-                        );
+                    const build = await installLSPBuild(storagePath, versionSpec, {
+                        forceRefresh: data.installedDates.has(versionSpec),
+                        updatedDate: remoteUpdatedDate?.toISOString(),
+                        binaryHash: remoteBinaryHash
+                    }, directory => new ModuleManager(true).installModuleToDir(versionSpec, directory));
+                    if (ExtensionConfig.boxlangLSPUsesSharedUpdates) {
+                        await publishLSPUpdate(storagePath, getLSPUpdateChannel(context.extension.packageJSON.version), build, "now", true);
                     }
-
                     await ExtensionConfig.updateBoxlangLSPVersion(versionSpec);
                     boxlangOutputChannel.appendLine(`BoxLang: LSP version set to ${versionSpec}`);
                     await restartLsp();
@@ -331,6 +284,11 @@ export async function selectLSPVersion(context: ExtensionContext) {
             await vscode.window.withProgress(
                 { title: `BoxLang: Switching to LSP Version: ${result.versionSpec}`, location: ProgressLocation.Notification },
                 async () => {
+                    const storagePath = context.globalStorageUri.fsPath;
+                    const build = await findInstalledLSPBuild(storagePath, result.versionSpec);
+                    if (build && ExtensionConfig.boxlangLSPUsesSharedUpdates) {
+                        await publishLSPUpdate(storagePath, getLSPUpdateChannel(context.extension.packageJSON.version), build, "now", true);
+                    }
                     await ExtensionConfig.updateBoxlangLSPVersion(result.versionSpec);
                     boxlangOutputChannel.appendLine(`BoxLang: LSP version set to ${result.versionSpec}`);
                     await restartLsp();

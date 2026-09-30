@@ -16,6 +16,7 @@ let fakeLspPort = 0;
 let lspStartError: Error | undefined;
 let beforeLspBanner: ((signal?: AbortSignal) => Promise<void>) | undefined;
 let lspInstallCalls = 0;
+let startedModulePath: string | undefined;
 const contextState = new Map<string, unknown>();
 
 function createDeferred<T>() {
@@ -169,6 +170,7 @@ Module.prototype.require = function (id: string) {
     if (fromLanguageServer && (id.endsWith('/BoxLang') || id === './BoxLang')) {
         return {
             startLSPProcess: async (_home, _modules, _runtime, _timeout, signal?: AbortSignal) => {
+                startedModulePath = _modules;
                 await beforeLspBanner?.(signal);
                 if (lspStartError) {
                     throw lspStartError;
@@ -219,6 +221,7 @@ suite('LanguageServer Test Suite', () => {
         await fs.writeFile(path.join(lspModuleDir, 'box.json'), JSON.stringify({ boxlang: { minimumVersion: '1.13.0-snapshot' } }));
 
         mockExtensionContext = {
+            extension: { packageJSON: { version: '1.28.0' } },
             globalStorageUri: { fsPath: globalStoragePath },
             storageUri: { fsPath: workspaceStoragePath },
             globalState: {
@@ -309,6 +312,19 @@ suite('LanguageServer Test Suite', () => {
         );
     });
 
+    test('startLSP uses the completed shared build without reinstalling the module', async () => {
+        const { installLSPBuild, publishLSPUpdate } = require('../../utils/SharedLSPUpdates');
+        const { globalStoragePath } = await setupManagedLspEnvironment();
+        const build = await installLSPBuild(globalStoragePath, 'bx-lsp@1.9.0+8', { binaryHash: 'shared-build', forceRefresh: true }, async directory => {
+            await fs.mkdir(path.join(directory, 'bx-lsp'), { recursive: true });
+            await fs.writeFile(path.join(directory, 'bx-lsp', 'box.json'), '{}');
+        });
+        await publishLSPUpdate(globalStoragePath, 'stable', build, 'now');
+        await startLSP();
+        assert.strictEqual(startedModulePath, path.join(globalStoragePath, build.relativePath));
+        assert.strictEqual(lspInstallCalls, 0);
+    });
+
     test('startLSP refreshes a cached module when a newer ForgeBox updateDate is pending', async () => {
         const { globalStoragePath } = await setupManagedLspEnvironment();
         const versionSpec = 'bx-lsp@1.9.0+8';
@@ -319,7 +335,8 @@ suite('LanguageServer Test Suite', () => {
         await MockLanguageClient.instances[0].startPromise;
 
         assert.strictEqual(lspInstallCalls, 1);
-        const installMetadata = JSON.parse(await fs.readFile(path.join(globalStoragePath, 'lspVersions', versionSpec, 'version.json'), 'utf8'));
+        const installMetadata = JSON.parse(await fs.readFile(path.join(startedModulePath, 'version.json'), 'utf8'));
+        await fs.access(path.join(globalStoragePath, 'lspVersions', versionSpec, 'bx-lsp', 'box.json'));
         assert.strictEqual(installMetadata.updatedDate, '2026-09-23T16:02:22+00:00');
         assert.strictEqual(installMetadata.binaryHash, 'lsp-test-hash');
         assert.strictEqual(contextState.has(pendingRefreshKey), false);

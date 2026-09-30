@@ -123,6 +123,7 @@ const mockVSCode = {
         showErrorMessage: () => Promise.resolve(undefined)
     },
     workspace: {
+        onDidChangeConfiguration: () => ({ dispose: () => {} }),
         getConfiguration: () => ({
             get: () => undefined,
             has: () => false,

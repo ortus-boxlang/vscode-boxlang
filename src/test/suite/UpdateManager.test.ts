@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import * as sinon from 'sinon';
+import { getLSPUpdateChannel, readLSPUpdate } from '../../utils/SharedLSPUpdates';
 
 const vscode = require('vscode');
 const Module = require('module');
@@ -18,12 +19,14 @@ let mockRuntimeS3Versions: Array<{ version: string; url: string; date: Date; eta
 let mockMiniServerS3Versions: Array<{ version: string; url: string; date: Date; etag?: string }> = [];
 let moduleVersionMetadataCalls = 0;
 let debuggerVersionUpdate: ((version: string) => void) | undefined;
+let installLSP: ((directory: string) => Promise<void>) | undefined;
 const outputLines: string[] = [];
 const stateStore = new Map<string, unknown>();
 
 const mockExtensionContext = {
     extension: { packageJSON: { version: '1.28.0' } },
     globalStorageUri: { fsPath: '/mock/global-storage' },
+    subscriptions: [] as Array<{ dispose(): void }>,
     globalState: {
         get<T>(key: string, defaultValue: T): T {
             return (stateStore.has(key) ? stateStore.get(key) : defaultValue) as T;
@@ -43,6 +46,7 @@ const mockExtensionConfig = {
     boxlangVersion: '1.13.0-snapshot',
     boxlangMiniServerJarPath: '/mock/boxlang-miniserver-1.0.0.jar',
     boxlangLSPVersion: 'bx-lsp@1.9.0+8',
+    boxlangLSPUsesSharedUpdates: true,
     get boxlangDebuggerModuleVersion() {
         return mockDebuggerVersion;
     },
@@ -125,12 +129,23 @@ Module.prototype.require = function (id: string) {
     if (fromUpdateManager && (id.endsWith('/Configuration') || id === './Configuration')) {
         return {
             ExtensionConfig: mockExtensionConfig,
-            getBvmrcVersion: () => mockBvmrcVersion
+            getBvmrcVersion: () => mockBvmrcVersion,
+            setSharedLSPVersion: () => undefined
         };
     }
 
     if (fromUpdateManager && (id.endsWith('/ForgeBoxClient') || id === './ForgeBoxClient')) {
         return { ForgeBoxClient: MockForgeBoxClient };
+    }
+
+    if (fromUpdateManager && (id.endsWith('/ModuleManager') || id === './ModuleManager')) {
+        return { ModuleManager: class {
+            async installModuleToDir(_spec: string, directory: string) {
+                await installLSP?.(directory);
+                await fs.mkdir(path.join(directory, 'bx-lsp'), { recursive: true });
+                await fs.writeFile(path.join(directory, 'bx-lsp', 'box.json'), '{}');
+            }
+        } };
     }
 
     if (fromUpdateManager && (id.endsWith('/LanguageServer') || id === './LanguageServer')) {
@@ -180,10 +195,17 @@ Module.prototype.require = function (id: string) {
 };
 
 delete require.cache[require.resolve('../../utils/UpdateManager')];
-const { checkAllUpdates } = require('../../utils/UpdateManager');
+const { checkAllUpdates, setupSharedLSPUpdates, adoptSharedLSPUpdate } = require('../../utils/UpdateManager');
+const publishedLSPUpdate = () => readLSPUpdate(mockExtensionContext.globalStorageUri.fsPath,
+    getLSPUpdateChannel(mockExtensionContext.extension.packageJSON.version));
+let savedInfoMessage: any;
 
 suite('UpdateManager Test Suite', () => {
-    setup(() => {
+    setup(async () => {
+        mockExtensionContext.globalStorageUri.fsPath = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-updates-'));
+        installLSP = undefined;
+        savedInfoMessage = vscode.window.showInformationMessage;
+        vscode.window.showInformationMessage = async () => undefined;
         outputLines.length = 0;
         stateStore.clear();
         mockExtensionContext.extension.packageJSON.version = '1.28.0';
@@ -209,11 +231,15 @@ suite('UpdateManager Test Suite', () => {
         mockExtensionConfig.boxlangDebuggerVersionUpdateMode = 'manual';
         mockExtensionConfig.boxlangUpdatesPreRelease = false;
         mockExtensionConfig.boxlangLSPVersion = 'bx-lsp@1.9.0+8';
+        mockExtensionConfig.boxlangLSPUsesSharedUpdates = true;
     });
 
-    teardown(() => {
+    teardown(async () => {
         delete process.env.BOXLANG_LSP_PORT;
+        mockExtensionContext.subscriptions.splice(0).forEach(subscription => subscription.dispose());
         sinon.restore();
+        vscode.window.showInformationMessage = savedInfoMessage;
+        await fs.rm(mockExtensionContext.globalStorageUri.fsPath, { recursive: true, force: true });
     });
 
     test('runtime and MiniServer pair available releases and fall back when unmatched', async () => {
@@ -358,39 +384,71 @@ suite('UpdateManager Test Suite', () => {
         }
     });
 
-    test('checkAllUpdates should persist the new LSP version before restarting in auto mode', async () => {
-        const order: string[] = [];
-        const persistStarted = createDeferred<void>();
-        const persistDeferred = createDeferred<void>();
+    test('automatic LSP updates finish installing before restarting and do not prompt or change global version settings', async () => {
+        const { readLSPUpdate } = require('../../utils/SharedLSPUpdates');
+        const started = createDeferred<void>();
+        const finish = createDeferred<void>();
         const persistStub = sinon.stub(mockExtensionConfig, 'updateBoxlangLSPVersion');
         const restartStub = sinon.stub(mockLSP, 'restart');
+        const messages = sinon.stub(vscode.window, 'showInformationMessage').resolves(undefined);
+        mockLatestMetadata.latestVersion.binaryHash = 'ready-build';
+        let downloads = 0;
+        installLSP = async () => { downloads++; started.resolve(); await finish.promise; };
+        const updating = checkAllUpdates(true);
+        try {
+            await Promise.race([started.promise, updating]);
+            assert.strictEqual(await readLSPUpdate(mockExtensionContext.globalStorageUri.fsPath, 'stable'), undefined);
+            assert.strictEqual(restartStub.called, false, 'restart must wait for a complete installation');
+            finish.resolve();
+            await updating;
+            const update = await readLSPUpdate(mockExtensionContext.globalStorageUri.fsPath, 'stable');
+            assert.strictEqual(update?.versionSpec, 'bx-lsp@1.10.0+9');
+            await checkAllUpdates(true);
+            assert.strictEqual(downloads, 1, 'a repeated check reuses the published build');
+            assert.strictEqual(restartStub.calledOnce, true);
+            assert.strictEqual(messages.called, false);
+            assert.strictEqual(persistStub.called, false, 'manual windows must not be changed by auto updates');
+        } finally {
+            finish.resolve();
+            await updating;
+        }
+    });
 
-        persistStub.callsFake(async (versionSpec: string) => {
-            order.push(`persist:${versionSpec}:start`);
-            persistStarted.resolve();
-            await persistDeferred.promise;
-            order.push(`persist:${versionSpec}:done`);
-        });
-        restartStub.callsFake(async () => {
-            order.push('restart');
-        });
-
-        const updatePromise = checkAllUpdates(true);
-
-        await persistStarted.promise;
-
-        assert.strictEqual(persistStub.calledOnceWithExactly('bx-lsp@1.10.0+9'), true);
-        assert.strictEqual(restartStub.called, false);
-
-        persistDeferred.resolve();
-        await updatePromise;
-
-        assert.deepStrictEqual(order, [
-            'persist:bx-lsp@1.10.0+9:start',
-            'persist:bx-lsp@1.10.0+9:done',
-            'restart'
-        ]);
-        assert.strictEqual(moduleVersionMetadataCalls, 0);
+    test('a published same-version build is adopted quietly once by the window watcher, while manual mode opts out', async () => {
+        const { installLSPBuild, publishLSPUpdate } = require('../../utils/SharedLSPUpdates');
+        const storagePath = mockExtensionContext.globalStorageUri.fsPath;
+        mockExtensionContext.extension.packageJSON.version = '1.27.0';
+        const restarted = createDeferred<void>();
+        const restartStub = sinon.stub(mockLSP, 'restart').callsFake(async () => { restarted.resolve(); });
+        const messages = sinon.stub(vscode.window, 'showInformationMessage').resolves(undefined);
+        const download = async directory => {
+            await fs.mkdir(path.join(directory, 'bx-lsp'), { recursive: true });
+            await fs.writeFile(path.join(directory, 'bx-lsp', 'box.json'), '{}');
+        };
+        const versionSpec = 'bx-lsp@1.15.0-snapshot';
+        mockExtensionConfig.boxlangLSPVersion = versionSpec;
+        const initial = await installLSPBuild(storagePath, versionSpec, { binaryHash: 'initial-build' }, download);
+        await publishLSPUpdate(storagePath, 'prerelease', initial, 'now');
+        await setupSharedLSPUpdates(mockExtensionContext);
+        assert.strictEqual(restartStub.called, false, 'activation uses the ready build without an extra restart');
+        const build = await installLSPBuild(storagePath, versionSpec, { binaryHash: 'new-build' }, download);
+        await publishLSPUpdate(storagePath, 'prerelease', build, 'now');
+        let timeout: ReturnType<typeof setTimeout>;
+        try {
+            await Promise.race([restarted.promise, new Promise((_resolve, reject) => {
+                timeout = setTimeout(() => reject(new Error('Window did not adopt the published LSP build')), 1000);
+            })]);
+            await adoptSharedLSPUpdate();
+            assert.strictEqual(restartStub.callCount, 1);
+            assert.strictEqual(messages.called, false);
+            mockExtensionConfig.boxlangLSPUsesSharedUpdates = false;
+            const next = await installLSPBuild(storagePath, build.versionSpec, { binaryHash: 'next-build' }, download);
+            await publishLSPUpdate(storagePath, 'prerelease', next, 'now');
+            await adoptSharedLSPUpdate();
+            assert.strictEqual(restartStub.callCount, 1);
+        } finally {
+            clearTimeout(timeout);
+        }
     });
 
     test('republished LSP snapshot with the same version triggers an update', async () => {
@@ -415,14 +473,14 @@ suite('UpdateManager Test Suite', () => {
 
             await checkAllUpdates(true);
 
-            assert.strictEqual(persistStub.calledOnceWithExactly('bx-lsp@1.14.0-snapshot'), true);
+            assert.strictEqual(persistStub.called, false);
             assert.strictEqual(restartStub.calledOnce, true);
             assert.strictEqual(moduleVersionMetadataCalls, 1);
-            assert.deepStrictEqual(stateStore.get('boxlang.updates.pendingLSPRefresh'), {
-                versionSpec: 'bx-lsp@1.14.0-snapshot',
-                forceRefresh: true,
-                updatedDate: '2026-09-23T16:02:22+00:00'
-            });
+            const update = await publishedLSPUpdate();
+            assert.strictEqual(update?.versionSpec, 'bx-lsp@1.14.0-snapshot');
+            assert.strictEqual(update?.updatedDate, '2026-09-23T16:02:22+00:00');
+            assert.strictEqual(JSON.parse(await fs.readFile(path.join(installedDir, 'version.json'), 'utf8')).updatedDate,
+                '2026-09-22T17:25:42+00:00');
         } finally {
             mockExtensionContext.globalStorageUri.fsPath = originalStoragePath;
             await fs.rm(storagePath, { recursive: true, force: true });
@@ -476,11 +534,10 @@ suite('UpdateManager Test Suite', () => {
 
             assert.strictEqual(restartStub.calledOnce, true);
             assert.strictEqual(moduleVersionMetadataCalls, 0);
-            assert.deepStrictEqual(stateStore.get('boxlang.updates.pendingLSPRefresh'), {
-                versionSpec: 'bx-lsp@1.15.0-snapshot',
-                forceRefresh: true,
-                binaryHash: 'new-hash'
-            });
+            const update = await publishedLSPUpdate();
+            assert.strictEqual(update?.versionSpec, 'bx-lsp@1.15.0-snapshot');
+            assert.strictEqual(update?.binaryHash, 'new-hash');
+            assert.strictEqual(JSON.parse(await fs.readFile(path.join(installedDir, 'version.json'), 'utf8')).binaryHash, 'old-hash');
         } finally {
             mockExtensionContext.globalStorageUri.fsPath = originalStoragePath;
             await fs.rm(storagePath, { recursive: true, force: true });
@@ -563,7 +620,8 @@ suite('UpdateManager Test Suite', () => {
 
         await checkAllUpdates(true);
 
-        assert.strictEqual(persistStub.calledOnceWithExactly('bx-lsp@1.10.0-snapshot+10'), true);
+        assert.strictEqual(persistStub.called, false);
+        assert.strictEqual((await publishedLSPUpdate())?.versionSpec, 'bx-lsp@1.10.0-snapshot+10');
     });
 
     test('release extension should select the highest stable LSP version regardless of ForgeBox order', async () => {
@@ -579,7 +637,8 @@ suite('UpdateManager Test Suite', () => {
 
         await checkAllUpdates(true);
 
-        assert.strictEqual(persistStub.calledOnceWithExactly('bx-lsp@1.10.0+10'), true);
+        assert.strictEqual(persistStub.called, false);
+        assert.strictEqual((await publishedLSPUpdate())?.versionSpec, 'bx-lsp@1.10.0+10');
     });
 
     test('release LSP switches from a newer snapshot to the stable stream', async () => {
@@ -592,10 +651,40 @@ suite('UpdateManager Test Suite', () => {
 
         await checkAllUpdates(true);
 
-        assert.strictEqual(persistStub.calledOnceWithExactly('bx-lsp@1.11.0+10'), true);
+        assert.strictEqual(persistStub.called, false);
+        assert.strictEqual((await publishedLSPUpdate())?.versionSpec, 'bx-lsp@1.11.0+10');
     });
 
-    test('checkAllUpdates should update the configured LSP version without restarting when prompt mode selects next restart', async () => {
+    test('prompt mode waits for shared approval rather than following another window\'s automatic update', async () => {
+        const { installLSPBuild, publishLSPUpdate } = require('../../utils/SharedLSPUpdates');
+        mockExtensionConfig.boxlangLSPVersionUpdateMode = 'prompt';
+        const storagePath = mockExtensionContext.globalStorageUri.fsPath;
+        const build = await installLSPBuild(storagePath, 'bx-lsp@1.10.0+9', { binaryHash: 'ready-build' }, async directory => {
+            await fs.mkdir(path.join(directory, 'bx-lsp'), { recursive: true });
+            await fs.writeFile(path.join(directory, 'bx-lsp', 'box.json'), '{}');
+        });
+        const restartStub = sinon.stub(mockLSP, 'restart');
+        await publishLSPUpdate(storagePath, 'stable', build, 'now');
+        await adoptSharedLSPUpdate();
+        assert.strictEqual(restartStub.called, false, 'auto mode cannot consent on behalf of prompt-mode windows');
+        mockExtensionConfig.boxlangLSPVersion = build.versionSpec;
+        mockLatestMetadata.latestVersion.binaryHash = 'ready-build';
+        const messages = sinon.stub(vscode.window, 'showInformationMessage').resolves('Update Now');
+        await checkAllUpdates(true);
+        assert.strictEqual(messages.calledOnce, true, 'an already-downloaded same-version build still needs prompt-mode approval');
+        assert.strictEqual((await publishedLSPUpdate())?.approved, true);
+        assert.strictEqual(restartStub.calledOnce, true);
+    });
+
+    test('prompt mode offers a given LSP build only once, even on repeated checks', async () => {
+        mockExtensionConfig.boxlangLSPVersionUpdateMode = 'prompt';
+        const messages = sinon.stub(vscode.window, 'showInformationMessage').resolves('Skip');
+        await checkAllUpdates(true);
+        await checkAllUpdates(true);
+        assert.strictEqual(messages.callCount, 1);
+    });
+
+    test('next-restart updates publish a ready build without restarting or changing global settings', async () => {
         mockExtensionConfig.boxlangLSPVersionUpdateMode = 'prompt';
         const persistStub = sinon.stub(mockExtensionConfig, 'updateBoxlangLSPVersion');
         const restartStub = sinon.stub(mockLSP, 'restart');
@@ -614,8 +703,11 @@ suite('UpdateManager Test Suite', () => {
         }
 
         assert.strictEqual(infoCallCount, 1);
-        assert.strictEqual(persistStub.calledOnceWithExactly('bx-lsp@1.10.0+9'), true);
+        assert.strictEqual(persistStub.called, false);
         assert.strictEqual(restartStub.called, false);
+        const update = await publishedLSPUpdate();
+        assert.strictEqual(update?.versionSpec, 'bx-lsp@1.10.0+9');
+        assert.strictEqual(update?.timing, 'restart');
     });
 
     test('checkAllUpdates should retry the LSP update when restart fails and the user chooses Retry', async () => {
@@ -629,7 +721,7 @@ suite('UpdateManager Test Suite', () => {
 
         await checkAllUpdates(true);
 
-        assert.strictEqual(persistStub.callCount, 2);
+        assert.strictEqual(persistStub.called, false);
         assert.strictEqual(restartStub.callCount, 2);
         assert.strictEqual(errorStub.calledOnce, true);
     });

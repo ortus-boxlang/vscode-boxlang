@@ -48,12 +48,12 @@ import { migrateSettings } from "./settingMigration";
 import { BoxLangTaskProvider, runBoxLangCheck } from "./tasks/BoxLangTaskProvider";
 import { setupVSCodeBoxLangHome } from "./utils/BoxLang";
 import { setupCommandBox } from "./utils/CommandBox";
-import { setupConfiguration } from "./utils/Configuration";
+import { setSharedLSPVersion, setupConfiguration } from "./utils/Configuration";
 import { setupLocalJavaInstall } from "./utils/Java";
 import * as LSP from "./utils/LanguageServer";
 import { cleanupTrackedProcesses } from "./utils/ProcessTracker";
 import { setupServers } from "./utils/Server";
-import { checkAllUpdates } from "./utils/UpdateManager";
+import { checkAllUpdates, setupSharedLSPUpdates } from "./utils/UpdateManager";
 import { setupBvmrcSupport } from "./utils/bvmrcSupport";
 import { setupVersionManagement } from "./utils/versionManager";
 import { setupWorkspace } from "./utils/workspaceSetup";
@@ -517,7 +517,10 @@ export function activate(context: ExtensionContext): void {
 
         if (e.affectsConfiguration("boxlang.lsp.lspVersion")) {
             boxlangOutputChannel.appendLine("Detected a change in LSP version configuration: " + workspace.getConfiguration("boxlang.lsp").get("lspVersion"));
-            void restartAllProcesses("configuration change: boxlang.lsp.lspVersion");
+            setSharedLSPVersion(undefined);
+            void LSP.requestRestart("configuration change: boxlang.lsp.lspVersion").catch(error => {
+                logExtensionLifecycle(`LSP version restart failed: ${error}`);
+            });
         }
 
         if (e.affectsConfiguration("boxlang.boxLangHome")) {
@@ -587,12 +590,15 @@ async function runSetup(context: ExtensionContext) {
     logExtensionLifecycle("runSetup() invoking migrateSettings(false)");
     migrateSettings(false);
 
+    await setupSharedLSPUpdates(context);
+
     // Run update checks in the background after a short delay so LSP can start first
-    setTimeout(() => {
+    const updateTimer = setTimeout(() => {
         checkAllUpdates(false).catch(e => {
             boxlangOutputChannel.appendLine(`BoxLang: Background update check failed: ${e}`);
         });
     }, 3000);
+    context.subscriptions.push({ dispose: () => clearTimeout(updateTimer) });
 
     logExtensionLifecycle("runSetup() invoking LSP.startLSP()");
     void LSP.startLSP("activation").catch(error => {

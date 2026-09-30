@@ -12,6 +12,7 @@ import { ModuleManager } from "../utils/ModuleManager";
 import { boxlangOutputChannel } from "../utils/OutputChannels";
 import { getDownloadedBoxLangVersions, installVersion } from "../utils/versionManager";
 import { DownloadManager } from "../utils/DownloadManager";
+import { getLSPUpdateChannel, installLSPBuild, publishLSPUpdate } from "../utils/SharedLSPUpdates";
 
 type Component = "BoxLang" | "LSP" | "Debugger" | "MiniServer";
 
@@ -74,37 +75,16 @@ async function reinstallLSP(context: ExtensionContext): Promise<void> {
         throw new Error("No LSP version is currently configured. Use 'Select LSP Version' to pick one first.");
     }
 
-    const lspVersionsParentDir = path.join(context.globalStorageUri.fsPath, "lspVersions");
-    const lspVersionDir = path.join(lspVersionsParentDir, versionSpec);
+    const storagePath = context.globalStorageUri.fsPath;
 
     await vscode.window.withProgress(
         { title: `BoxLang: Reinstalling LSP ${versionSpec}`, location: ProgressLocation.Notification },
         async () => {
-            // Remove existing install so ModuleManager installs fresh
-            try {
-                await fs.rm(lspVersionDir, { recursive: true, force: true });
-            } catch {
-                // pass
+            const build = await installLSPBuild(storagePath, versionSpec, { forceRefresh: true },
+                directory => new ModuleManager(true).installModuleToDir(versionSpec, directory));
+            if (ExtensionConfig.boxlangLSPUsesSharedUpdates) {
+                await publishLSPUpdate(storagePath, getLSPUpdateChannel(context.extension.packageJSON.version), build, "now", true);
             }
-
-            await fs.mkdir(lspVersionsParentDir, { recursive: true });
-
-            const moduleManager = new ModuleManager(true);
-            await moduleManager.installModuleToDir(versionSpec, lspVersionDir);
-
-            const boxJsonPath = path.join(lspVersionDir, "bx-lsp", "box.json");
-            try {
-                await fs.access(boxJsonPath);
-            } catch {
-                throw new Error(`LSP installation is missing box.json: ${boxJsonPath}`);
-            }
-
-            // Record install date so future update checks work
-            await fs.writeFile(
-                path.join(lspVersionDir, "version.json"),
-                JSON.stringify({ versionSpec, createDate: new Date().toISOString() })
-            );
-
             await ExtensionConfig.updateBoxlangLSPVersion(versionSpec);
             boxlangOutputChannel.appendLine(`BoxLang: LSP reinstalled: ${versionSpec}`);
 

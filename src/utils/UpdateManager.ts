@@ -1,19 +1,73 @@
 import * as fs from "fs/promises";
+import { watch } from "fs";
 import { createHash } from "crypto";
 import * as path from "path";
 import semver from "semver";
 import * as vscode from "vscode";
 import { compareBoxLangLspVersionsDescending } from "../commands/lsp/selectLSPVersion";
 import { getExtensionContext } from "../context";
-import { ExtensionConfig, getBvmrcVersion } from "./Configuration";
+import { ExtensionConfig, getBvmrcVersion, setSharedLSPVersion } from "./Configuration";
 import { DownloadManager } from "./DownloadManager";
 import { ForgeBoxClient } from "./ForgeBoxClient";
 import * as LSP from "./LanguageServer";
+import { ModuleManager } from "./ModuleManager";
+import { findInstalledLSPBuild, getLSPUpdateChannel, installLSPBuild, publishLSPUpdate, readLSPUpdate, withLSPUpdateLock } from "./SharedLSPUpdates";
 import { boxlangOutputChannel } from "./OutputChannels";
 import { BoxLangVersion, getAvailableBoxLangVerions } from "./versionManager";
-import { PENDING_DEBUGGER_REFRESH_KEY, PENDING_LSP_REFRESH_KEY, PENDING_RUNTIME_REFRESH_KEY } from "./versionUpdateState";
+import { PENDING_DEBUGGER_REFRESH_KEY, PENDING_RUNTIME_REFRESH_KEY } from "./versionUpdateState";
 
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+let lspAdoptionChain: Promise<void> = Promise.resolve();
+let restartedLSPBuild: string | undefined;
+
+/** Select a published build locally without changing settings in manual windows. */
+export function adoptSharedLSPUpdate(restart = true): Promise<void> {
+    const adoption = lspAdoptionChain.then(async () => {
+        if (!ExtensionConfig.boxlangLSPUsesSharedUpdates) return;
+        const context = getExtensionContext();
+        const storagePath = context.globalStorageUri.fsPath;
+        const update = await readLSPUpdate(storagePath, getLSPUpdateChannel(context.extension.packageJSON.version));
+        if (!update || (getUpdateMode("lsp") === "prompt" && !update.approved)) return;
+        setSharedLSPVersion(update.versionSpec);
+        const identity = path.join(storagePath, update.relativePath);
+        if (restart && update.timing === "now" && restartedLSPBuild !== identity) {
+            await LSP.restart("shared LSP update");
+            restartedLSPBuild = identity;
+        }
+    });
+    lspAdoptionChain = adoption.catch(() => undefined);
+    return adoption;
+}
+
+/** Read on activation and watch the directory so atomic manifest replacement is observed. */
+export async function setupSharedLSPUpdates(context: vscode.ExtensionContext): Promise<void> {
+    const storagePath = context.globalStorageUri.fsPath;
+    const channel = getLSPUpdateChannel(context.extension.packageJSON.version);
+    const directory = path.join(storagePath, "updates");
+    await fs.mkdir(directory, { recursive: true });
+    const adopt = () => {
+        void adoptSharedLSPUpdate().catch(error => {
+            boxlangOutputChannel.appendLine(`BoxLang UpdateManager: Unable to adopt shared LSP build: ${error}`);
+        });
+    };
+    const watcher = watch(directory, (_event, filename) => {
+        if (!filename || filename.toString() === `lsp-${channel}.json`) adopt();
+    });
+    watcher.on("error", error => boxlangOutputChannel.appendLine(`BoxLang UpdateManager: LSP update watcher failed: ${error}`));
+    context.subscriptions.push({ dispose: () => watcher.close() });
+    context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(event => {
+        if (event.affectsConfiguration("boxlang.lsp.versionUpdateMode")) adopt();
+    }));
+    restartedLSPBuild = undefined;
+    try {
+        await adoptSharedLSPUpdate(false);
+        const initial = ExtensionConfig.boxlangLSPUsesSharedUpdates ? await readLSPUpdate(storagePath, channel) : undefined;
+        restartedLSPBuild = initial && (getUpdateMode("lsp") === "auto" || initial.approved)
+            ? path.join(storagePath, initial.relativePath) : undefined;
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`BoxLang UpdateManager: Unable to load shared LSP build on activation: ${error}`);
+    }
+}
 
 const COOLDOWN_KEYS = {
     runtime: "boxlang.updates.lastCheck.runtime",
@@ -37,8 +91,7 @@ function isExternallyManagedLSP(): boolean {
 
 function isPreReleaseExtension(): boolean {
     // Release workflows use odd minor versions for prereleases and even minors for stable releases.
-    const version = semver.parse(getExtensionContext().extension.packageJSON.version);
-    return version !== null && version.minor % 2 === 1;
+    return getLSPUpdateChannel(getExtensionContext().extension.packageJSON.version) === "prerelease";
 }
 
 function isSnapshotVersion(version: string): boolean {
@@ -170,9 +223,14 @@ async function getCachedVersionDir(component: Component, version: string): Promi
                 : path.join(context.globalStorageUri.fsPath, "miniserverVersions", `boxlang-miniserver-${version}`);
             break;
         }
-        case "lsp":
-            versionDir = path.join(context.globalStorageUri.fsPath, "lspVersions", `bx-lsp@${version}`);
+        case "lsp": {
+            const update = await readLSPUpdate(context.globalStorageUri.fsPath, getLSPUpdateChannel(context.extension.packageJSON.version));
+            const installed = update?.versionSpec === `bx-lsp@${version}` ? update
+                : await findInstalledLSPBuild(context.globalStorageUri.fsPath, `bx-lsp@${version}`);
+            // Older caches may have version.json but no usable module; still detect their stale metadata.
+            versionDir = path.join(context.globalStorageUri.fsPath, installed?.relativePath ?? path.join("lspVersions", `bx-lsp@${version}`));
             break;
+        }
         case "debugger":
             versionDir = path.join(context.globalStorageUri.fsPath, "debuggerVersions", `${ExtensionConfig.boxlangDebuggerModuleName}@${version}`);
             break;
@@ -235,7 +293,7 @@ export async function checkAllUpdates(force: boolean): Promise<void> {
     await Promise.all([
         checkComponentUpdate("runtime", force, getS3VersionLists),
         checkComponentUpdate("miniserver", force, getS3VersionLists),
-        checkComponentUpdate("lsp", force, getS3VersionLists),
+        checkLSPUpdate(force, getS3VersionLists),
         checkComponentUpdate("debugger", force, getS3VersionLists),
     ]);
 }
@@ -248,6 +306,38 @@ export async function resetAllCooldowns(): Promise<void> {
     const context = getExtensionContext();
     for (const key of Object.values(COOLDOWN_KEYS)) {
         await context.globalState.update(key, 0);
+    }
+    const channel = getLSPUpdateChannel(context.extension.packageJSON.version);
+    await fs.rm(path.join(context.globalStorageUri.fsPath, "updates", `lsp-${channel}.last-check`), { force: true });
+}
+
+async function checkLSPUpdate(force: boolean, getS3VersionLists: S3VersionListProvider): Promise<void> {
+    if (isExternallyManagedLSP() || getUpdateMode("lsp") === "manual") {
+        await checkComponentUpdate("lsp", force, getS3VersionLists);
+        return;
+    }
+    if (!ExtensionConfig.boxlangLSPUsesSharedUpdates) {
+        boxlangOutputChannel.appendLine("BoxLang UpdateManager: workspace LSP version is pinned, skipping shared updates");
+        return;
+    }
+    const context = getExtensionContext();
+    const storagePath = context.globalStorageUri.fsPath;
+    const channel = getLSPUpdateChannel(context.extension.packageJSON.version);
+    try {
+        await withLSPUpdateLock(storagePath, `lsp-check-${channel}`, async () => {
+            const lastCheckFile = path.join(storagePath, "updates", `lsp-${channel}.last-check`);
+            let lastCheck = 0;
+            try { lastCheck = Number(await fs.readFile(lastCheckFile, "utf8")); }
+            catch (error) { if (error.code !== "ENOENT") throw error; }
+            if (!force && !process.env.BOXLANG_IGNORE_UPDATE_COOLDOWN && Date.now() - lastCheck < SIX_HOURS_MS) {
+                boxlangOutputChannel.appendLine("BoxLang UpdateManager: skipping LSP check (shared cooldown active)");
+                return;
+            }
+            await checkComponentUpdate("lsp", true, getS3VersionLists);
+            await fs.writeFile(lastCheckFile, String(Date.now()));
+        });
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`BoxLang UpdateManager: shared LSP update check failed: ${error}`);
     }
 }
 
@@ -376,7 +466,12 @@ async function getLatestVersion(component: Component, getS3VersionLists: S3Versi
         }
 
         case "lsp": {
-            const currentSpec = ExtensionConfig.boxlangLSPVersion;
+            const context = getExtensionContext();
+            const shared = ExtensionConfig.boxlangLSPUsesSharedUpdates
+                ? await readLSPUpdate(context.globalStorageUri.fsPath, getLSPUpdateChannel(context.extension.packageJSON.version))
+                : undefined;
+            const currentSpec = shared && (getUpdateMode("lsp") === "auto" || shared.approved)
+                ? shared.versionSpec : ExtensionConfig.boxlangLSPVersion;
             if (!currentSpec) {
                 return null;
             }
@@ -397,10 +492,13 @@ async function getLatestVersion(component: Component, getS3VersionLists: S3Versi
             const binaryHash = [metadata.latestVersion, ...(metadata.versions ?? [])]
                 .find(v => v?.version === latest && v.binaryHash)?.binaryHash;
             const versionDir = await getCachedVersionDir("lsp", latest);
-            const updatedDate = versionDir && !binaryHash
+            const updatedDate = (versionDir || isSnapshotVersion(latest)) && !binaryHash
                 ? await getModuleUpdatedDate(forgeBoxClient, "bx-lsp", latest)
                 : undefined;
-            const needsRefresh = versionDir ? await isCachedVersionOutdated(versionDir, binaryHash, updatedDate) : false;
+            const needsConsent = getUpdateMode("lsp") === "prompt" && shared && !shared.approved
+                && current === latest && shared.versionSpec === `bx-lsp@${latest}`
+                && path.join(context.globalStorageUri.fsPath, shared.relativePath) !== restartedLSPBuild;
+            const needsRefresh = Boolean(needsConsent) || (versionDir ? await isCachedVersionOutdated(versionDir, binaryHash, updatedDate) : false);
             return { current, latest, updatedDate, binaryHash, needsRefresh };
         }
 
@@ -487,6 +585,17 @@ async function handleUpdateFound(
         return;
     }
 
+    // The update-check lock covers the prompt as well as the install.
+    let offeredFile: string | undefined;
+    const offeredIdentity = JSON.stringify([latest, binaryHash ?? updatedDate ?? "release"]);
+    if (component === "lsp") {
+        const context = getExtensionContext();
+        const channel = getLSPUpdateChannel(context.extension.packageJSON.version);
+        offeredFile = path.join(context.globalStorageUri.fsPath, "updates", `lsp-${channel}.offered`);
+        try { if (await fs.readFile(offeredFile, "utf8") === offeredIdentity) return; }
+        catch (error) { if (error.code !== "ENOENT") throw error; }
+    }
+
     // prompt mode
     const message = refresh && current === latest
         ? `BoxLang: An updated ${label} build (${latest}) is available.`
@@ -498,6 +607,7 @@ async function handleUpdateFound(
         "Skip"
     );
 
+    if (offeredFile) await fs.writeFile(offeredFile, offeredIdentity);
     if (!choice || choice === "Skip") {
         return;
     }
@@ -630,22 +740,19 @@ async function applyLSPUpdate(version: string, timing: UpdateTiming, refresh: bo
         return;
     }
 
+    const context = getExtensionContext();
+    const storagePath = context.globalStorageUri.fsPath;
+    const channel = getLSPUpdateChannel(context.extension.packageJSON.version);
     const latestSpec = `bx-lsp@${version}`;
-    if (refresh || updatedDate || binaryHash) {
-        await getExtensionContext().globalState.update(PENDING_LSP_REFRESH_KEY, {
-            versionSpec: latestSpec,
-            forceRefresh: refresh,
-            ...(updatedDate ? { updatedDate } : {}),
-            ...(binaryHash ? { binaryHash } : {})
-        });
+    const build = await installLSPBuild(storagePath, latestSpec, { forceRefresh: refresh, updatedDate, binaryHash },
+        directory => new ModuleManager(true).installModuleToDir(latestSpec, directory));
+    const existing = await readLSPUpdate(storagePath, channel);
+    const approved = getUpdateMode("lsp") === "prompt" || (existing?.relativePath === build.relativePath && existing.approved);
+    if (existing?.relativePath !== build.relativePath || existing.timing !== timing || existing.approved !== Boolean(approved)) {
+        await publishLSPUpdate(storagePath, channel, build, timing, Boolean(approved));
     }
-    boxlangOutputChannel.appendLine(`BoxLang UpdateManager: Setting LSP version to ${latestSpec}`);
-    await ExtensionConfig.updateBoxlangLSPVersion(latestSpec);
-
-    if (timing === "now") {
-        boxlangOutputChannel.appendLine("BoxLang UpdateManager: Restarting LSP to apply update");
-        await LSP.restart();
-    }
+    boxlangOutputChannel.appendLine(`BoxLang UpdateManager: Published LSP build ${latestSpec}`);
+    await adoptSharedLSPUpdate(timing === "now");
 }
 
 async function applyDebuggerUpdate(version: string, refresh: boolean, updatedDate?: string, binaryHash?: string): Promise<void> {

@@ -11,6 +11,7 @@ import { ForgeBoxClient } from "./ForgeBoxClient";
 import { ModuleManager } from "./ModuleManager";
 import { boxlangOutputChannel } from "./OutputChannels";
 import { ensureBoxLangVersion } from "./versionManager";
+import { findInstalledLSPBuild, getLSPUpdateChannel, installLSPBuild, readLSPUpdate } from "./SharedLSPUpdates";
 import { PENDING_LSP_REFRESH_KEY, PendingModuleRefresh } from "./versionUpdateState";
 
 
@@ -37,7 +38,6 @@ let automaticRestartTimes: number[] = [];
 const MSG_LSP_VERSION_NOT_CONFIGURED = "boxlang.lsp.lspVersion is not configured. Please set a valid LSP version (e.g., bx-lsp@1.6.0+7).";
 const MSG_LSP_INSTALL_INVALID = "BoxLang: The BoxLang Language Server installation is invalid. This may be related to outdated dependencies.";
 const MSG_LSP_ENSURE_FAILED = "Unable to ensure BoxLang Language Server module is installed";
-const MSG_LSP_INSTALLATION_INVALID = "The BoxLang Language Server installation is invalid.";
 const LSP_RESTART_DELAY_MS = 5000;
 const LSP_STOP_TIMEOUT_MS = 10000;
 const LSP_PROCESS_EXIT_GRACE_MS = 1000;
@@ -1155,72 +1155,30 @@ async function ensureLSPModule() {
     }
 
     const context = getExtensionContext();
-    const lspVersionParentDir = path.join(context.globalStorageUri.fsPath, "lspVersions");
-
-    try {
-        await fs.access(lspVersionParentDir);
-        boxlangOutputChannel.appendLine(`LSP versions directory exists: ${lspVersionParentDir}`);
-    }
-    catch (e) {
-        await fs.mkdir(lspVersionParentDir, { recursive: true });
-        boxlangOutputChannel.appendLine(`Created LSP versions directory: ${lspVersionParentDir}`);
-    }
-
-    const lspVersionDir = path.join(context.globalStorageUri.fsPath, "lspVersions", lspVersion);
+    const storagePath = context.globalStorageUri.fsPath;
     const pendingRefresh = context.globalState?.get<PendingModuleRefresh>(PENDING_LSP_REFRESH_KEY);
-    const hasPendingRefresh = pendingRefresh?.versionSpec === lspVersion;
-    const forceRefresh = hasPendingRefresh && pendingRefresh.forceRefresh === true;
-    if (forceRefresh) {
-        await fs.rm(lspVersionDir, { recursive: true, force: true });
-    }
-
-    let installed = false;
-    try {
-        await fs.access(lspVersionDir);
-        boxlangOutputChannel.appendLine(`LSP version directory exists: ${lspVersionDir}`);
-
-        const contents = await fs.readdir(lspVersionDir); // Just to check if we can read it
-
-        if (contents.length === 0) {
-            await fs.rm(lspVersionDir, { recursive: true, force: true })
-            throw new Error("LSP version directory is empty");
-        }
-    }
-    catch (e) {
-        // Install directly from ForgeBox without a CommandBox fallback
-        const moduleManager = new ModuleManager(true);
-        await moduleManager.installModuleToDir(lspVersion, lspVersionDir);
-        installed = true;
-
+    const pending = pendingRefresh?.versionSpec === lspVersion ? pendingRefresh : undefined;
+    if (ExtensionConfig.boxlangLSPUsesSharedUpdates && !pending) {
         try {
-            await fs.access(path.join(lspVersionDir, "bx-lsp", "box.json"));
-        }
-        catch (e) {
-            boxlangOutputChannel.appendLine(`Tried to install LSP module but it appears to be invalid: ${lspVersion}`);
-            await fs.rm(lspVersionDir, { recursive: true, force: true });
-            throw new InvalidLSPInstallationError(MSG_LSP_INSTALLATION_INVALID)
-        }
-
-        boxlangOutputChannel.appendLine(`Installed LSP module to: ${lspVersionDir}`);
-    }
-
-    if (hasPendingRefresh || installed) {
-        const binaryHash = pendingRefresh?.binaryHash || await getLSPBinaryHash(lspVersion);
-        await fs.writeFile(
-            path.join(lspVersionDir, "version.json"),
-            JSON.stringify({
-                versionSpec: lspVersion,
-                updatedDate: pendingRefresh?.updatedDate,
-                binaryHash,
-                installedAt: new Date().toISOString()
-            })
-        );
-        if (hasPendingRefresh) {
-            await context.globalState?.update(PENDING_LSP_REFRESH_KEY, undefined);
+            const shared = await readLSPUpdate(storagePath, getLSPUpdateChannel(context.extension?.packageJSON.version ?? "0.0.0"));
+            if (shared?.versionSpec === lspVersion && (ExtensionConfig.boxlangLSPVersionUpdateMode === "auto" || shared.approved)) {
+                return path.join(storagePath, shared.relativePath);
+            }
+        } catch (error) {
+            logLanguageServer(`Unable to read shared LSP build, using configured version: ${error}`);
         }
     }
 
-    return lspVersionDir;
+    const installed = !pending ? await findInstalledLSPBuild(storagePath, lspVersion) : undefined;
+    if (installed) return path.join(storagePath, installed.relativePath);
+    const binaryHash = pending?.binaryHash || await getLSPBinaryHash(lspVersion);
+    const build = await installLSPBuild(storagePath, lspVersion, {
+        forceRefresh: pending?.forceRefresh,
+        updatedDate: pending?.updatedDate,
+        binaryHash
+    }, directory => new ModuleManager(true).installModuleToDir(lspVersion, directory));
+    if (pending) await context.globalState?.update(PENDING_LSP_REFRESH_KEY, undefined);
+    return path.join(storagePath, build.relativePath);
 }
 
 /**

@@ -166,11 +166,11 @@ suite('LanguageServer with the real language client', () => {
     test('post-connect initialization failures consume exactly three recovery launches', async () => {
         delete process.env.BOXLANG_LSP_PORT;
         const config = require('../../utils/Configuration').ExtensionConfig;
-        sinon.stub(config, 'boxlangLSPVersion').get(() => 'test-lsp');
+        sinon.stub(config, 'boxlangLSPVersion').get(() => 'bx-lsp@1.9.0+8');
         sinon.stub(config, 'boxLangLSPBoxLangVersion').get(() => 'test-runtime');
         sinon.stub(config, 'boxlangLSPBoxLangHome').get(() => path.join(tempDir, 'home'));
         sinon.stub(config, 'boxlangLSPModules').get(() => '');
-        const moduleDir = path.join(tempDir, 'lspVersions', 'test-lsp');
+        const moduleDir = path.join(tempDir, 'lspVersions', 'bx-lsp@1.9.0+8', 'bx-lsp');
         await fs.mkdir(moduleDir, { recursive: true });
         await fs.writeFile(path.join(moduleDir, 'box.json'), '{}');
         initialize = async () => ({ capabilities: {} });
