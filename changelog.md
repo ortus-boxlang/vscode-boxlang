@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.28.1] - 2026-10-02
+
 - BLIDE-334 Change pre-release to auto update to snapshot of LSP and Debugger
 - BLIDE-335 Combine runtime and miniserver updates
 - BLIDE-335 Make updates automatic and silent
@@ -345,7 +347,8 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.26.1...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.28.1...HEAD
+[1.28.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.26.1...v1.28.1
 [1.26.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.24.1...v1.26.1
 [1.24.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.22.3...v1.24.1
 [1.22.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.22.2...v1.22.3
