@@ -46,7 +46,7 @@ jobs:
     needs: buildAndPackage
     steps:
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: ${{ needs.buildAndPackage.outputs.packageName }}
           path: .tmp
