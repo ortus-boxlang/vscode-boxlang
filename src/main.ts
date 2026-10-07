@@ -40,6 +40,7 @@ import { APPLICATION_CFM_GLOB, isCfcFile } from "./utils/contextUtil";
 import { DocumentStateContext, getDocumentStateContext } from "./utils/documentUtil";
 
 import { setupChatIntegration } from "./chat/tools";
+import { registerReplSession } from "./repl";
 import * as extensionCommands from "./commands";
 import { BoxLangDebugAdapterTrackerFactory } from "./debug/BoxLangDebugAdapterTracker";
 import { DumpManager } from "./debug/DumpManager";
@@ -185,6 +186,7 @@ export function activate(context: ExtensionContext): void {
         boxlangOutputChannel.appendLine("BoxLang setup failed. Check the output above and restart the extension after fixing the reported issue.");
     });
     setupChatIntegration(context);
+    registerReplSession(context);
 
     languages.setLanguageConfiguration(CFML_LANGUAGE_ID, {
         indentationRules: {

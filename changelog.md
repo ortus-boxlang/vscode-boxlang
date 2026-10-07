@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - BLIDE-341 Improve LSP install stability
+- BLIDE-340 Add repl with active debug session
 
 ## [1.28.1] - 2026-10-02
 
