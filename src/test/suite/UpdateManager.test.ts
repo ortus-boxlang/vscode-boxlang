@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import { createLSPInstallation } from '../mocks/lspInstallation';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
@@ -142,8 +143,7 @@ Module.prototype.require = function (id: string) {
         return { ModuleManager: class {
             async installModuleToDir(_spec: string, directory: string) {
                 await installLSP?.(directory);
-                await fs.mkdir(path.join(directory, 'bx-lsp'), { recursive: true });
-                await fs.writeFile(path.join(directory, 'bx-lsp', 'box.json'), '{}');
+                await createLSPInstallation(directory);
             }
         } };
     }
@@ -421,10 +421,7 @@ suite('UpdateManager Test Suite', () => {
         const restarted = createDeferred<void>();
         const restartStub = sinon.stub(mockLSP, 'restart').callsFake(async () => { restarted.resolve(); });
         const messages = sinon.stub(vscode.window, 'showInformationMessage').resolves(undefined);
-        const download = async directory => {
-            await fs.mkdir(path.join(directory, 'bx-lsp'), { recursive: true });
-            await fs.writeFile(path.join(directory, 'bx-lsp', 'box.json'), '{}');
-        };
+        const download = createLSPInstallation;
         const versionSpec = 'bx-lsp@1.15.0-snapshot';
         mockExtensionConfig.boxlangLSPVersion = versionSpec;
         const initial = await installLSPBuild(storagePath, versionSpec, { binaryHash: 'initial-build' }, download);
@@ -499,7 +496,7 @@ suite('UpdateManager Test Suite', () => {
                 versions: [{ version: '1.9.0+8' }]
             };
             const installedDir = path.join(storagePath, 'lspVersions', 'bx-lsp@1.10.0+9');
-            await fs.mkdir(installedDir, { recursive: true });
+            await createLSPInstallation(installedDir);
             await fs.writeFile(path.join(installedDir, 'version.json'), JSON.stringify({ updatedDate: mockVersionUpdatedDate }));
             const restartStub = sinon.stub(mockLSP, 'restart');
 
@@ -659,10 +656,7 @@ suite('UpdateManager Test Suite', () => {
         const { installLSPBuild, publishLSPUpdate } = require('../../utils/SharedLSPUpdates');
         mockExtensionConfig.boxlangLSPVersionUpdateMode = 'prompt';
         const storagePath = mockExtensionContext.globalStorageUri.fsPath;
-        const build = await installLSPBuild(storagePath, 'bx-lsp@1.10.0+9', { binaryHash: 'ready-build' }, async directory => {
-            await fs.mkdir(path.join(directory, 'bx-lsp'), { recursive: true });
-            await fs.writeFile(path.join(directory, 'bx-lsp', 'box.json'), '{}');
-        });
+        const build = await installLSPBuild(storagePath, 'bx-lsp@1.10.0+9', { binaryHash: 'ready-build' }, createLSPInstallation);
         const restartStub = sinon.stub(mockLSP, 'restart');
         await publishLSPUpdate(storagePath, 'stable', build, 'now');
         await adoptSharedLSPUpdate();

@@ -1,7 +1,8 @@
 import * as assert from 'assert';
 
 // Use the global vscode mock loaded by runTestSimple.ts / runUnitTests.ts.
-const { registerStatusBar, setDefaultStatusText, setLoadingText } = require('../../features/statusBar');
+const { registerStatusBar, setDefaultStatusText, setLoadingText, setLSPStatus } = require('../../features/statusBar');
+const { setBvmrcVersion } = require('../../utils/Configuration');
 
 suite('StatusBar Test Suite', () => {
 	test('registerStatusBar creates and shows status bar item', async () => {
@@ -32,6 +33,26 @@ suite('StatusBar Test Suite', () => {
 
 		// Check that something was added to subscriptions
 		assert.strictEqual(mockSubscriptions.length, 1, 'Status bar item should be added to context subscriptions');
+	});
+
+	test('LSP status persists through cache updates and preserves runtime version in the tooltip', async () => {
+		const context = { subscriptions: [] };
+		await registerStatusBar(context);
+		const item = context.subscriptions[0];
+		try {
+			setBvmrcVersion('1.18.0');
+			for (const status of ['Starting', 'Connected', 'Stopped', 'Failed']) {
+				setLSPStatus(status);
+				assert.ok(item.text.includes(`LSP ${status}`));
+				assert.ok(item.tooltip.includes('1.18.0'));
+				setLoadingText('Caching components');
+				setDefaultStatusText();
+				assert.ok(item.text.includes(`LSP ${status}`));
+			}
+		} finally {
+			setBvmrcVersion(null);
+			setLSPStatus('Stopped');
+		}
 	});
 
 	test('setDefaultStatusText sets correct text', () => {

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-341 Improve LSP install stability
+
 ## [1.28.1] - 2026-10-02
 
 - BLIDE-334 Change pre-release to auto update to snapshot of LSP and Debugger

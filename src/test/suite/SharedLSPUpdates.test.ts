@@ -2,8 +2,9 @@ import * as assert from 'assert';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
+import { createLSPInstallation } from '../mocks/lspInstallation';
 
-const { installLSPBuild, listInstalledLSPBuilds, publishLSPUpdate, readLSPUpdate, withLSPUpdateLock } = require('../../utils/SharedLSPUpdates');
+const { findInstalledLSPBuild, installLSPBuild, listInstalledLSPBuilds, publishLSPUpdate, readLSPUpdate, withLSPUpdateLock } = require('../../utils/SharedLSPUpdates');
 
 suite('Shared LSP updates', () => {
     let storagePath: string;
@@ -37,8 +38,7 @@ suite('Shared LSP updates', () => {
 
         const build = await installLSPBuild(storagePath, spec, { binaryHash: 'ready' }, async directory => {
             assert.strictEqual(await readLSPUpdate(storagePath, 'prerelease'), undefined);
-            await fs.mkdir(path.join(directory, 'bx-lsp'), { recursive: true });
-            await fs.writeFile(path.join(directory, 'bx-lsp', 'box.json'), '{}');
+            await createLSPInstallation(directory);
         });
         const update = await publishLSPUpdate(storagePath, 'prerelease', build, 'now');
         assert.deepStrictEqual(await readLSPUpdate(storagePath, 'prerelease'), update);
@@ -48,12 +48,30 @@ suite('Shared LSP updates', () => {
         await assert.rejects(readLSPUpdate(storagePath, 'prerelease'), /outside its version cache/);
     });
 
+    test('rejects partial downloads and repairs an incomplete cached build without deleting it', async () => {
+        const spec = 'bx-lsp@1.15.0+14';
+        await assert.rejects(installLSPBuild(storagePath, spec, {}, async directory => {
+            await fs.mkdir(path.join(directory, 'bx-lsp'), { recursive: true });
+            await fs.writeFile(path.join(directory, 'bx-lsp', 'box.json'), '{}');
+        }), /installation is incomplete/);
+        assert.strictEqual(await findInstalledLSPBuild(storagePath, spec), undefined);
+        assert.deepStrictEqual(await listInstalledLSPBuilds(storagePath), []);
+
+        const first = await installLSPBuild(storagePath, spec, {}, createLSPInstallation);
+        const binary = path.join(storagePath, first.relativePath, 'bx-lsp', 'libs', 'bx-lsp-test.jar');
+        await fs.writeFile(binary, '');
+        assert.strictEqual(await findInstalledLSPBuild(storagePath, spec), undefined);
+        const repaired = await installLSPBuild(storagePath, spec, {}, createLSPInstallation);
+        assert.notStrictEqual(repaired.relativePath, first.relativePath);
+        assert.deepStrictEqual(await findInstalledLSPBuild(storagePath, spec), repaired);
+        assert.strictEqual((await fs.stat(binary)).size, 0, 'do not overwrite a build another window may use');
+    });
+
     test('a completed build is reused without another download and a new build preserves the old installation', async () => {
         let downloads = 0;
         const download = async (directory: string) => {
             downloads++;
-            await fs.mkdir(path.join(directory, 'bx-lsp'), { recursive: true });
-            await fs.writeFile(path.join(directory, 'bx-lsp', 'box.json'), '{}');
+            await createLSPInstallation(directory);
         };
         const spec = 'bx-lsp@1.15.0-snapshot';
         const [first, reused] = await Promise.all([

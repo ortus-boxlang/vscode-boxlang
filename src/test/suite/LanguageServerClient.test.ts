@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import { createLSPInstallation } from '../mocks/lspInstallation';
 import { EventEmitter } from 'events';
 import * as fs from 'fs/promises';
 import * as net from 'net';
@@ -171,8 +172,7 @@ suite('LanguageServer with the real language client', () => {
         sinon.stub(config, 'boxlangLSPBoxLangHome').get(() => path.join(tempDir, 'home'));
         sinon.stub(config, 'boxlangLSPModules').get(() => '');
         const moduleDir = path.join(tempDir, 'lspVersions', 'bx-lsp@1.9.0+8', 'bx-lsp');
-        await fs.mkdir(moduleDir, { recursive: true });
-        await fs.writeFile(path.join(moduleDir, 'box.json'), '{}');
+        await createLSPInstallation(path.dirname(moduleDir));
         initialize = async () => ({ capabilities: {} });
         await lsp.startLSP();
         const initialChannels = channels.size;

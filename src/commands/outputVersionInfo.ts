@@ -26,7 +26,6 @@ export async function outputVersionInfo(context: vscode.ExtensionContext) {
             versionInfo.push(`  boxlangHome:                ${boxLangLauncher.boxlangHome}`);
             versionInfo.push(`  boxlangJavaHome:            ${ExtensionConfig.boxlangJavaHome}`);
             versionInfo.push(`  boxlangJarPath:             ${await getConfiguredBoxLangJarPath()}`);
-            versionInfo.push(`  boxlangLSPPath:             ${ExtensionConfig.boxlangLSPPath}`);
             versionInfo.push(`  boxlangMiniServerJarPath:   ${ExtensionConfig.boxlangMiniServerJarPath}`);
             versionInfo.push(`  boxlangServerPort:          ${ExtensionConfig.boxlangServerPort}`);
             versionInfo.push(`  customAntlrToolsCommand:    ${ExtensionConfig.customAntlrToolsCommand}`);

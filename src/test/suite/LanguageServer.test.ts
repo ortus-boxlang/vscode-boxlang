@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import { createLSPInstallation } from '../mocks/lspInstallation';
 import { EventEmitter } from 'events';
 import * as fs from 'fs/promises';
 import * as net from 'net';
@@ -160,9 +161,7 @@ Module.prototype.require = function (id: string) {
             ModuleManager: class {
                 async installModuleToDir(_versionSpec: string, directory: string) {
                     lspInstallCalls++;
-                    const moduleDir = path.join(directory, 'bx-lsp');
-                    await fs.mkdir(moduleDir, { recursive: true });
-                    await fs.writeFile(path.join(moduleDir, 'box.json'), '{}');
+                    await createLSPInstallation(directory);
                 }
             }
         };
@@ -217,8 +216,7 @@ suite('LanguageServer Test Suite', () => {
         const lspModuleDir = path.join(globalStoragePath, 'lspVersions', versionSpec, 'bx-lsp');
         const lspHome = path.join(tempDir, 'lsp-home');
 
-        await fs.mkdir(lspModuleDir, { recursive: true });
-        await fs.writeFile(path.join(lspModuleDir, 'box.json'), JSON.stringify({ boxlang: { minimumVersion: '1.13.0-snapshot' } }));
+        await createLSPInstallation(path.dirname(lspModuleDir), JSON.stringify({ boxlang: { minimumVersion: '1.13.0-snapshot' } }));
 
         mockExtensionContext = {
             extension: { packageJSON: { version: '1.28.0' } },
@@ -316,13 +314,35 @@ suite('LanguageServer Test Suite', () => {
         const { installLSPBuild, publishLSPUpdate } = require('../../utils/SharedLSPUpdates');
         const { globalStoragePath } = await setupManagedLspEnvironment();
         const build = await installLSPBuild(globalStoragePath, 'bx-lsp@1.9.0+8', { binaryHash: 'shared-build', forceRefresh: true }, async directory => {
-            await fs.mkdir(path.join(directory, 'bx-lsp'), { recursive: true });
-            await fs.writeFile(path.join(directory, 'bx-lsp', 'box.json'), '{}');
+            await createLSPInstallation(directory);
         });
         await publishLSPUpdate(globalStoragePath, 'stable', build, 'now');
         await startLSP();
         assert.strictEqual(startedModulePath, path.join(globalStoragePath, build.relativePath));
         assert.strictEqual(lspInstallCalls, 0);
+    });
+
+    test('status reflects initialization, connection, shutdown, and startup failure', async () => {
+        await setupManagedLspEnvironment();
+        const status = sinon.spy(require('../../features/statusBar'), 'setLSPStatus');
+        await startLSP();
+        assert.ok(status.calledWith('Starting'));
+        assert.strictEqual(status.lastCall.args[0], 'Connected');
+        await stop();
+        assert.strictEqual(status.lastCall.args[0], 'Stopped');
+        lspStartError = new Error('Startup failed');
+        await assert.rejects(startLSP(), /Startup failed/);
+        assert.strictEqual(status.lastCall.args[0], 'Failed');
+    });
+
+    test('startup reinstalls an incomplete cache before launching', async () => {
+        const { globalStoragePath } = await setupManagedLspEnvironment();
+        const brokenModule = path.join(globalStoragePath, 'lspVersions', 'bx-lsp@1.9.0+8', 'bx-lsp');
+        await fs.rm(path.join(brokenModule, 'libs'), { recursive: true });
+        await startLSP();
+        assert.strictEqual(lspInstallCalls, 1);
+        assert.ok(startedModulePath.includes('lspBuilds'));
+        await fs.access(path.join(startedModulePath, 'bx-lsp', 'libs', 'bx-lsp-test.jar'));
     });
 
     test('startLSP refreshes a cached module when a newer ForgeBox updateDate is pending', async () => {
