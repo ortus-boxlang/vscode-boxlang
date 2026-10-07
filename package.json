@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "1.29.1",
+    "version": "1.29.2",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -63,7 +63,9 @@
             },
             {
                 "name": "boxlang-tools_executeREPL",
-                "tags": ["boxlang"],
+                "tags": [
+                    "boxlang"
+                ],
                 "toolReferenceName": "executeBoxLangREPL",
                 "displayName": "Execute BoxLang REPL Code",
                 "modelDescription": "Execute BoxLang script in the workspace's persistent scratch REPL session. Starts the session with user approval if needed. Shares state with the interactive panel and editor commands. Code is not sandboxed; it can modify files or access the network. Never reset state automatically. Execution times out after 30 seconds and discards state. Runtime errors can leave partial mutations. Results include output, executionId, and a bounded return-value preview, not all variables. Use inspectBoxLangREPL with executionId to explore an expandable return value.",
@@ -71,14 +73,25 @@
                 "canBeReferencedInPrompt": true,
                 "inputSchema": {
                     "type": "object",
-                    "properties": { "code": { "type": "string", "minLength": 1, "maxLength": 1000000, "description": "BoxLang script to execute in the persistent session" } },
-                    "required": ["code"],
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1000000,
+                            "description": "BoxLang script to execute in the persistent session"
+                        }
+                    },
+                    "required": [
+                        "code"
+                    ],
                     "additionalProperties": false
                 }
             },
             {
                 "name": "boxlang-tools_inspectREPL",
-                "tags": ["boxlang"],
+                "tags": [
+                    "boxlang"
+                ],
                 "toolReferenceName": "inspectBoxLangREPL",
                 "displayName": "Inspect BoxLang REPL State",
                 "modelDescription": "Inspect the existing shared BoxLang REPL without evaluating expressions or user getters. Scope defaults to variables; server and request are also available. Alternatively use executionId to inspect a returned value from an execution. Supply path segments to expand structs, arrays, query rows, BoxLang object scopes, or public Java instance fields. Array/query indices are 1-based strings. Results expire after 100 executions or session restart. Returns at most 100 children and 2 KB scalar previews. Requires approval because values may contain secrets. Does not start or reset a session.",
@@ -87,9 +100,29 @@
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "path": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 2048 }, "description": "Member path within the scope or result, e.g. [\"users\", \"1\", \"name\"]" },
-                        "scope": { "type": "string", "enum": ["variables", "server", "request"], "description": "Scope to inspect (default variables); do not combine with executionId" },
-                        "executionId": { "type": "integer", "minimum": 1, "description": "Execution result to inspect instead of a scope; do not combine with scope" }
+                        "path": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 2048
+                            },
+                            "description": "Member path within the scope or result, e.g. [\"users\", \"1\", \"name\"]"
+                        },
+                        "scope": {
+                            "type": "string",
+                            "enum": [
+                                "variables",
+                                "server",
+                                "request"
+                            ],
+                            "description": "Scope to inspect (default variables); do not combine with executionId"
+                        },
+                        "executionId": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Execution result to inspect instead of a scope; do not combine with scope"
+                        }
                     },
                     "additionalProperties": false
                 }
