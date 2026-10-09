@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.30.1] - 2026-10-09
+
 - BLIDE-341 Improve LSP install stability
 - BLIDE-340 Add repl with active debug session
 
@@ -350,7 +352,8 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.28.1...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.1...HEAD
+[1.30.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.28.1...v1.30.1
 [1.28.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.26.1...v1.28.1
 [1.26.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.24.1...v1.26.1
 [1.24.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.22.3...v1.24.1
