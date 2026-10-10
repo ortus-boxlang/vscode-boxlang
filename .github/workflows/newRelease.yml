@@ -56,7 +56,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout Development Branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: development
@@ -100,7 +100,7 @@ jobs:
     # Run if triggered by push OR if manually triggered with publishToVSMarketplace enabled
     if: ${{ github.event_name == 'push' || inputs.publishToVSMarketplace == true }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/download-artifact@v6
         with:
@@ -121,7 +121,7 @@ jobs:
     # Run if triggered by push OR if manually triggered with publishToOpenVSX enabled
     if: ${{ github.event_name == 'push' || inputs.publishToOpenVSX == true }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/download-artifact@v6
         with:
