@@ -199,12 +199,14 @@ const { checkAllUpdates, setupSharedLSPUpdates, adoptSharedLSPUpdate } = require
 const publishedLSPUpdate = () => readLSPUpdate(mockExtensionContext.globalStorageUri.fsPath,
     getLSPUpdateChannel(mockExtensionContext.extension.packageJSON.version));
 let savedInfoMessage: any;
+let savedWithProgress: any;
 
 suite('UpdateManager Test Suite', () => {
     setup(async () => {
         mockExtensionContext.globalStorageUri.fsPath = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-updates-'));
         installLSP = undefined;
         savedInfoMessage = vscode.window.showInformationMessage;
+        savedWithProgress = vscode.window.withProgress;
         vscode.window.showInformationMessage = async () => undefined;
         outputLines.length = 0;
         stateStore.clear();
@@ -239,6 +241,7 @@ suite('UpdateManager Test Suite', () => {
         mockExtensionContext.subscriptions.splice(0).forEach(subscription => subscription.dispose());
         sinon.restore();
         vscode.window.showInformationMessage = savedInfoMessage;
+        vscode.window.withProgress = savedWithProgress;
         await fs.rm(mockExtensionContext.globalStorageUri.fsPath, { recursive: true, force: true });
     });
 
@@ -313,6 +316,32 @@ suite('UpdateManager Test Suite', () => {
             vscode.window.withProgress = originalWithProgress;
             await fs.rm(storagePath, { recursive: true, force: true });
         }
+    });
+
+    test('MiniServer updates from the bundled unversioned jar on a fresh install', async () => {
+        mockExtensionConfig.boxlangMiniServerVersionUpdateMode = 'auto';
+        mockExtensionConfig.boxlangLSPVersionUpdateMode = 'manual';
+        mockExtensionConfig.boxlangMiniServerJarPath = '/extension/resources/lib/boxlang-miniserver.jar';
+        mockMiniServerS3Versions = [{ version: '1.18.0', url: 'mini.jar', date: new Date() }];
+        vscode.window.withProgress = async (_options: unknown, task: () => Promise<unknown>) => task();
+
+        await checkAllUpdates(true);
+
+        assert.ok(mockExtensionConfig.boxlangMiniServerJarPath.endsWith('boxlang-miniserver-1.18.0.jar'), outputLines.join('\n'));
+        assert.ok(outputLines.includes('BoxLang UpdateManager: MiniServer updated to 1.18.0'));
+    });
+
+    test('MiniServer versions exclude Windows directory names', async () => {
+        mockExtensionConfig.boxlangMiniServerVersionUpdateMode = 'auto';
+        mockExtensionConfig.boxlangLSPVersionUpdateMode = 'manual';
+        mockExtensionConfig.boxlangMiniServerJarPath = String.raw`C:\storage\boxlang-miniserver-1.17.0\boxlang-miniserver-1.17.0.jar`;
+        mockMiniServerS3Versions = [{ version: '1.18.0', url: 'mini.jar', date: new Date() }];
+        vscode.window.withProgress = async (_options: unknown, task: () => Promise<unknown>) => task();
+
+        await checkAllUpdates(true);
+
+        assert.ok(outputLines.includes('BoxLang UpdateManager: miniserver update available: 1.17.0 -> 1.18.0'), outputLines.join('\n'));
+        assert.ok(mockExtensionConfig.boxlangMiniServerJarPath.endsWith('boxlang-miniserver-1.18.0.jar'));
     });
 
     test('runtime S3 ETag detects a republished version', async () => {

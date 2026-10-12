@@ -248,7 +248,10 @@ async function isLocalVersionFileUsable(): Promise<boolean>{
 
 async function readVersionsFromLocalCache(): Promise<BoxLangVersion[]> {
     const data = await fs.readFile(BOXLANG_LOCAL_VERSIONS_CACHE);
-    return JSON.parse(data + "");
+    return JSON.parse(data + "").map((version: BoxLangVersion) => ({
+        ...version,
+        lastModified: new Date(version.lastModified)
+    }));
 }
 
 async function writeVersionsToLocalCache( versions: BoxLangVersion[] ): Promise<void> {

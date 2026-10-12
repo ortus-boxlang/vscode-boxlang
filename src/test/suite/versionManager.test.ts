@@ -33,7 +33,7 @@ Module.prototype.require = function (id: string) {
 // Now safe to require modules that transitively load Java.ts
 const fileUtil = require('../../utils/fileUtil');
 const { ExtensionConfig } = require('../../utils/Configuration');
-const { setupVersionManagement, ensureBoxLangVersion } = require('../../utils/versionManager');
+const { setupVersionManagement, ensureBoxLangVersion, getAvailableBoxLangVerions } = require('../../utils/versionManager');
 const { PENDING_RUNTIME_REFRESH_KEY } = require('../../utils/versionUpdateState');
 
 suite('versionManager Test Suite', () => {
@@ -68,6 +68,21 @@ suite('versionManager Test Suite', () => {
         if (fs.existsSync(testTempDir)) {
             fs.rmSync(testTempDir, { recursive: true, force: true, maxRetries: 3 });
         }
+    });
+
+    test('cached available versions restore dates and preserve S3 identity', async () => {
+        const lastModified = '2026-10-12T00:00:00.000Z';
+        fs.writeFileSync(path.join(testTempDir, 'boxlang_version_cache.json'), JSON.stringify([{
+            name: 'boxlang-1.18.0', url: 'https://example.com/runtime.jar', lastModified, etag: 'runtime-etag'
+        }]));
+        const fetch = sinon.stub(DownloadManager, 'listS3BoxLangVersions');
+
+        const [version] = await getAvailableBoxLangVerions();
+
+        assert.ok(version.lastModified instanceof Date);
+        assert.strictEqual(version.lastModified.toISOString(), lastModified);
+        assert.strictEqual(version.etag, 'runtime-etag');
+        assert.strictEqual(fetch.called, false);
     });
 
     suite('ensureBoxLangVersion', () => {
