@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.30.3] - 2026-10-12
+
 ## [1.30.2] - 2026-10-12
 
 - BLIDE-342 Problem installing and starting MiniServer
@@ -358,7 +360,8 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.2...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.3...HEAD
+[1.30.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.2...v1.30.3
 [1.30.2]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.1...v1.30.2
 [1.30.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.28.1...v1.30.1
 [1.28.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.26.1...v1.28.1
