@@ -455,10 +455,16 @@ async function getLatestVersion(component: Component, getS3VersionLists: S3Versi
                 return null;
             }
 
-            const versionDir = await getCachedVersionDir("miniserver", target.version);
-            const needsRefresh = versionDir
-                ? await isCachedVersionOutdated(versionDir, undefined, target.date.toISOString(), target.etag)
+            const jarExists = currentJar
+                ? await fs.stat(currentJar).then(stat => stat.isFile(), error => {
+                    if (error.code === "ENOENT") return false;
+                    throw error;
+                })
                 : false;
+            const versionDir = await getCachedVersionDir("miniserver", target.version);
+            const needsRefresh = !jarExists || (versionDir
+                ? await isCachedVersionOutdated(versionDir, undefined, target.date.toISOString(), target.etag)
+                : false);
             return { current, latest: target.version, lastModified: target.date, etag: target.etag, needsRefresh };
         }
 

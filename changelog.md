@@ -5,6 +5,8 @@
 ## [1.30.2] - 2026-10-12
 
 - BLIDE-342 Problem installing and starting MiniServer
+  - Reinstall missing MiniServer JARs and update the configured path after storage is deleted.
+  - Ignore files when scanning BoxLang module directories to prevent `box.json/box.json` setup errors.
 
 ## [1.30.1] - 2026-10-09
 

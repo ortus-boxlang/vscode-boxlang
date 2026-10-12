@@ -166,7 +166,7 @@ Module.prototype.require = function (id: string) {
         return {
             DownloadManager: {
                 listS3MiniServerVersions: async () => mockMiniServerS3Versions,
-                downloadMiniServer: async () => undefined
+                downloadMiniServer: async (_version: string, jarPath: string) => fs.writeFile(jarPath, 'downloaded jar')
             }
         };
     }
@@ -329,6 +329,23 @@ suite('UpdateManager Test Suite', () => {
 
         assert.ok(mockExtensionConfig.boxlangMiniServerJarPath.endsWith('boxlang-miniserver-1.18.0.jar'), outputLines.join('\n'));
         assert.ok(outputLines.includes('BoxLang UpdateManager: MiniServer updated to 1.18.0'));
+    });
+
+    test('MiniServer reinstalls when its configured version is current but the jar was deleted', async () => {
+        mockExtensionConfig.boxlangMiniServerVersionUpdateMode = 'auto';
+        mockExtensionConfig.boxlangLSPVersionUpdateMode = 'manual';
+        mockExtensionConfig.boxlangMiniServerJarPath = path.join(mockExtensionContext.globalStorageUri.fsPath,
+            'miniserverVersions', 'boxlang-miniserver-1.18.0', 'boxlang-miniserver-1.18.0.jar');
+        mockMiniServerS3Versions = [{ version: '1.18.0', url: 'mini.jar', date: new Date(), etag: 'mini-etag' }];
+        vscode.window.withProgress = async (_options: unknown, task: () => Promise<unknown>) => task();
+
+        await checkAllUpdates(true);
+
+        assert.strictEqual(await fs.readFile(mockExtensionConfig.boxlangMiniServerJarPath, 'utf8'), 'downloaded jar');
+        assert.ok(outputLines.includes('BoxLang UpdateManager: MiniServer updated to 1.18.0'), outputLines.join('\n'));
+        outputLines.length = 0;
+        await checkAllUpdates(true);
+        assert.ok(outputLines.includes('BoxLang UpdateManager: miniserver is up to date (1.18.0)'), outputLines.join('\n'));
     });
 
     test('MiniServer versions exclude Windows directory names', async () => {
