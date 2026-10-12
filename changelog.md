@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-342 Problem installing and starting MiniServer
+
 ## [1.30.1] - 2026-10-09
 
 - BLIDE-341 Improve LSP install stability
