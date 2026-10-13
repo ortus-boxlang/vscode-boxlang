@@ -1,5 +1,5 @@
 import path from "path";
-import { ConfigurationTarget, ExtensionContext, workspace } from "vscode";
+import { ConfigurationTarget, ExtensionContext, window, workspace } from "vscode";
 
 function getConfiguredJavaInstallDir() {
     return require("./Java").getJavaInstallDir();
@@ -165,13 +165,20 @@ export const ExtensionConfig = {
     },
 
     get boxlangLSPVersion() {
+        const resource = window.activeTextEditor?.document.uri ?? workspace.workspaceFolders?.[0]?.uri;
         return (this.boxlangLSPUsesSharedUpdates && SHARED_LSP_VERSION)
-            || workspace.getConfiguration("boxlang.lsp").get<string>('lspVersion');
+            || workspace.getConfiguration("boxlang.lsp", resource).get<string>('lspVersion');
     },
 
     async updateBoxlangLSPVersion(versionSpec: string) {
         setSharedLSPVersion(undefined);
-        await workspace.getConfiguration("boxlang.lsp").update("lspVersion", versionSpec, ConfigurationTarget.Global);
+        const resource = window.activeTextEditor?.document.uri ?? workspace.workspaceFolders?.[0]?.uri;
+        const config = workspace.getConfiguration("boxlang.lsp", resource);
+        const inspected = config.inspect<string>("lspVersion");
+        const target = inspected?.workspaceFolderValue !== undefined ? ConfigurationTarget.WorkspaceFolder
+            : inspected?.workspaceValue !== undefined ? ConfigurationTarget.Workspace
+            : ConfigurationTarget.Global;
+        await config.update("lspVersion", versionSpec, target);
     },
 
     get boxlangLSPBoxLangHome() {

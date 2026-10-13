@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-344 Improved LSP and Debugger Setting Management
+
 - BLIDE-343 Improve Java home setting
 
 ## [1.30.3] - 2026-10-12
