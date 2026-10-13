@@ -217,6 +217,25 @@ export class DownloadManager {
         }
     }
 
+    private static async fetchS3Listing(url: string): Promise<string> {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            boxlangOutputChannel.appendLine(`[S3 listing] GET ${url} attempt=${attempt}/2 timeoutMs=30000`);
+            try {
+                const response = await axios.get(url, {
+                    timeout: 30000,
+                    headers: { "Accept": "application/xml" }
+                });
+                return response.data;
+            } catch (error) {
+                boxlangOutputChannel.appendLine(`[S3 listing] Failed GET ${url} attempt=${attempt}/2: ${error}`);
+                if (attempt === 2) {
+                    throw new Error(`S3 listing failed after 2 attempts: ${url}: ${error}`);
+                }
+            }
+        }
+        throw new Error(`S3 listing failed: ${url}`);
+    }
+
     /**
      * List available BoxLang versions from S3 (without AWS SDK)
      * Replaces AWS SDK usage in VersionManager.ts
@@ -234,14 +253,7 @@ export class DownloadManager {
             do {
                 const listUrl = `https://s3.amazonaws.com/downloads.ortussolutions.com?list-type=2&prefix=${encodeURIComponent(prefix)}${continuationToken ? `&continuation-token=${encodeURIComponent(continuationToken)}` : ""}`;
 
-                const response = await axios.get(listUrl, {
-                    timeout: 10000,
-                    headers: {
-                        "Accept": "application/xml"
-                    }
-                });
-
-                const pageXml: string = response.data;
+                const pageXml = await this.fetchS3Listing(listUrl);
                 const contentsMatches = Array.from(pageXml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g));
 
                 for (const content of contentsMatches) {
@@ -314,17 +326,12 @@ export class DownloadManager {
         try {
             const listUrl = `https://s3.amazonaws.com/downloads.ortussolutions.com?list-type=2&prefix=${encodeURIComponent(prefix)}`;
 
-            const response = await axios.get(listUrl, {
-                timeout: 10000,
-                headers: {
-                    "Accept": "application/xml"
-                }
-            });
+            const pageXml = await this.fetchS3Listing(listUrl);
 
             const versions: Array<{ version: string; url: string; date: Date; etag?: string }> = [];
-            const keyMatches = response.data.matchAll(/<Key>([^<]+)<\/Key>/g);
-            const dateMatches = response.data.matchAll(/<LastModified>([^<]+)<\/LastModified>/g);
-            const etagMatches = response.data.matchAll(/<ETag>([^<]+)<\/ETag>/g);
+            const keyMatches = pageXml.matchAll(/<Key>([^<]+)<\/Key>/g);
+            const dateMatches = pageXml.matchAll(/<LastModified>([^<]+)<\/LastModified>/g);
+            const etagMatches = pageXml.matchAll(/<ETag>([^<]+)<\/ETag>/g);
 
             const keys = Array.from(keyMatches).map((m: any) => m[1]);
             const dates = Array.from(dateMatches).map((m: any) => m[1]);

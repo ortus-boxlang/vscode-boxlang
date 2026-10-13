@@ -110,6 +110,47 @@ suite('DownloadManager Test Suite', () => {
         });
     });
 
+    for (const method of ['listS3BoxLangVersions', 'listS3MiniServerVersions'] as const) {
+        test(`${method} retries once with a longer timeout and logs the URL and attempts`, async () => {
+            const output = sinon.spy(require('../../utils/OutputChannels').boxlangOutputChannel, 'appendLine');
+            const fetch = sinon.stub(axios, 'get');
+            fetch.onFirstCall().rejects(new Error('timeout'));
+            fetch.onSecondCall().resolves({ data: '<ListBucketResult></ListBucketResult>' });
+
+            await DownloadManager[method]();
+
+            assert.strictEqual(fetch.callCount, 2);
+            const url = fetch.firstCall.args[0];
+            assert.strictEqual(fetch.secondCall.args[0], url);
+            assert.strictEqual(fetch.firstCall.args[1].timeout, 30000);
+            const logs = output.getCalls().map(call => String(call.args[0]));
+            assert.ok(logs.some(line => line.includes(url) && line.includes('Failed') && line.includes('attempt=1/2')));
+            assert.ok(logs.some(line => line.includes(url) && line.includes('attempt=2/2')));
+        });
+
+        test(`${method} stops after two failed attempts and reports the URL`, async () => {
+            const fetch = sinon.stub(axios, 'get').rejects(new Error('timeout'));
+
+            await assert.rejects(DownloadManager[method](), error =>
+                String(error).includes('after 2 attempts') && String(error).includes(fetch.firstCall.args[0]));
+            assert.strictEqual(fetch.callCount, 2);
+        });
+    }
+
+    test('S3 pagination retries only the failed page', async () => {
+        const fetch = sinon.stub(axios, 'get');
+        fetch.onCall(0).resolves({ data: '<ListBucketResult><NextContinuationToken>page2</NextContinuationToken></ListBucketResult>' });
+        fetch.onCall(1).rejects(new Error('timeout'));
+        fetch.onCall(2).resolves({ data: '<ListBucketResult><Contents><Key>ortussolutions/boxlang/1.18.0/boxlang-1.18.0.jar</Key></Contents></ListBucketResult>' });
+
+        const versions = await DownloadManager.listS3BoxLangVersions();
+
+        assert.strictEqual(versions[0].version, '1.18.0');
+        assert.strictEqual(fetch.callCount, 3);
+        assert.ok(fetch.getCall(1).args[0].includes('continuation-token=page2'));
+        assert.strictEqual(fetch.getCall(2).args[0], fetch.getCall(1).args[0]);
+    });
+
     suite('downloadFile', () => {
         test('should report download progress', async () => {
             const progressUpdates: any[] = [];

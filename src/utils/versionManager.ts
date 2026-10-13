@@ -72,14 +72,8 @@ export async function getConfiguredBoxLangJarPath(): Promise<string> {
 
     const configuredVersion = ExtensionConfig.boxlangVersion;
 
-    if( !(await validateConfiguredVersion( configuredVersion )) ){
-        boxlangOutputChannel.appendLine("Configured BoxLang version is not valid: " + configuredVersion);
-        boxlangOutputChannel.appendLine("Falling back to included BoxLang JAR path: " + ExtensionConfig.includedBoxLangJarPath);
-        return ExtensionConfig.includedBoxLangJarPath;
-    }
-
     try{
-        return ensureBoxLangVersion( configuredVersion );
+        return await ensureBoxLangVersion( configuredVersion );
     }
     catch( e ){
         boxlangOutputChannel.appendLine("Error ensuring BoxLang version: " + configuredVersion);
@@ -108,7 +102,7 @@ function isRuntimeInUse(): boolean {
 
 export async function ensureBoxLangVersion(version: string): Promise<string> {
     boxlangOutputChannel.appendLine("Ensuring BoxLang version is installed: " + version);
-    const boxlangVersionSring = version.startsWith("boxlang-") ? version : `boxlang-${version}`;
+    const boxlangVersionSring = version?.startsWith("boxlang-") ? version : `boxlang-${version}`;
 
     if (!version || boxlangVersionSring === "boxlang-") {
         boxlangOutputChannel.appendLine("Invalid or empty BoxLang version specified, falling back to bundled JAR");
@@ -136,6 +130,9 @@ export async function ensureBoxLangVersion(version: string): Promise<string> {
     catch (e) {
         const availableVersions = await getAvailableBoxLangVerions();
         const availableVersion = availableVersions.find(v => v.name === boxlangVersionSring);
+        if (!availableVersion) {
+            throw new Error(`BoxLang version is not available: ${boxlangVersionSring}`);
+        }
         const versionToDownload = shouldRefresh && availableVersion
             ? {
                 ...availableVersion,
@@ -181,23 +178,32 @@ export async function installVersion(version: BoxLangVersion) {
 export async function getAvailableBoxLangVerions( force: boolean = false ): Promise<BoxLangVersion[]> {
 
     if( await isLocalVersionFileUsable() && !force ) {
-        return readVersionsFromLocalCache();
-    }
-
-    const versionsFromAWS = await getBoxLangVersionsFromAWS();
-
-    if( await doesLocalVersionFileExist() ) {
-        const versionPattern = /boxlang-\d+\.\d+\.\d+$/;
-        const newestRelease = versionsFromAWS.find( v => versionPattern.test(v.name) );
-
-        if( !newestRelease ){
-            writeVersionsToLocalCache( versionsFromAWS );
-            return versionsFromAWS;
+        try {
+            return await readVersionsFromLocalCache();
+        } catch (error) {
+            boxlangOutputChannel.appendLine(`Unable to read BoxLang version cache: ${error}`);
         }
     }
 
-    writeVersionsToLocalCache( versionsFromAWS );
+    let versionsFromAWS: BoxLangVersion[];
+    try {
+        versionsFromAWS = await getBoxLangVersionsFromAWS();
+    } catch (error) {
+        try {
+            const cachedVersions = await readVersionsFromLocalCache();
+            boxlangOutputChannel.appendLine(`Using stale BoxLang version cache because S3 discovery failed: ${error}`);
+            return cachedVersions;
+        } catch (cacheError) {
+            boxlangOutputChannel.appendLine(`No usable BoxLang version cache: ${cacheError}`);
+        }
+        throw error;
+    }
 
+    try {
+        await writeVersionsToLocalCache(versionsFromAWS);
+    } catch (error) {
+        boxlangOutputChannel.appendLine(`Unable to save BoxLang version cache: ${error}`);
+    }
     return versionsFromAWS;
 }
 
@@ -219,16 +225,6 @@ async function getBoxLangVersionsFromAWS(): Promise<BoxLangVersion[]> {
     } catch (error) {
         boxlangOutputChannel.appendLine(`Error fetching BoxLang versions: ${error}`);
         throw error;
-    }
-}
-
-async function doesLocalVersionFileExist(): Promise<boolean>{
-    try {
-        await fs.access(BOXLANG_LOCAL_VERSIONS_CACHE);
-       return true;
-    }
-    catch (e) {
-        return false;
     }
 }
 
@@ -256,10 +252,4 @@ async function readVersionsFromLocalCache(): Promise<BoxLangVersion[]> {
 
 async function writeVersionsToLocalCache( versions: BoxLangVersion[] ): Promise<void> {
     await fs.writeFile( BOXLANG_LOCAL_VERSIONS_CACHE, JSON.stringify( versions ) );
-}
-
-async function validateConfiguredVersion( version: string ): Promise<boolean> {
-    const availableVersions = await getAvailableBoxLangVerions();
-    const boxlangVersionString = version.startsWith("boxlang-") ? version : `boxlang-${version}`;
-    return availableVersions.some(v => v.name === boxlangVersionString);
 }
