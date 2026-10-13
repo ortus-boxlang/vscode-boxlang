@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.30.4] - 2026-10-13
+
 - BLIDE-345 S3 Timeout Bug
   - Increase S3 listing timeouts to 30 seconds and retry once, logging the request URL and attempt count.
   - Use stale cached runtime versions when S3 is unavailable and resolve installed runtimes without network discovery.
@@ -364,7 +366,8 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.3...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.4...HEAD
+[1.30.4]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.3...v1.30.4
 [1.30.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.2...v1.30.3
 [1.30.2]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.1...v1.30.2
 [1.30.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.28.1...v1.30.1
