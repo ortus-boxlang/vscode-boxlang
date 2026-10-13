@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-343 Improve Java home setting
+
 ## [1.30.3] - 2026-10-12
 
 ## [1.30.2] - 2026-10-12

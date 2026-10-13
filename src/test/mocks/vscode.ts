@@ -93,6 +93,9 @@ const mockVSCode = {
     TaskPanelKind: {
         Dedicated: 2
     },
+    commands: {
+        executeCommand: async (_command: string, ..._args: any[]) => undefined
+    },
     tasks: {
         executeTask: async (task: any) => ({ task, terminate: () => {} })
     },

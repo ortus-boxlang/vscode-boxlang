@@ -17,6 +17,8 @@ let fakeLspPort = 0;
 let lspStartError: Error | undefined;
 let beforeLspBanner: ((signal?: AbortSignal) => Promise<void>) | undefined;
 let lspInstallCalls = 0;
+let validJavaHome = true;
+let javaValidationCalls = 0;
 let startedModulePath: string | undefined;
 const contextState = new Map<string, unknown>();
 
@@ -131,7 +133,10 @@ Module.prototype.require = function (id: string) {
     const fromLanguageServer = /[\\/]utils[\\/]LanguageServer\./.test(requester);
 
     if (id.endsWith('/Java') || id.endsWith('\\Java') || id === './Java') {
-        return { getJavaInstallDir: () => '/mock/java' };
+        return {
+            getJavaInstallDir: () => '/mock/java',
+            validateConfiguredJavaHome: () => { javaValidationCalls++; return validJavaHome; }
+        };
     }
     if (id === 'vscode-languageclient/node') {
         return {
@@ -252,6 +257,8 @@ suite('LanguageServer Test Suite', () => {
     setup(() => {
         contextState.clear();
         lspInstallCalls = 0;
+        validJavaHome = true;
+        javaValidationCalls = 0;
         MockLanguageClient.instances.length = 0;
         lspStartError = undefined;
         beforeLspBanner = undefined;
@@ -308,6 +315,22 @@ suite('LanguageServer Test Suite', () => {
             serverOptions(),
             (err: any) => err.name === 'InvalidLSPInstallationError' && /boxlang\.lsp\.lspVersion is not configured/.test(err.message)
         );
+    });
+
+    test('invalid Java skips startup and a corrected setting starts on restart', async () => {
+        await setupManagedLspEnvironment();
+        validJavaHome = false;
+
+        assert.strictEqual(await startLSP(), undefined);
+        assert.strictEqual(MockLanguageClient.instances.length, 0);
+        assert.strictEqual(lspInstallCalls, 0);
+
+        validJavaHome = true;
+        await requestRestart('configuration change: boxlang.java.javaHome', 0);
+
+        assert.strictEqual(javaValidationCalls, 2);
+        assert.strictEqual(MockLanguageClient.instances.length, 1);
+        assert.strictEqual(MockLanguageClient.instances[0].state, 2);
     });
 
     test('startLSP uses the completed shared build without reinstalling the module', async () => {
@@ -721,9 +744,11 @@ suite('LanguageServer Test Suite', () => {
         const port = (lspServer.address() as net.AddressInfo).port;
 
         process.env.BOXLANG_LSP_PORT = String(port);
+        validJavaHome = false;
 
         await startLSP();
         await MockLanguageClient.instances[0].startPromise;
+        assert.strictEqual(javaValidationCalls, 0);
 
         const errorHandler = MockLanguageClient.instances[0].clientOptions?.errorHandler;
 
