@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.32.1] - 2026-10-16
+
 ## [1.30.4] - 2026-10-13
 
 - BLIDE-345 S3 Timeout Bug
@@ -368,7 +370,8 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.4...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.32.1...HEAD
+[1.32.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.4...v1.32.1
 [1.30.4]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.3...v1.30.4
 [1.30.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.2...v1.30.3
 [1.30.2]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.1...v1.30.2
