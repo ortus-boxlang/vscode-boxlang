@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "1.30.4",
+    "version": "1.32.0",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -345,7 +345,7 @@
                 },
                 "boxlang.java.javaHome": {
                     "type": "string",
-                    "description": "The path to the JVM you want to use. Must be Java 21 or higher. If not set it will use java. Use multiple backslashes on Windows i.e. C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-21.0.2.13-hotspot",
+                    "description": "The path to the JDK root directory (Java 21 or higher), not its bin directory or the java executable. The extension appends bin/java (bin/java.exe on Windows). For example: /usr/lib/jvm/temurin-21-jdk-amd64 or C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-21.0.2.13-hotspot. With Remote SSH, WSL, or containers, this path must exist on the remote host. If unset, the extension uses its managed Java installation, then JAVA_HOME or java on PATH.",
                     "scope": "machine"
                 },
                 "boxlang.jarpath": {

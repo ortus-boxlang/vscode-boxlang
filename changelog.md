@@ -7,6 +7,8 @@
 - BLIDE-345 S3 Timeout Bug
   - Increase S3 listing timeouts to 30 seconds and retry once, logging the request URL and attempt count.
   - Use stale cached runtime versions when S3 is unavailable and resolve installed runtimes without network discovery.
+- BLIDE-344 Improved LSP and Debugger Setting Management
+- BLIDE-343 Improve Java home setting
 
 ## [1.30.3] - 2026-10-12
 

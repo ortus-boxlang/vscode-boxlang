@@ -9,6 +9,7 @@ import { setLSPStatus } from "../features/statusBar";
 import { startLSPProcess } from "./BoxLang";
 import { ExtensionConfig } from "./Configuration";
 import { ForgeBoxClient } from "./ForgeBoxClient";
+import { validateConfiguredJavaHome } from "./Java";
 import { ModuleManager } from "./ModuleManager";
 import { boxlangOutputChannel } from "./OutputChannels";
 import { ensureBoxLangVersion } from "./versionManager";
@@ -744,6 +745,11 @@ async function startLSPNow(startRequestId: number, reason: string): Promise<Lang
     }
 
     const nextIsUsingExternalLSP = Boolean(process.env.BOXLANG_LSP_PORT);
+    if (!nextIsUsingExternalLSP && !validateConfiguredJavaHome()) {
+        logLanguageServer("startLSP() skipped: configured Java binary is missing");
+        setLSPStatus("Failed");
+        return undefined;
+    }
     isUsingExternalLSP = nextIsUsingExternalLSP;
     const startAttemptId = ++lspStartAttempt;
     logLanguageServer(
