@@ -195,6 +195,15 @@
                     "**/*bxformat.json"
                 ],
                 "url": "./resources/schemas/bxformat.schema.json"
+            },
+            {
+                "fileMatch": [
+                    "miniserver.json",
+                    "*.miniserver.json",
+                    "**/miniserver.json",
+                    "**/*.miniserver.json"
+                ],
+                "url": "./resources/schemas/miniserver.schema.json"
             }
         ],
         "debuggers": [
@@ -1116,6 +1125,11 @@
                 "icon": "$(pencil)"
             },
             {
+                "command": "boxlang.openServerConfig",
+                "title": "Open MiniServer Configuration",
+                "icon": "$(json)"
+            },
+            {
                 "command": "boxlang.openServerInBrowser",
                 "title": "Open Browser",
                 "icon": "$(browser)"
@@ -1387,6 +1401,11 @@
                     "group": "inline"
                 },
                 {
+                    "command": "boxlang.openServerConfig",
+                    "when": "viewItem == boxlangServerStoppedContext || viewItem == boxlangServerRunningContext",
+                    "group": "inline"
+                },
+                {
                     "group": "inline",
                     "command": "boxlang.clearLogFile",
                     "when": "viewItem == boxlangServerHome-logFileItem"
@@ -1487,6 +1506,10 @@
                 },
                 {
                     "command": "boxlang.editServerProperty",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.openServerConfig",
                     "when": "false"
                 },
                 {

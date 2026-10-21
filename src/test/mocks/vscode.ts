@@ -99,6 +99,10 @@ const mockVSCode = {
     tasks: {
         executeTask: async (task: any) => ({ task, terminate: () => {} })
     },
+    debug: {
+        onDidStartDebugSession: () => ({ dispose: () => {} }),
+        onDidTerminateDebugSession: () => ({ dispose: () => {} })
+    },
     Uri: {
         file: (path: string) => ({ fsPath: path, path }),
         parse: (uri: string) => ({ fsPath: uri, path: uri })
