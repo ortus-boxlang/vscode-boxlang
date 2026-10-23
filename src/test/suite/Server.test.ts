@@ -11,6 +11,8 @@ import {
     updateServerProperty
 } from "../../utils/Server";
 
+
+ // Test for creating a miniserver.json, updating the port, deleting the file and loading *.miniserver.json
 suite("Server configuration test suite", () => {
     test("writes MiniServer configuration beside its web root and updates the file", () => {
         const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "boxlang-server-"));

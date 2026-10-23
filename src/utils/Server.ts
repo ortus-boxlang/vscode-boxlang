@@ -4,12 +4,12 @@ import * as vscode from "vscode";
 import { boxlangOutputChannel } from "./OutputChannels";
 
 
-const MINISERVER_CONFIG_GLOB = "**/{miniserver.json,*.miniserver.json}";
+const MINISERVER_CONFIG_GLOB = "**/{miniserver.json,*.miniserver.json}"; // gets any miniserver.json despite app name
 const _onDidChangeServerConfiguration: vscode.EventEmitter<any> = new vscode.EventEmitter<any>();
 export const onDidChangeServerConfiguration: vscode.Event<any> = _onDidChangeServerConfiguration.event;
 let servers: Record<string, BoxServerConfig> = {};
 
-export type BoxServerConfig = {
+export type BoxServerConfig = { //Sets the vars for the server config
     name: string,
     host: string,
     port: number,
