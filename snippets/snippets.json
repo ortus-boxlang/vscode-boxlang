@@ -23,46 +23,6 @@
         "scope": "cfml",
         "context": "script"
 	},
-
-
-
-
-    "boxLang class": {
-        "prefix": "boxLang class",
-        "body": [
-            "class {",
-            "\t$0",
-            "}"
-        ],
-        "description": "boxLang class definition",
-        "scope": "boxlang",
-        "context": "script"
-    },
-
-    "writedump + abort": {
-        "prefix": "writedump + abort …",
-        "body": [
-            "writeDump( var = ${1:variable}, abort = true );$0"
-        ],
-        "description": "Write dump and abort, writeDump( var = variable, abort = true );",
-        "scope": "boxlang",
-        "context": "script"
-    },
-
-    "Logging": {
-        "prefix": "logging",
-        "body": [
-            "writeLog( text = \"${1:message}\", type = \"${2|information,warning,error,fatal,debug|}\" );$0"
-        ],
-        "description": "Logging",
-        "scope": "boxlang",
-        "context": "script"
-    },
-
-
-
-
-
 	"argument": {
 		"prefix": "arg …",
 		"body": "${1:required }${2|any,array,binary,boolean,component,date,function,guid,numeric,query,string,struct,uuid,variableName,void,xml|} ${3:name}$0",

@@ -38,6 +38,12 @@
     "main": "./out/main",
     "browser": "./dist/web/main.js",
     "contributes": {
+        "snippets": [
+            {
+                "language": "boxlang",
+                "path": "./snippets/boxlang.json"
+            }
+        ],
         "languageModelTools": [
             {
                 "name": "boxlang-tools_lookupBoxLangDocumenation",
