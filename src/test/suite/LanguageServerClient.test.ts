@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import { createLSPInstallation } from '../mocks/lspInstallation';
 import { EventEmitter } from 'events';
 import * as fs from 'fs/promises';
 import * as net from 'net';
@@ -56,23 +57,25 @@ suite('LanguageServer with the real language client', () => {
                 ['RefactorRewrite', 'refactor.rewrite'], ['Source', 'source'],
                 ['SourceOrganizeImports', 'source.organizeImports']
             ].map(([name, value]) => [name, { value }])),
-            languages: { createDiagnosticCollection: () => {
-                const collection = { dispose() { diagnostics.delete(collection); }, clear() {} };
-                diagnostics.add(collection);
-                return collection;
-            } },
+            languages: {
+                createDiagnosticCollection: () => {
+                    const collection = { dispose() { diagnostics.delete(collection); }, clear() { } };
+                    diagnostics.add(collection);
+                    return collection;
+                }
+            },
             workspace: {
                 ...vscode.workspace,
                 textDocuments: [],
-                onDidOpenTextDocument: () => ({ dispose() {} }),
-                onDidChangeTextDocument: () => ({ dispose() {} }),
-                onDidCloseTextDocument: () => ({ dispose() {} }),
-                onDidChangeConfiguration: () => ({ dispose() {} })
+                onDidOpenTextDocument: () => ({ dispose() { } }),
+                onDidChangeTextDocument: () => ({ dispose() { } }),
+                onDidCloseTextDocument: () => ({ dispose() { } }),
+                onDidChangeConfiguration: () => ({ dispose() { } })
             }
         };
         for (const name of ['CodeLens', 'DocumentLink', 'CodeAction', 'SymbolInformation', 'CallHierarchyItem',
             'TypeHierarchyItem', 'Diagnostic', 'InlayHint', 'CancellationError']) {
-            additions[name] = class {};
+            additions[name] = class { };
         }
         for (const [key, value] of Object.entries(additions)) {
             originalApi.set(key, vscode[key]);
@@ -82,7 +85,7 @@ suite('LanguageServer with the real language client', () => {
         connections = [];
         sockets = [];
         initialized = new Promise(resolve => { notifyInitialized = resolve; });
-        initialize = () => new Promise(() => {});
+        initialize = () => new Promise(() => { });
         server = net.createServer(socket => {
             sockets.push(socket);
             const connection = rpc.createMessageConnection(new rpc.StreamMessageReader(socket), new rpc.StreamMessageWriter(socket));
@@ -117,23 +120,26 @@ suite('LanguageServer with the real language client', () => {
                     return { getExtensionContext: () => ({ globalStorageUri: { fsPath: tempDir }, storageUri: { fsPath: tempDir } }) };
                 }
                 if (id === './BoxLang') {
-                    return { startLSPProcess: async () => {
-                        const index = managedProcesses.length;
-                        const proc = Object.assign(new EventEmitter(), {
-                            pid: 2147000000 + index, exitCode: null, signalCode: null,
-                            kill(signal = 'SIGTERM') {
-                                this.signalCode = signal;
-                                proc.emit('exit', null, signal);
-                                proc.emit('close');
-                                sockets[index]?.destroy();
-                                return true;
-                            }
-                        });
-                        managedProcesses.push(proc);
-                        return [proc, (server.address() as net.AddressInfo).port];
-                    } };
+                    return {
+                        startLSPProcess: async () => {
+                            const index = managedProcesses.length;
+                            const proc = Object.assign(new EventEmitter(), {
+                                pid: 2147000000 + index, exitCode: null, signalCode: null,
+                                kill(signal = 'SIGTERM') {
+                                    this.signalCode = signal;
+                                    proc.emit('exit', null, signal);
+                                    proc.emit('close');
+                                    sockets[index]?.destroy();
+                                    return true;
+                                }
+                            });
+                            managedProcesses.push(proc);
+                            return [proc, (server.address() as net.AddressInfo).port];
+                        }
+                    };
                 }
                 if (id === './versionManager') { return { ensureBoxLangVersion: async () => '/mock/runtime.jar' }; }
+                if (id === './Java') { return { validateConfiguredJavaHome: () => true }; }
                 if (['./CommandBox', './ModuleManager'].includes(id)) { return {}; }
             }
             return originalRequire.apply(this, arguments);
@@ -171,8 +177,7 @@ suite('LanguageServer with the real language client', () => {
         sinon.stub(config, 'boxlangLSPBoxLangHome').get(() => path.join(tempDir, 'home'));
         sinon.stub(config, 'boxlangLSPModules').get(() => '');
         const moduleDir = path.join(tempDir, 'lspVersions', 'bx-lsp@1.9.0+8', 'bx-lsp');
-        await fs.mkdir(moduleDir, { recursive: true });
-        await fs.writeFile(path.join(moduleDir, 'box.json'), '{}');
+        await createLSPInstallation(path.dirname(moduleDir));
         initialize = async () => ({ capabilities: {} });
         await lsp.startLSP();
         const initialChannels = channels.size;

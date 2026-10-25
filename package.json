@@ -2,7 +2,7 @@
     "name": "vscode-boxlang",
     "displayName": "BoxLang",
     "description": "BoxLang Language Support",
-    "version": "1.27.2",
+    "version": "1.31.5",
     "preview": false,
     "author": "ortus-solutions",
     "publisher": "ortus-solutions",
@@ -59,6 +59,72 @@
                             "description": "Summary of the problem the user is trying to solve which may require looking up documentation"
                         }
                     }
+                }
+            },
+            {
+                "name": "boxlang-tools_executeREPL",
+                "tags": [
+                    "boxlang"
+                ],
+                "toolReferenceName": "executeBoxLangREPL",
+                "displayName": "Execute BoxLang REPL Code",
+                "modelDescription": "Execute BoxLang script in the workspace's persistent scratch REPL session. Starts the session with user approval if needed. Shares state with the interactive panel and editor commands. Code is not sandboxed; it can modify files or access the network. Never reset state automatically. Execution times out after 30 seconds and discards state. Runtime errors can leave partial mutations. Results include output, executionId, and a bounded return-value preview, not all variables. Use inspectBoxLangREPL with executionId to explore an expandable return value.",
+                "userDescription": "Run code in the shared BoxLang REPL session with approval",
+                "canBeReferencedInPrompt": true,
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1000000,
+                            "description": "BoxLang script to execute in the persistent session"
+                        }
+                    },
+                    "required": [
+                        "code"
+                    ],
+                    "additionalProperties": false
+                }
+            },
+            {
+                "name": "boxlang-tools_inspectREPL",
+                "tags": [
+                    "boxlang"
+                ],
+                "toolReferenceName": "inspectBoxLangREPL",
+                "displayName": "Inspect BoxLang REPL State",
+                "modelDescription": "Inspect the existing shared BoxLang REPL without evaluating expressions or user getters. Scope defaults to variables; server and request are also available. Alternatively use executionId to inspect a returned value from an execution. Supply path segments to expand structs, arrays, query rows, BoxLang object scopes, or public Java instance fields. Array/query indices are 1-based strings. Results expire after 100 executions or session restart. Returns at most 100 children and 2 KB scalar previews. Requires approval because values may contain secrets. Does not start or reset a session.",
+                "userDescription": "Share selected REPL variable names and values with Copilot",
+                "canBeReferencedInPrompt": true,
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "array",
+                            "maxItems": 20,
+                            "items": {
+                                "type": "string",
+                                "maxLength": 2048
+                            },
+                            "description": "Member path within the scope or result, e.g. [\"users\", \"1\", \"name\"]"
+                        },
+                        "scope": {
+                            "type": "string",
+                            "enum": [
+                                "variables",
+                                "server",
+                                "request"
+                            ],
+                            "description": "Scope to inspect (default variables); do not combine with executionId"
+                        },
+                        "executionId": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Execution result to inspect instead of a scope; do not combine with scope"
+                        }
+                    },
+                    "additionalProperties": false
                 }
             }
         ],
@@ -279,7 +345,7 @@
                 },
                 "boxlang.java.javaHome": {
                     "type": "string",
-                    "description": "The path to the JVM you want to use. Must be Java 21 or higher. If not set it will use java. Use multiple backslashes on Windows i.e. C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-21.0.2.13-hotspot",
+                    "description": "The path to the JDK root directory (Java 21 or higher), not its bin directory or the java executable. The extension appends bin/java (bin/java.exe on Windows). For example: /usr/lib/jvm/temurin-21-jdk-amd64 or C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-21.0.2.13-hotspot. With Remote SSH, WSL, or containers, this path must exist on the remote host. If unset, the extension uses its managed Java installation, then JAVA_HOME or java on PATH.",
                     "scope": "machine"
                 },
                 "boxlang.jarpath": {
@@ -950,6 +1016,32 @@
                 "title": "BoxLang: Run REPL"
             },
             {
+                "command": "boxlang.openREPLSession",
+                "title": "BoxLang: Open REPL Session (POC)",
+                "icon": "$(terminal)"
+            },
+            {
+                "command": "boxlang.refreshREPLVariables",
+                "title": "BoxLang: Refresh REPL Variables",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "boxlang.copyREPLValue",
+                "title": "Copy Value Preview"
+            },
+            {
+                "command": "boxlang.copyREPLPath",
+                "title": "Copy Inspection Path"
+            },
+            {
+                "command": "boxlang.runSelectionInREPLSession",
+                "title": "BoxLang: Run Selection in REPL Session"
+            },
+            {
+                "command": "boxlang.runFileInREPLSession",
+                "title": "BoxLang: Run File in REPL Session"
+            },
+            {
                 "command": "boxlang.hardResetWorkspaceHome",
                 "title": "BoxLang: Hard Reset Workspace Home"
             },
@@ -1194,6 +1286,10 @@
         },
         "viewsWelcome": [
             {
+                "view": "boxlang-repl-variables",
+                "contents": "Inspect the shared BoxLang REPL session here. Run code to populate the variables scope.\n[Open REPL Session](command:boxlang.openREPLSession)"
+            },
+            {
                 "view": "boxlang-servers",
                 "contents": "BoxLang MiniServers are a quick and easy way to run BoxLang code. They are light enough to for simple tests and powerfull enough for local app development.\n[Create MiniServer](command:boxlang.addServer)\nIf you are interested, [read the docs](https://boxlang.ortusbooks.com/getting-started/running-boxlang/miniserver) for more info."
             },
@@ -1204,6 +1300,11 @@
         ],
         "views": {
             "boxlang": [
+                {
+                    "id": "boxlang-repl-variables",
+                    "name": "REPL Variables",
+                    "type": "tree"
+                },
                 {
                     "id": "boxlang-servers",
                     "name": "BoxLang Servers",
@@ -1224,6 +1325,16 @@
         "menus": {
             "view/title": [
                 {
+                    "command": "boxlang.openREPLSession",
+                    "when": "view == boxlang-repl-variables",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "boxlang.refreshREPLVariables",
+                    "when": "view == boxlang-repl-variables",
+                    "group": "navigation@2"
+                },
+                {
                     "command": "boxlang.addServer",
                     "when": "view == boxlang-servers",
                     "group": "navigation"
@@ -1235,6 +1346,16 @@
                 }
             ],
             "view/item/context": [
+                {
+                    "command": "boxlang.copyREPLValue",
+                    "when": "view == boxlang-repl-variables && viewItem == boxlangREPLVariable",
+                    "group": "copy@1"
+                },
+                {
+                    "command": "boxlang.copyREPLPath",
+                    "when": "view == boxlang-repl-variables && viewItem == boxlangREPLVariable",
+                    "group": "copy@2"
+                },
                 {
                     "command": "boxlang.stopServer",
                     "when": "viewItem == boxlangServerRunningContext",
@@ -1325,6 +1446,16 @@
             ],
             "editor/context": [
                 {
+                    "command": "boxlang.runSelectionInREPLSession",
+                    "when": "editorLangId == boxlang && resourceExtname != .bxm && editorHasSelection && isWorkspaceTrusted",
+                    "group": "boxlang.repl@1"
+                },
+                {
+                    "command": "boxlang.runFileInREPLSession",
+                    "when": "editorLangId == boxlang && resourceExtname != .bxm && isWorkspaceTrusted",
+                    "group": "boxlang.repl@2"
+                },
+                {
                     "command": "boxlang.runFile",
                     "when": "resourceLangId == boxlang || resourceLangId == cfml"
                 },
@@ -1342,6 +1473,14 @@
                 }
             ],
             "commandPalette": [
+                {
+                    "command": "boxlang.copyREPLValue",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.copyREPLPath",
+                    "when": "false"
+                },
                 {
                     "command": "boxlang.runServerFromLocation",
                     "when": "false"
@@ -1497,6 +1636,8 @@
         "lint": "tslint -p tsconfig.json -t verbose",
         "test": "npm run build && node out/test/runTestSimple.js",
         "test:unit": "npm run build && node out/test/runUnitTests.js",
+        "test:repl": "npm run build && node out/test/replBridgeSmoke.js",
+        "test:repl-ui": "npm run build && node out/test/replPanelSmoke.js",
         "vscode:prepublish": "webpack --mode production --devtool hidden-source-map &&  npm run build"
     },
     "dependencies": {

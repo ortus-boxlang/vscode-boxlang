@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+- BLIDE-345 S3 Timeout Bug
+  - Increase S3 listing timeouts to 30 seconds and retry once, logging the request URL and attempt count.
+  - Use stale cached runtime versions when S3 is unavailable and resolve installed runtimes without network discovery.
+- BLIDE-344 Improved LSP and Debugger Setting Management
+- BLIDE-343 Improve Java home setting
+
+## [1.30.3] - 2026-10-12
+
+## [1.30.2] - 2026-10-12
+
+- BLIDE-342 Problem installing and starting MiniServer
+  - Reinstall missing MiniServer JARs and update the configured path after storage is deleted.
+  - Ignore files when scanning BoxLang module directories to prevent `box.json/box.json` setup errors.
+
+## [1.30.1] - 2026-10-09
+
+- BLIDE-341 Improve LSP install stability
+- BLIDE-340 Add repl with active debug session
+
+## [1.28.1] - 2026-10-02
+
 - BLIDE-334 Change pre-release to auto update to snapshot of LSP and Debugger
 - BLIDE-335 Combine runtime and miniserver updates
 - BLIDE-335 Make updates automatic and silent
@@ -345,7 +366,11 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.26.1...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.3...HEAD
+[1.30.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.2...v1.30.3
+[1.30.2]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.1...v1.30.2
+[1.30.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.28.1...v1.30.1
+[1.28.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.26.1...v1.28.1
 [1.26.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.24.1...v1.26.1
 [1.24.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.22.3...v1.24.1
 [1.22.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.22.2...v1.22.3

@@ -147,7 +147,9 @@ export class ModulesDirectoryTreeItem extends BLServerHomeTreeItem {
 
 
         this.modules = dirs.map(dir => {
-            return fs.readdirSync(dir)
+            return fs.readdirSync(dir, { withFileTypes: true })
+                .filter(entry => entry.isDirectory())
+                .map(entry => entry.name)
                 .map(file => {
                     try{
                         return new ModuleTreeItem(this, path.join(dir, file));

@@ -24,6 +24,7 @@ suite('Java installation recovery', () => {
         configuredHome = undefined;
         sinon.stub(vscode.workspace, 'getConfiguration').callsFake(() => ({ get: () => configuredHome }));
         sinon.stub(axios, 'get').rejects(new Error('Download unavailable'));
+        sinon.stub(vscode.window, 'showErrorMessage').resolves(undefined);
 
         originalRequire = Module.prototype.require;
         originalJavaModule = require.cache[javaModulePath];
@@ -101,6 +102,49 @@ suite('Java installation recovery', () => {
         assert.strictEqual(download.callCount, 2, 'second setup must not download again');
     });
 
+    for (const binDirectory of [false, true]) {
+        test(`notifies when the configured Java home ${binDirectory ? 'points to bin' : 'does not exist'}`, async () => {
+            const home = path.join(tempDir, 'custom-jdk');
+            const binary = process.platform === 'win32' ? 'java.exe' : 'java';
+            if (binDirectory) {
+                await fs.mkdir(path.join(home, 'bin'), { recursive: true });
+                await fs.writeFile(path.join(home, 'bin', binary), 'Java', { mode: 0o755 });
+            }
+            configuredHome = binDirectory ? path.join(home, 'bin') : home;
+
+            await java.setupLocalJavaInstall({ globalStorageUri: { fsPath: tempDir } } as any);
+
+            const notification = vscode.window.showErrorMessage as sinon.SinonStub;
+            assert.strictEqual(notification.callCount, 1);
+            assert.ok(notification.firstCall.args[0].includes(path.join(configuredHome, 'bin', binary)));
+            assert.ok(notification.firstCall.args[0].includes('JDK root directory'));
+            assert.strictEqual(configuredHome, binDirectory ? path.join(home, 'bin') : home);
+            assert.strictEqual((axios.get as sinon.SinonStub).called, false);
+        });
+    }
+
+    test('Open Settings targets Java home and repeated validation does not duplicate notifications', async () => {
+        configuredHome = path.join(tempDir, 'missing-jdk');
+        const notification = vscode.window.showErrorMessage as sinon.SinonStub;
+        notification.resolves('Open Settings');
+        const openSettings = sinon.stub(vscode.commands, 'executeCommand').resolves();
+
+        assert.strictEqual(java.validateConfiguredJavaHome(), false);
+        assert.strictEqual(java.validateConfiguredJavaHome(), false);
+        await new Promise(resolve => setImmediate(resolve));
+
+        assert.strictEqual(notification.callCount, 1);
+        assert.strictEqual(notification.firstCall.args[1], 'Open Settings');
+        assert.ok(openSettings.calledOnceWithExactly('workbench.action.openSettings', 'boxlang.java.javaHome'));
+
+        configuredHome = undefined;
+        assert.strictEqual(java.validateConfiguredJavaHome(), true);
+        configuredHome = path.join(tempDir, 'missing-jdk');
+        assert.strictEqual(java.validateConfiguredJavaHome(), false);
+        assert.strictEqual(notification.callCount, 2);
+        await new Promise(resolve => setImmediate(resolve));
+    });
+
     test('preserves the nested installation selected by Download Java', async () => {
         configuredHome = path.join(tempDir, 'java_install', 'jdk-21');
         const executable = path.join(configuredHome, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
@@ -111,5 +155,6 @@ suite('Java installation recovery', () => {
 
         assert.strictEqual(await fs.readFile(executable, 'utf8'), 'existing Java installation');
         assert.strictEqual(ExtensionConfig.boxlangJavaExecutable, executable);
+        assert.strictEqual((vscode.window.showErrorMessage as sinon.SinonStub).called, false);
     });
 });

@@ -10,10 +10,10 @@
             "request": "launch",
             "name": "Run JS File",
             "skipFiles": [
-              "<node_internals>/**"
+                "<node_internals>/**"
             ],
             "program": "${file}"
-          },
+        },
         {
             "name": "Launch Extension",
             "type": "extensionHost",

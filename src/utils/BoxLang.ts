@@ -10,6 +10,7 @@ import { ensureConfiguredDebuggerModule } from "./DebuggerManager";
 import { trackedSpawn } from "./ProcessTracker";
 import { BoxServerConfig, trackServerStart, trackServerStop } from "./Server";
 import { getConfiguredBoxLangJarPath } from "./versionManager";
+import { findInstalledLSPBuild } from "./SharedLSPUpdates";
 
 // Avoid a hard dependency on type declarations for yauzl
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -502,12 +503,11 @@ export class BoxLangWithHome {
             }
 
             const context = getExtensionContext();
-            const lspModulesDir = path.join(context.globalStorageUri.fsPath, "lspVersions", lspVersionSpec);
-            const requiredBoxJson = path.join(lspModulesDir, "bx-lsp", "box.json");
-
-            if (!fs.existsSync(requiredBoxJson)) {
-                return `LSP module not found at expected location: ${requiredBoxJson}`;
+            const build = await findInstalledLSPBuild(context.globalStorageUri.fsPath, lspVersionSpec);
+            if (!build) {
+                return `No complete LSP installation found for ${lspVersionSpec}. Restart the LSP to reinstall it.`;
             }
+            const lspModulesDir = path.join(context.globalStorageUri.fsPath, build.relativePath);
 
             const javaExecutable = ExtensionConfig.boxlangJavaExecutable;
             const runtimeJarPath = await getConfiguredBoxLangJarPath();
@@ -541,7 +541,7 @@ export class BoxLangWithHome {
                 return res.stderr || res.stdout || `Failed to retrieve LSP version (exit ${res.code}).`;
             }
 
-            return res.stdout;
+            return `Module directory: ${lspModulesDir}\n${res.stdout}`;
         } catch (e: any) {
             return `Error retrieving LSP version info: ${e?.message || e}`;
         }

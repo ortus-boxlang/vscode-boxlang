@@ -1,4 +1,8 @@
 import * as assert from 'assert';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
+import { createLSPInstallation } from '../mocks/lspInstallation';
 import { EventEmitter } from 'events';
 import * as sinon from 'sinon';
 
@@ -264,6 +268,32 @@ suite('BoxLang Process Test Suite', () => {
         const result = await promise;
         assert.strictEqual(result[0], lastMockProcess);
         assert.strictEqual(result[1], '9090');
+    });
+
+    test('LSP version output resolves the shared build directory instead of the legacy cache', async () => {
+        const storagePath = await fs.mkdtemp(path.join(os.tmpdir(), 'boxlang-version-info-'));
+        try {
+            const { installLSPBuild } = require('../../utils/SharedLSPUpdates');
+            const versionSpec = 'bx-lsp@1.15.0+14';
+            const build = await installLSPBuild(storagePath, versionSpec, {}, createLSPInstallation);
+            sinon.stub(require('../../context'), 'getExtensionContext').returns({ globalStorageUri: { fsPath: storagePath } });
+            sinon.stub(ExtensionConfig, 'boxlangLSPVersion').get(() => versionSpec);
+            sinon.stub(require('../../utils/versionManager'), 'getConfiguredBoxLangJarPath').resolves('/mock/runtime.jar');
+            const output = new BoxLangWithHome('/mock/home').getLSPVersionOutput();
+            // Wait for cache resolution and the mocked child process to spawn.
+            for (let attempt = 0; attempt < 1000 && lastSpawnArgs[2] !== 'version'; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 1));
+            }
+            assert.strictEqual(lastSpawnArgs[2], 'version', 'version-info process should spawn');
+            lastMockProcess.stdout.emit('data', 'Ortus BoxLang Language Server v1.15.0+14');
+            lastMockProcess.emit('exit', 0);
+            const result = await output;
+            assert.ok(result.includes(path.join(storagePath, build.relativePath)));
+            assert.ok(result.includes('v1.15.0+14'));
+            assert.strictEqual(lastSpawnOptions.env.BOXLANG_MODULESDIRECTORY, path.join(storagePath, build.relativePath));
+        } finally {
+            await fs.rm(storagePath, { recursive: true, force: true });
+        }
     });
 
     test('BoxLangWithHome.startDebugger launches the configured debugger module', async () => {

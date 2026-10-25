@@ -33,7 +33,7 @@ Module.prototype.require = function (id: string) {
 // Now safe to require modules that transitively load Java.ts
 const fileUtil = require('../../utils/fileUtil');
 const { ExtensionConfig } = require('../../utils/Configuration');
-const { setupVersionManagement, ensureBoxLangVersion } = require('../../utils/versionManager');
+const { setupVersionManagement, ensureBoxLangVersion, getAvailableBoxLangVerions, getConfiguredBoxLangJarPath } = require('../../utils/versionManager');
 const { PENDING_RUNTIME_REFRESH_KEY } = require('../../utils/versionUpdateState');
 
 suite('versionManager Test Suite', () => {
@@ -68,6 +68,72 @@ suite('versionManager Test Suite', () => {
         if (fs.existsSync(testTempDir)) {
             fs.rmSync(testTempDir, { recursive: true, force: true, maxRetries: 3 });
         }
+    });
+
+    test('cached available versions restore dates and preserve S3 identity', async () => {
+        const lastModified = '2026-10-12T00:00:00.000Z';
+        fs.writeFileSync(path.join(testTempDir, 'boxlang_version_cache.json'), JSON.stringify([{
+            name: 'boxlang-1.18.0', url: 'https://example.com/runtime.jar', lastModified, etag: 'runtime-etag'
+        }]));
+        const fetch = sinon.stub(DownloadManager, 'listS3BoxLangVersions');
+
+        const [version] = await getAvailableBoxLangVerions();
+
+        assert.ok(version.lastModified instanceof Date);
+        assert.strictEqual(version.lastModified.toISOString(), lastModified);
+        assert.strictEqual(version.etag, 'runtime-etag');
+        assert.strictEqual(fetch.called, false);
+    });
+
+    for (const force of [false, true]) {
+        test(`S3 failure uses stale cached versions (force=${force}) without refreshing cache age`, async () => {
+            const cachePath = path.join(testTempDir, 'boxlang_version_cache.json');
+            fs.writeFileSync(cachePath, JSON.stringify([{
+                name: 'boxlang-1.18.0', url: 'https://example.com/runtime.jar', lastModified: '2026-10-12T00:00:00Z', etag: 'cached-etag'
+            }]));
+            const expired = new Date(Date.now() - 60 * 60 * 1000);
+            fs.utimesSync(cachePath, expired, expired);
+            const originalMtime = fs.statSync(cachePath).mtimeMs;
+            const fetch = sinon.stub(DownloadManager, 'listS3BoxLangVersions').rejects(new Error('S3 timeout'));
+
+            const [version] = await getAvailableBoxLangVerions(force);
+
+            assert.strictEqual(version.name, 'boxlang-1.18.0');
+            assert.strictEqual(version.lastModified.toISOString(), '2026-10-12T00:00:00.000Z');
+            assert.strictEqual(version.etag, 'cached-etag');
+            assert.strictEqual(fetch.callCount, 1);
+            assert.strictEqual(fs.statSync(cachePath).mtimeMs, originalMtime);
+        });
+    }
+
+    test('S3 failure without a usable cache still rejects', async () => {
+        fs.writeFileSync(path.join(testTempDir, 'boxlang_version_cache.json'), 'invalid JSON');
+        sinon.stub(DownloadManager, 'listS3BoxLangVersions').rejects(new Error('S3 timeout'));
+
+        await assert.rejects(getAvailableBoxLangVerions(), /S3 timeout/);
+    });
+
+    test('configured installed runtime does not need S3 discovery', async () => {
+        const versionDir = path.join(testTempDir, 'boxlang_versions', 'boxlang-1.18.0');
+        fs.mkdirSync(versionDir, { recursive: true });
+        const jarPath = path.join(versionDir, 'boxlang-1.18.0.jar');
+        fs.writeFileSync(jarPath, 'installed runtime');
+        fs.writeFileSync(path.join(versionDir, 'version.json'), JSON.stringify({ name: 'boxlang-1.18.0' }));
+        sinon.stub(ExtensionConfig, 'boxlangJarPath').get(() => undefined);
+        sinon.stub(ExtensionConfig, 'boxlangVersion').get(() => '1.18.0');
+        const fetch = sinon.stub(DownloadManager, 'listS3BoxLangVersions').rejects(new Error('S3 timeout'));
+
+        assert.strictEqual(await getConfiguredBoxLangJarPath(), jarPath);
+        assert.strictEqual(fetch.called, false);
+    });
+
+    test('configured runtime discovery failure falls back to the bundled jar', async () => {
+        sinon.stub(ExtensionConfig, 'boxlangJarPath').get(() => undefined);
+        sinon.stub(ExtensionConfig, 'boxlangVersion').get(() => '1.18.0');
+        sinon.stub(ExtensionConfig, 'includedBoxLangJarPath').get(() => '/bundled/boxlang.jar');
+        sinon.stub(DownloadManager, 'listS3BoxLangVersions').rejects(new Error('S3 timeout'));
+
+        assert.strictEqual(await getConfiguredBoxLangJarPath(), '/bundled/boxlang.jar');
     });
 
     suite('ensureBoxLangVersion', () => {

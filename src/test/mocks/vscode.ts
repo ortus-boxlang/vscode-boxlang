@@ -27,7 +27,7 @@ class MockCancellationTokenSource {
 }
 
 class MockTreeItem {
-    constructor(label?: string, collapsibleState?: any) {}
+    constructor(public label?: string, public collapsibleState?: any) {}
 }
 
 class MockCompletionItem {
@@ -74,6 +74,7 @@ const mockVSCode = {
     EventEmitter: MockEventEmitter,
     CancellationTokenSource: MockCancellationTokenSource,
     TreeItem: MockTreeItem,
+    ThemeIcon: class { constructor(public id: string) {} },
     TreeItemCollapsibleState: {
         Collapsed: 1,
         Expanded: 2,
@@ -91,6 +92,9 @@ const mockVSCode = {
     },
     TaskPanelKind: {
         Dedicated: 2
+    },
+    commands: {
+        executeCommand: async (_command: string, ..._args: any[]) => undefined
     },
     tasks: {
         executeTask: async (task: any) => ({ task, terminate: () => {} })

@@ -5,9 +5,11 @@ import path from "path";
 import * as vscode from "vscode";
 import { CloseAction, ErrorAction, LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { getExtensionContext } from "../context";
+import { setLSPStatus } from "../features/statusBar";
 import { startLSPProcess } from "./BoxLang";
 import { ExtensionConfig } from "./Configuration";
 import { ForgeBoxClient } from "./ForgeBoxClient";
+import { validateConfiguredJavaHome } from "./Java";
 import { ModuleManager } from "./ModuleManager";
 import { boxlangOutputChannel } from "./OutputChannels";
 import { ensureBoxLangVersion } from "./versionManager";
@@ -424,6 +426,7 @@ export function shutdown(reason = "unspecified"): Promise<void> {
 }
 
 export async function stop() {
+    setLSPStatus("Stopped");
     cancelStartingClient();
     if (!client) {
         const processToStop = lspProcess;
@@ -742,6 +745,11 @@ async function startLSPNow(startRequestId: number, reason: string): Promise<Lang
     }
 
     const nextIsUsingExternalLSP = Boolean(process.env.BOXLANG_LSP_PORT);
+    if (!nextIsUsingExternalLSP && !validateConfiguredJavaHome()) {
+        logLanguageServer("startLSP() skipped: configured Java binary is missing");
+        setLSPStatus("Failed");
+        return undefined;
+    }
     isUsingExternalLSP = nextIsUsingExternalLSP;
     const startAttemptId = ++lspStartAttempt;
     logLanguageServer(
@@ -818,6 +826,7 @@ async function startLSPNow(startRequestId: number, reason: string): Promise<Lang
                 return { action: CloseAction.DoNotRestart, handled: true };
             }
 
+            if (client === nextClient) setLSPStatus("Failed");
             const proc = nextIsUsingExternalLSP ? undefined : managedClientProcesses.get(nextClient) ?? lspProcess;
             const exitCode = proc?.exitCode;
             const signalCode = proc?.signalCode;
@@ -891,6 +900,7 @@ async function startLSPNow(startRequestId: number, reason: string): Promise<Lang
 
     clientStartControllers.set(nextClient, startupCancellation);
     client = nextClient;
+    setLSPStatus("Starting");
     void updateAdvertisedServerCommands();
 
     const onDidChangeState = (nextClient as LanguageClient & {
@@ -914,6 +924,7 @@ async function startLSPNow(startRequestId: number, reason: string): Promise<Lang
             }
 
             await updateAdvertisedServerCommands(nextClient);
+            setLSPStatus("Connected");
             logLanguageServer(`client.start() resolved attempt=${startAttemptId}`);
 
             try {
@@ -931,6 +942,7 @@ async function startLSPNow(startRequestId: number, reason: string): Promise<Lang
             // Pre-connection failures never reach the library's close cleanup.
             nextClient.diagnostics?.dispose();
             if (client === nextClient) {
+                setLSPStatus("Failed");
                 client = undefined;
                 if (lspProcess === processToStop) {
                     lspProcess = null;
@@ -1171,6 +1183,7 @@ async function ensureLSPModule() {
 
     const installed = !pending ? await findInstalledLSPBuild(storagePath, lspVersion) : undefined;
     if (installed) return path.join(storagePath, installed.relativePath);
+    logLanguageServer(`Installing ${lspVersion}: ${pending ? "refresh requested" : "no complete cached installation found (missing or incomplete); reinstalling"}`);
     const binaryHash = pending?.binaryHash || await getLSPBinaryHash(lspVersion);
     const build = await installLSPBuild(storagePath, lspVersion, {
         forceRefresh: pending?.forceRefresh,

@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import { createLSPInstallation } from '../mocks/lspInstallation';
 import { EventEmitter } from 'events';
 import * as fs from 'fs/promises';
 import * as net from 'net';
@@ -16,6 +17,8 @@ let fakeLspPort = 0;
 let lspStartError: Error | undefined;
 let beforeLspBanner: ((signal?: AbortSignal) => Promise<void>) | undefined;
 let lspInstallCalls = 0;
+let validJavaHome = true;
+let javaValidationCalls = 0;
 let startedModulePath: string | undefined;
 const contextState = new Map<string, unknown>();
 
@@ -130,7 +133,10 @@ Module.prototype.require = function (id: string) {
     const fromLanguageServer = /[\\/]utils[\\/]LanguageServer\./.test(requester);
 
     if (id.endsWith('/Java') || id.endsWith('\\Java') || id === './Java') {
-        return { getJavaInstallDir: () => '/mock/java' };
+        return {
+            getJavaInstallDir: () => '/mock/java',
+            validateConfiguredJavaHome: () => { javaValidationCalls++; return validJavaHome; }
+        };
     }
     if (id === 'vscode-languageclient/node') {
         return {
@@ -160,9 +166,7 @@ Module.prototype.require = function (id: string) {
             ModuleManager: class {
                 async installModuleToDir(_versionSpec: string, directory: string) {
                     lspInstallCalls++;
-                    const moduleDir = path.join(directory, 'bx-lsp');
-                    await fs.mkdir(moduleDir, { recursive: true });
-                    await fs.writeFile(path.join(moduleDir, 'box.json'), '{}');
+                    await createLSPInstallation(directory);
                 }
             }
         };
@@ -217,8 +221,7 @@ suite('LanguageServer Test Suite', () => {
         const lspModuleDir = path.join(globalStoragePath, 'lspVersions', versionSpec, 'bx-lsp');
         const lspHome = path.join(tempDir, 'lsp-home');
 
-        await fs.mkdir(lspModuleDir, { recursive: true });
-        await fs.writeFile(path.join(lspModuleDir, 'box.json'), JSON.stringify({ boxlang: { minimumVersion: '1.13.0-snapshot' } }));
+        await createLSPInstallation(path.dirname(lspModuleDir), JSON.stringify({ boxlang: { minimumVersion: '1.13.0-snapshot' } }));
 
         mockExtensionContext = {
             extension: { packageJSON: { version: '1.28.0' } },
@@ -254,6 +257,8 @@ suite('LanguageServer Test Suite', () => {
     setup(() => {
         contextState.clear();
         lspInstallCalls = 0;
+        validJavaHome = true;
+        javaValidationCalls = 0;
         MockLanguageClient.instances.length = 0;
         lspStartError = undefined;
         beforeLspBanner = undefined;
@@ -312,17 +317,55 @@ suite('LanguageServer Test Suite', () => {
         );
     });
 
+    test('invalid Java skips startup and a corrected setting starts on restart', async () => {
+        await setupManagedLspEnvironment();
+        validJavaHome = false;
+
+        assert.strictEqual(await startLSP(), undefined);
+        assert.strictEqual(MockLanguageClient.instances.length, 0);
+        assert.strictEqual(lspInstallCalls, 0);
+
+        validJavaHome = true;
+        await requestRestart('configuration change: boxlang.java.javaHome', 0);
+
+        assert.strictEqual(javaValidationCalls, 2);
+        assert.strictEqual(MockLanguageClient.instances.length, 1);
+        assert.strictEqual(MockLanguageClient.instances[0].state, 2);
+    });
+
     test('startLSP uses the completed shared build without reinstalling the module', async () => {
         const { installLSPBuild, publishLSPUpdate } = require('../../utils/SharedLSPUpdates');
         const { globalStoragePath } = await setupManagedLspEnvironment();
         const build = await installLSPBuild(globalStoragePath, 'bx-lsp@1.9.0+8', { binaryHash: 'shared-build', forceRefresh: true }, async directory => {
-            await fs.mkdir(path.join(directory, 'bx-lsp'), { recursive: true });
-            await fs.writeFile(path.join(directory, 'bx-lsp', 'box.json'), '{}');
+            await createLSPInstallation(directory);
         });
         await publishLSPUpdate(globalStoragePath, 'stable', build, 'now');
         await startLSP();
         assert.strictEqual(startedModulePath, path.join(globalStoragePath, build.relativePath));
         assert.strictEqual(lspInstallCalls, 0);
+    });
+
+    test('status reflects initialization, connection, shutdown, and startup failure', async () => {
+        await setupManagedLspEnvironment();
+        const status = sinon.spy(require('../../features/statusBar'), 'setLSPStatus');
+        await startLSP();
+        assert.ok(status.calledWith('Starting'));
+        assert.strictEqual(status.lastCall.args[0], 'Connected');
+        await stop();
+        assert.strictEqual(status.lastCall.args[0], 'Stopped');
+        lspStartError = new Error('Startup failed');
+        await assert.rejects(startLSP(), /Startup failed/);
+        assert.strictEqual(status.lastCall.args[0], 'Failed');
+    });
+
+    test('startup reinstalls an incomplete cache before launching', async () => {
+        const { globalStoragePath } = await setupManagedLspEnvironment();
+        const brokenModule = path.join(globalStoragePath, 'lspVersions', 'bx-lsp@1.9.0+8', 'bx-lsp');
+        await fs.rm(path.join(brokenModule, 'libs'), { recursive: true });
+        await startLSP();
+        assert.strictEqual(lspInstallCalls, 1);
+        assert.ok(startedModulePath.includes('lspBuilds'));
+        await fs.access(path.join(startedModulePath, 'bx-lsp', 'libs', 'bx-lsp-test.jar'));
     });
 
     test('startLSP refreshes a cached module when a newer ForgeBox updateDate is pending', async () => {
@@ -701,9 +744,11 @@ suite('LanguageServer Test Suite', () => {
         const port = (lspServer.address() as net.AddressInfo).port;
 
         process.env.BOXLANG_LSP_PORT = String(port);
+        validJavaHome = false;
 
         await startLSP();
         await MockLanguageClient.instances[0].startPromise;
+        assert.strictEqual(javaValidationCalls, 0);
 
         const errorHandler = MockLanguageClient.instances[0].clientOptions?.errorHandler;
 

@@ -5,7 +5,7 @@ import axios from "axios";
 import extract from "extract-zip";
 import fs from "fs";
 import fsp from "fs/promises";
-import { findJavaHome } from "./JavaHomeFinder";
+import { findJavaHome, isValidJavaHome } from "./JavaHomeFinder";
 import path from "path";
 import * as tar from "tar";
 import vscode, { ExtensionContext, ProgressLocation } from "vscode";
@@ -13,6 +13,7 @@ import * as LSP from "../utils/LanguageServer";
 
 let javaIsOkay = null;
 let JAVA_INSTALL_DIR = null;
+let notifiedInvalidJavaHome: string | undefined;
 
 // pulled from https://api.adoptium.net/v3/types/operating_systems
 const osMap = {
@@ -88,10 +89,33 @@ export function detectJavaVerison(refresh = false) {
     });
 }
 
+export function validateConfiguredJavaHome(): boolean {
+    const configuredHome = vscode.workspace.getConfiguration("boxlang.java").get<string>("javaHome");
+    if (!configuredHome || isValidJavaHome(configuredHome)) {
+        notifiedInvalidJavaHome = undefined;
+        return true;
+    }
+
+    // Setup and LSP startup both validate; notify only once for the same invalid path.
+    if (notifiedInvalidJavaHome !== configuredHome) {
+        notifiedInvalidJavaHome = configuredHome;
+        const message = `BoxLang: Unable to find the Java binary at "${ExtensionConfig.boxlangJavaExecutable}". Set boxlang.java.javaHome to the JDK root directory, not its bin directory or the Java executable.`;
+        boxlangOutputChannel.appendLine(message);
+        void vscode.window.showErrorMessage(message, "Open Settings").then(action => {
+            if (action === "Open Settings") {
+                return vscode.commands.executeCommand("workbench.action.openSettings", "boxlang.java.javaHome");
+            }
+            return undefined;
+        }).then(undefined, error => boxlangOutputChannel.appendLine(`BoxLang: Unable to open Java settings: ${error}`));
+    }
+    return false;
+}
+
 export async function setupLocalJavaInstall(context: ExtensionContext) {
     // Download Java may select a nested JDK inside java_install. Do not erase
     // an explicitly configured installation while repairing the managed one.
     if (vscode.workspace.getConfiguration("boxlang.java").get<string>("javaHome")) {
+        validateConfiguredJavaHome();
         return;
     }
 

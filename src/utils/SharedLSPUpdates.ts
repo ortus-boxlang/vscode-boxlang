@@ -72,10 +72,21 @@ export async function publishLSPUpdate(
     return update;
 }
 
+// ponytail: required files only; JVM startup still detects corrupt or incompatible binaries.
 async function validInstallation(directory: string): Promise<boolean> {
     try {
-        const boxJson = JSON.parse(await fs.readFile(path.join(directory, "bx-lsp", "box.json"), "utf8"));
-        return boxJson !== null && typeof boxJson === "object" && !Array.isArray(boxJson);
+        const modulePath = path.join(directory, "bx-lsp");
+        const boxJson = JSON.parse(await fs.readFile(path.join(modulePath, "box.json"), "utf8"));
+        if (!boxJson || typeof boxJson !== "object" || Array.isArray(boxJson)) return false;
+        const descriptor = await fs.stat(path.join(modulePath, "ModuleConfig.bx"));
+        if (!descriptor.isFile() || descriptor.size === 0) return false;
+        const libraries = await fs.readdir(path.join(modulePath, "libs"));
+        for (const library of libraries) {
+            if (!/^bx-lsp.*\.jar$/i.test(library)) continue;
+            const jar = await fs.stat(path.join(modulePath, "libs", library));
+            if (jar.isFile() && jar.size > 0) return true;
+        }
+        return false;
     } catch {
         return false;
     }
@@ -231,7 +242,7 @@ export async function installLSPBuild(
         const stagingDir = await fs.mkdtemp(path.join(parentDir, ".install-"));
         try {
             await download(stagingDir);
-            if (!await validInstallation(stagingDir)) throw new Error(`LSP installation is missing a valid bx-lsp/box.json: ${versionSpec}`);
+            if (!await validInstallation(stagingDir)) throw new Error(`LSP installation is incomplete: ${versionSpec}. Expected bx-lsp/box.json, ModuleConfig.bx, and a non-empty libs/bx-lsp*.jar.`);
             const build = { versionSpec, relativePath, binaryHash: metadata.binaryHash, updatedDate: metadata.updatedDate };
             await fs.writeFile(path.join(stagingDir, "version.json"), JSON.stringify({ ...build, installedAt: new Date().toISOString() }));
             await fs.rename(stagingDir, path.join(storagePath, relativePath));

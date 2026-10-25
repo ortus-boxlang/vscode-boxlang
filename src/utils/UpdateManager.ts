@@ -170,7 +170,7 @@ function getSelectedS3VersionTargets(
     }
 
     const runtimeCurrent = ExtensionConfig.boxlangVersion?.replace(/^boxlang-/, "");
-    const miniServerCurrent = /boxlang-miniserver-(.+)\.jar$/.exec(ExtensionConfig.boxlangMiniServerJarPath ?? "")?.[1];
+    const miniServerCurrent = /boxlang-miniserver-([^/\\]+)\.jar$/.exec(ExtensionConfig.boxlangMiniServerJarPath ?? "")?.[1];
     const runtimeTarget = targets.runtime.name.replace(/^boxlang-/, "");
     const miniServerTarget = targets.miniserver.version;
     const runtimeWouldDowngrade = !!runtimeCurrent && runtimeCurrent !== runtimeTarget && !isNewerVersion("runtime", runtimeTarget, runtimeCurrent);
@@ -217,7 +217,7 @@ async function getCachedVersionDir(component: Component, version: string): Promi
             break;
         case "miniserver": {
             const configuredJarPath = ExtensionConfig.boxlangMiniServerJarPath;
-            const configuredVersion = /boxlang-miniserver-(.+)\.jar$/.exec(configuredJarPath ?? "")?.[1];
+            const configuredVersion = /boxlang-miniserver-([^/\\]+)\.jar$/.exec(configuredJarPath ?? "")?.[1];
             versionDir = configuredVersion === version
                 ? path.dirname(configuredJarPath)
                 : path.join(context.globalStorageUri.fsPath, "miniserverVersions", `boxlang-miniserver-${version}`);
@@ -380,7 +380,7 @@ async function checkComponentUpdate(component: Component, force: boolean, getS3V
         const { current, latest } = updateInfo;
         const refresh = updateInfo.needsRefresh ?? false;
 
-        if (!isNewerVersion(component, latest, current) && !refresh) {
+        if (current && !isNewerVersion(component, latest, current) && !refresh) {
             boxlangOutputChannel.appendLine(`BoxLang UpdateManager: ${component} is up to date (${current})`);
             return;
         }
@@ -445,11 +445,8 @@ async function getLatestVersion(component: Component, getS3VersionLists: S3Versi
 
         case "miniserver": {
             const currentJar = ExtensionConfig.boxlangMiniServerJarPath;
-            const match = /boxlang-miniserver-(.+)\.jar$/.exec(currentJar ?? "");
+            const match = /boxlang-miniserver-([^/\\]+)\.jar$/.exec(currentJar ?? "");
             const current = match?.[1] ?? "";
-            if (!current) {
-                return null;
-            }
 
             const pairVersions = shouldPairRuntimeAndMiniServer();
             const lists = await getS3VersionLists(pairVersions, true);
@@ -458,10 +455,16 @@ async function getLatestVersion(component: Component, getS3VersionLists: S3Versi
                 return null;
             }
 
-            const versionDir = await getCachedVersionDir("miniserver", target.version);
-            const needsRefresh = versionDir
-                ? await isCachedVersionOutdated(versionDir, undefined, target.date.toISOString(), target.etag)
+            const jarExists = currentJar
+                ? await fs.stat(currentJar).then(stat => stat.isFile(), error => {
+                    if (error.code === "ENOENT") return false;
+                    throw error;
+                })
                 : false;
+            const versionDir = await getCachedVersionDir("miniserver", target.version);
+            const needsRefresh = !jarExists || (versionDir
+                ? await isCachedVersionOutdated(versionDir, undefined, target.date.toISOString(), target.etag)
+                : false);
             return { current, latest: target.version, lastModified: target.date, etag: target.etag, needsRefresh };
         }
 
