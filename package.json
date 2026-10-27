@@ -201,6 +201,15 @@
                     "**/*bxformat.json"
                 ],
                 "url": "./resources/schemas/bxformat.schema.json"
+            },
+            {
+                "fileMatch": [
+                    "miniserver.json",
+                    "*.miniserver.json",
+                    "**/miniserver.json",
+                    "**/*.miniserver.json"
+                ],
+                "url": "./resources/schemas/miniserver.schema.json"
             }
         ],
         "debuggers": [
@@ -1122,6 +1131,16 @@
                 "icon": "$(pencil)"
             },
             {
+                "command": "boxlang.openServerConfig",
+                "title": "Open MiniServer Configuration",
+                "icon": "$(json)"
+            },
+            {
+                "command": "boxlang.exportServerConfig",
+                "title": "Export Server to miniserver.json",
+                "icon": "$(export)"
+            },
+            {
                 "command": "boxlang.openServerInBrowser",
                 "title": "Open Browser",
                 "icon": "$(browser)"
@@ -1364,32 +1383,42 @@
                 },
                 {
                     "command": "boxlang.stopServer",
-                    "when": "viewItem == boxlangServerRunningContext",
+                    "when": "viewItem =~ /^boxlangServerRunningContext/",
                     "group": "inline"
                 },
                 {
                     "command": "boxlang.debugServer",
-                    "when": "viewItem == boxlangServerRunningContext",
+                    "when": "viewItem =~ /^boxlangServerRunningContext/",
                     "group": "inline"
                 },
                 {
                     "command": "boxlang.runConfiguredServer",
-                    "when": "viewItem == boxlangServerStoppedContext",
+                    "when": "viewItem =~ /^boxlangServerStoppedContext/",
                     "group": "inline"
                 },
                 {
                     "command": "boxlang.openServerInBrowser",
-                    "when": "viewItem == boxlangServerRunningContext",
+                    "when": "viewItem =~ /^boxlangServerRunningContext/",
                     "group": "inline"
                 },
                 {
                     "command": "boxlang.deleteServer",
-                    "when": "viewItem == boxlangServerStoppedContext",
+                    "when": "viewItem =~ /^boxlangServerStoppedContext/",
                     "group": "inline"
                 },
                 {
                     "command": "boxlang.editServerProperty",
-                    "when": "viewItem == boxlangServerStoppedContext || viewItem == editableBoxlangServerPropertyContext",
+                    "when": "viewItem =~ /^boxlangServerStoppedContext/ || viewItem == editableBoxlangServerPropertyContext",
+                    "group": "inline"
+                },
+                {
+                    "command": "boxlang.openServerConfig",
+                    "when": "viewItem =~ /^boxlangServer(Stopped|Running)Context\\.file$/",
+                    "group": "inline"
+                },
+                {
+                    "command": "boxlang.exportServerConfig",
+                    "when": "viewItem =~ /^boxlangServer(Stopped|Running)Context$/",
                     "group": "inline"
                 },
                 {
@@ -1493,6 +1522,14 @@
                 },
                 {
                     "command": "boxlang.editServerProperty",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.openServerConfig",
+                    "when": "false"
+                },
+                {
+                    "command": "boxlang.exportServerConfig",
                     "when": "false"
                 },
                 {

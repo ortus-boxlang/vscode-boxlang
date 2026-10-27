@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - BLIDE-106 add BoxLang snippets
+- BLIDE-265 Enable exporting of miniserver files to the project
 
 ## [1.32.1] - 2026-10-16
 

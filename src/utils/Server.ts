@@ -1,24 +1,27 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
+import { boxlangOutputChannel } from "./OutputChannels";
 
 
 const BOXLANG_SERVER_CONFIG = "boxlang_server.json";
+const MINISERVER_CONFIG_GLOB = "**/{miniserver.json,*.miniserver.json}"; // gets any miniserver.json despite app name
 const _onDidChangeServerConfiguration: vscode.EventEmitter<any> = new vscode.EventEmitter<any>();
 export const onDidChangeServerConfiguration: vscode.Event<any> = _onDidChangeServerConfiguration.event;
 let servers: Record<string, BoxServerConfig> = {};
 let context: vscode.ExtensionContext;
 
-export type BoxServerConfig = {
+export type BoxServerConfig = { //Sets the vars for the server config
     name: string,
     host: string,
-    port: Number,
+    port: number,
     debugging?: boolean,
-    debugPort?: Number,
+    debugPort?: number,
     directory: string,
     directoryAbsolute?: string,
     debugMode: boolean,
     configFile: string,
+    serverConfigFile?: string,
     rewrites?: string,
     status?: "running" | "stopped",
     type: "miniserver" | "remote"
@@ -42,7 +45,7 @@ export function getDebugServerPort(name: string) {
     return servers[name].debugPort;
 }
 
-export function trackServerStart(name: string, debugPort: Number) {
+export function trackServerStart(name: string, debugPort: number) {
     servers[name].status = "running";
     servers[name].debugPort = debugPort;
     _onDidChangeServerConfiguration.fire(servers);
@@ -54,39 +57,57 @@ export function trackServerStop(name) {
 }
 
 export function getServerData(name): BoxServerConfig | null {
+    if (!servers[name]) {
+        return null;
+    }
+
     const data = structuredClone(servers[name]);
 
     if (!data.directory) {
         data.directory = "./";
     }
 
-    data.directoryAbsolute = path.isAbsolute(data.directory)
-        ? data.directory
-        : path.resolve(vscode.workspace.workspaceFolders[0].uri.fsPath, data.directory);
+    data.directoryAbsolute = getAbsolutePath(data.directory);
 
     return data;
 }
 
 export function deleteServer(name) {
+    const serverConfigFile = servers[name]?.serverConfigFile;
     delete servers[name];
-    persistCurrentServerConfig();
+
+    if (serverConfigFile) {
+        if (fs.existsSync(serverConfigFile)) {
+            fs.unlinkSync(serverConfigFile);
+        }
+    }
+    else {
+        persistStoredServerConfigs();
+    }
+
     _onDidChangeServerConfiguration.fire(servers);
 }
 
-export function setupServers(con: vscode.ExtensionContext) {
+export async function setupServers(con: vscode.ExtensionContext): Promise<void> {
     context = con;
 
-    servers = getServerConfigs(context);
-    _onDidChangeServerConfiguration.fire(servers);
-
-    if (!fs.existsSync(con.storageUri.fsPath)) {
-        fs.mkdirSync(con.storageUri.fsPath);
+    if (!fs.existsSync(context.storageUri.fsPath)) {
+        fs.mkdirSync(context.storageUri.fsPath, { recursive: true });
     }
+
+    servers = getStoredServerConfigs();
+    await refreshServerConfigs();
+
+    const serverConfigWatcher = vscode.workspace.createFileSystemWatcher(MINISERVER_CONFIG_GLOB, false, false, false);
+    context.subscriptions.push(serverConfigWatcher);
+    serverConfigWatcher.onDidCreate(() => void refreshServerConfigs());
+    serverConfigWatcher.onDidChange(() => void refreshServerConfigs());
+    serverConfigWatcher.onDidDelete(() => void refreshServerConfigs());
 
     vscode.debug.onDidStartDebugSession((e) => {
         const matches = /BoxLang MiniServer - (\w+)/.exec(e.name);
 
-        if (!matches.length || !servers[matches[1]]) {
+        if (!matches?.length || !servers[matches[1]]) {
             return;
         }
 
@@ -96,7 +117,7 @@ export function setupServers(con: vscode.ExtensionContext) {
     vscode.debug.onDidTerminateDebugSession((e) => {
         const matches = /BoxLang MiniServer - (\w+)/.exec(e.name);
 
-        if (!matches.length || !servers[matches[1]]) {
+        if (!matches?.length || !servers[matches[1]]) {
             return;
         }
 
@@ -104,27 +125,55 @@ export function setupServers(con: vscode.ExtensionContext) {
     });
 }
 
-function getServerConfigs(context: vscode.ExtensionContext): Record<string, BoxServerConfig> {
-    if (!fs.existsSync(path.join(context.storageUri.fsPath, BOXLANG_SERVER_CONFIG))) {
+function getStoredServerConfigs(): Record<string, BoxServerConfig> {
+    const storedConfigFile = path.join(context.storageUri.fsPath, BOXLANG_SERVER_CONFIG);
+
+    if (!fs.existsSync(storedConfigFile)) {
         return {};
     }
 
-    const servers = JSON.parse("" + fs.readFileSync(path.join(context.storageUri.fsPath, BOXLANG_SERVER_CONFIG)));
+    const storedServers: Record<string, BoxServerConfig> = JSON.parse(fs.readFileSync(storedConfigFile, "utf8"));
 
-    for (let key in servers) {
-        servers[key].status = "stopped";
-        servers[key].debugging = false;
+    for (const server of Object.values(storedServers)) {
+        server.status = "stopped";
+        server.debugging = false;
+        server.debugMode ??= false;
+        server.configFile ??= "";
+    }
 
-        if (!servers[key].hasOwnProperty("debugMode")) {
-            servers[key].debugMode = false;
+    return storedServers;
+}
+
+// Re-reads optional miniserver.json files; servers stored in workspace storage are kept as-is
+async function refreshServerConfigs(): Promise<void> {
+    const configFiles = await vscode.workspace.findFiles(MINISERVER_CONFIG_GLOB);
+    const refreshedServers: Record<string, BoxServerConfig> = Object.fromEntries(
+        Object.entries(servers).filter(([, server]) => !server.serverConfigFile)
+    );
+
+    for (const configFile of configFiles) {
+        try {
+            const server = JSON.parse(fs.readFileSync(configFile.fsPath, "utf8")) as BoxServerConfig;
+
+            if (!server.name || !server.directory) {
+                boxlangOutputChannel.appendLine(`BoxLang: Ignoring invalid MiniServer configuration ${configFile.fsPath}`);
+                continue;
+            }
+
+            server.status = servers[server.name]?.status ?? "stopped";
+            server.debugging = servers[server.name]?.debugging ?? false;
+            server.debugMode ??= false;
+            server.configFile ??= "";
+            server.serverConfigFile = configFile.fsPath;
+            refreshedServers[server.name] = server;
         }
-
-        if (!servers[key].hasOwnProperty("configFile")) {
-            servers[key].configFile = "";
+        catch (error) {
+            boxlangOutputChannel.appendLine(`BoxLang: Could not read MiniServer configuration ${configFile.fsPath}: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 
-    return servers;
+    servers = refreshedServers;
+    _onDidChangeServerConfiguration.fire(servers);
 }
 
 export function updateServerProperty(serverName: string, property: string, value: string) {
@@ -138,12 +187,15 @@ export function updateServerProperty(serverName: string, property: string, value
     else if (property === "debugMode") {
         servers[serverName][property] = value.toLowerCase() === "true";
     }
+    else if (property === "port") {
+        servers[serverName][property] = Number.parseInt(value);
+    }
     else {
         servers[serverName][property] = value;
     }
 
 
-    persistCurrentServerConfig();
+    persistServerConfig(property === "name" ? value : serverName);
     _onDidChangeServerConfiguration.fire(servers);
 }
 
@@ -151,30 +203,61 @@ export function updateServerConfig(data: BoxServerConfig) {
     servers[data.name] = data;
     servers[data.name].status = "stopped";
 
-    persistCurrentServerConfig();
+    persistServerConfig(data.name);
     _onDidChangeServerConfiguration.fire(servers);
 }
 
-function persistCurrentServerConfig() {
-    const cleanedServerData = Object.keys(servers).reduce((cleaned, serverName) => {
-        cleaned[serverName] = {
-            name: servers[serverName].name,
-            host: servers[serverName].host,
-            port: servers[serverName].port,
-            directory: servers[serverName].directory,
-            type: servers[serverName].type,
-            debugMode: servers[serverName].debugMode,
-            configFile: servers[serverName].configFile
-        };
+function persistServerConfig(serverName: string) {
+    const server = servers[serverName];
 
-        return cleaned;
-    }, {});
+    if (server.serverConfigFile) {
+        fs.writeFileSync(server.serverConfigFile, JSON.stringify(cleanServerConfig(server), null, 4) + "\n");
+        return;
+    }
 
-    fs.writeFileSync(path.join(context.storageUri.fsPath, BOXLANG_SERVER_CONFIG), JSON.stringify(cleanedServerData));
+    persistStoredServerConfigs();
+}
+
+function persistStoredServerConfigs() {
+    const storedServers = Object.fromEntries(
+        Object.entries(servers)
+            .filter(([, server]) => !server.serverConfigFile)
+            .map(([name, server]) => [name, cleanServerConfig(server)])
+    );
+
+    fs.writeFileSync(path.join(context.storageUri.fsPath, BOXLANG_SERVER_CONFIG), JSON.stringify(storedServers));
+}
+
+function cleanServerConfig(server: BoxServerConfig) {
+    return {
+        name: server.name,
+        host: server.host,
+        port: server.port,
+        directory: server.directory,
+        type: server.type,
+        debugMode: server.debugMode,
+        configFile: server.configFile,
+        ...(server.rewrites == null ? {} : { rewrites: server.rewrites })
+    };
+}
+
+export function getServerConfigUri(name: string): vscode.Uri | null {
+    const serverConfigFile = servers[name]?.serverConfigFile;
+    return serverConfigFile ? vscode.Uri.file(serverConfigFile) : null;
+}
+
+// Moves a workspace-storage server into a project miniserver.json file
+export function exportServerConfig(name: string, serverConfigFile: string) {
+    servers[name].serverConfigFile = serverConfigFile;
+    persistServerConfig(name);
+    persistStoredServerConfigs();
+    _onDidChangeServerConfiguration.fire(servers);
 }
 
 function getAbsolutePath(filePath: string): string {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+
     return path.isAbsolute(filePath)
         ? filePath
-        : path.resolve(vscode.workspace.workspaceFolders[0].uri.fsPath, filePath);
+        : path.resolve(workspaceFolder?.uri.fsPath ?? "", filePath);
 }
