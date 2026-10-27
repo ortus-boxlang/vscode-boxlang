@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- BLIDE-106 add BoxLang snippets
+
 ## [1.32.1] - 2026-10-16
 
 ## [1.30.4] - 2026-10-13
