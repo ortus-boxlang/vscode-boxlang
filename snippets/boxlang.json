@@ -1,0 +1,25 @@
+{
+    "boxLang class": {
+        "prefix": "boxLang class",
+        "body": [
+            "class {",
+            "\t$0",
+            "}"
+        ],
+        "description": "boxLang class definition"
+    },
+    "writedump + abort": {
+        "prefix": "writedump + abort \u2026",
+        "body": [
+            "writeDump( var = ${1:variable}, abort = true );$0"
+        ],
+        "description": "Write dump and abort, writeDump( var = variable, abort = true );"
+    },
+    "Logging": {
+        "prefix": "logging",
+        "body": [
+            "writeLog( text = \"${1:message}\", type = \"${2|information,warning,error,fatal,debug|}\" );$0"
+        ],
+        "description": "Logging"
+    }
+}
