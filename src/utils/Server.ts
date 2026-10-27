@@ -4,10 +4,12 @@ import * as vscode from "vscode";
 import { boxlangOutputChannel } from "./OutputChannels";
 
 
+const BOXLANG_SERVER_CONFIG = "boxlang_server.json";
 const MINISERVER_CONFIG_GLOB = "**/{miniserver.json,*.miniserver.json}"; // gets any miniserver.json despite app name
 const _onDidChangeServerConfiguration: vscode.EventEmitter<any> = new vscode.EventEmitter<any>();
 export const onDidChangeServerConfiguration: vscode.Event<any> = _onDidChangeServerConfiguration.event;
 let servers: Record<string, BoxServerConfig> = {};
+let context: vscode.ExtensionContext;
 
 export type BoxServerConfig = { //Sets the vars for the server config
     name: string,
@@ -74,14 +76,26 @@ export function deleteServer(name) {
     const serverConfigFile = servers[name]?.serverConfigFile;
     delete servers[name];
 
-    if (serverConfigFile && fs.existsSync(serverConfigFile)) {
-        fs.unlinkSync(serverConfigFile);
+    if (serverConfigFile) {
+        if (fs.existsSync(serverConfigFile)) {
+            fs.unlinkSync(serverConfigFile);
+        }
+    }
+    else {
+        persistStoredServerConfigs();
     }
 
     _onDidChangeServerConfiguration.fire(servers);
 }
 
-export async function setupServers(context: vscode.ExtensionContext): Promise<void> {
+export async function setupServers(con: vscode.ExtensionContext): Promise<void> {
+    context = con;
+
+    if (!fs.existsSync(context.storageUri.fsPath)) {
+        fs.mkdirSync(context.storageUri.fsPath, { recursive: true });
+    }
+
+    servers = getStoredServerConfigs();
     await refreshServerConfigs();
 
     const serverConfigWatcher = vscode.workspace.createFileSystemWatcher(MINISERVER_CONFIG_GLOB, false, false, false);
@@ -111,9 +125,31 @@ export async function setupServers(context: vscode.ExtensionContext): Promise<vo
     });
 }
 
+function getStoredServerConfigs(): Record<string, BoxServerConfig> {
+    const storedConfigFile = path.join(context.storageUri.fsPath, BOXLANG_SERVER_CONFIG);
+
+    if (!fs.existsSync(storedConfigFile)) {
+        return {};
+    }
+
+    const storedServers: Record<string, BoxServerConfig> = JSON.parse(fs.readFileSync(storedConfigFile, "utf8"));
+
+    for (const server of Object.values(storedServers)) {
+        server.status = "stopped";
+        server.debugging = false;
+        server.debugMode ??= false;
+        server.configFile ??= "";
+    }
+
+    return storedServers;
+}
+
+// Re-reads optional miniserver.json files; servers stored in workspace storage are kept as-is
 async function refreshServerConfigs(): Promise<void> {
     const configFiles = await vscode.workspace.findFiles(MINISERVER_CONFIG_GLOB);
-    const refreshedServers: Record<string, BoxServerConfig> = {};
+    const refreshedServers: Record<string, BoxServerConfig> = Object.fromEntries(
+        Object.entries(servers).filter(([, server]) => !server.serverConfigFile)
+    );
 
     for (const configFile of configFiles) {
         try {
@@ -164,7 +200,6 @@ export function updateServerProperty(serverName: string, property: string, value
 }
 
 export function updateServerConfig(data: BoxServerConfig) {
-    data.serverConfigFile ??= getDefaultServerConfigFile(data);
     servers[data.name] = data;
     servers[data.name].status = "stopped";
 
@@ -174,8 +209,27 @@ export function updateServerConfig(data: BoxServerConfig) {
 
 function persistServerConfig(serverName: string) {
     const server = servers[serverName];
-    const serverConfigFile = server.serverConfigFile ?? getDefaultServerConfigFile(server);
-    const cleanedServerData = {
+
+    if (server.serverConfigFile) {
+        fs.writeFileSync(server.serverConfigFile, JSON.stringify(cleanServerConfig(server), null, 4) + "\n");
+        return;
+    }
+
+    persistStoredServerConfigs();
+}
+
+function persistStoredServerConfigs() {
+    const storedServers = Object.fromEntries(
+        Object.entries(servers)
+            .filter(([, server]) => !server.serverConfigFile)
+            .map(([name, server]) => [name, cleanServerConfig(server)])
+    );
+
+    fs.writeFileSync(path.join(context.storageUri.fsPath, BOXLANG_SERVER_CONFIG), JSON.stringify(storedServers));
+}
+
+function cleanServerConfig(server: BoxServerConfig) {
+    return {
         name: server.name,
         host: server.host,
         port: server.port,
@@ -185,23 +239,19 @@ function persistServerConfig(serverName: string) {
         configFile: server.configFile,
         ...(server.rewrites == null ? {} : { rewrites: server.rewrites })
     };
-
-    fs.writeFileSync(serverConfigFile, JSON.stringify(cleanedServerData, null, 4) + "\n");
-    server.serverConfigFile = serverConfigFile;
-}
-
-function getDefaultServerConfigFile(server: BoxServerConfig): string {
-    const safeName = server.name.replace(/[<>:"/\\|?*\u0000-\u001F]/g, "-");
-    const fileName = safeName.toLowerCase() === "miniserver"
-        ? "miniserver.json"
-        : `${safeName}.miniserver.json`;
-
-    return path.join(getAbsolutePath(server.directory), fileName);
 }
 
 export function getServerConfigUri(name: string): vscode.Uri | null {
     const serverConfigFile = servers[name]?.serverConfigFile;
     return serverConfigFile ? vscode.Uri.file(serverConfigFile) : null;
+}
+
+// Moves a workspace-storage server into a project miniserver.json file
+export function exportServerConfig(name: string, serverConfigFile: string) {
+    servers[name].serverConfigFile = serverConfigFile;
+    persistServerConfig(name);
+    persistStoredServerConfigs();
+    _onDidChangeServerConfiguration.fire(servers);
 }
 
 function getAbsolutePath(filePath: string): string {

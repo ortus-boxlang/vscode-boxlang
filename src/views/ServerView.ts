@@ -22,7 +22,7 @@ onDidChangeServerConfiguration((data) => {
 
 export function boxlangServerTreeDataProvider(): vscode.TreeDataProvider<{ key: string }> {
     return {
-        onDidChangeTreeData: onDidChangeTreeData as  any,
+        onDidChangeTreeData: onDidChangeTreeData as any,
         getChildren: (element: { key: string }): { key: string }[] => {
             return !element ? Object.keys(servers).map(s => ({ key: s }))
                 : [
@@ -61,7 +61,8 @@ export function boxlangServerTreeDataProvider(): vscode.TreeDataProvider<{ key: 
 
 function getContextValue(server, keyParts) {
     if (keyParts.length === 1) {
-        return server.status === "stopped" ? "boxlangServerStoppedContext" : "boxlangServerRunningContext"
+        const context = server.status === "stopped" ? "boxlangServerStoppedContext" : "boxlangServerRunningContext";
+        return server.serverConfigFile ? context + ".file" : context;
     }
 
     return editableProperties[keyParts[1]] ? "editableBoxlangServerPropertyContext" : "constantBoxlangServerPropertyContext";

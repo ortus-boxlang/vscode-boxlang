@@ -57,9 +57,7 @@
         "host",
         "port",
         "directory",
-        "type",
-        "debugMode",
-        "configFile"
+        "type"
     ],
     "additionalProperties": false
 }
