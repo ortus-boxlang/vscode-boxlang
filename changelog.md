@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.34.1] - 2026-10-31
+
 - BLIDE-106 add BoxLang snippets
 - BLIDE-265 Enable exporting of miniserver files to the project
 
@@ -373,7 +375,8 @@
 - Added experimental support for file formatting
 - JSON schema for boxlang.json
 
-[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.32.1...HEAD
+[unreleased]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.34.1...HEAD
+[1.34.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.32.1...v1.34.1
 [1.32.1]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.4...v1.32.1
 [1.30.4]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.3...v1.30.4
 [1.30.3]: https://github.com/ortus-boxlang/vscode-boxlang/compare/v1.30.2...v1.30.3
